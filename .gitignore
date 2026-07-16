@@ -9,10 +9,6 @@ credentials.json
 secrets.json
 service-account*.json
 
-# ─── Deployment ──────────────────────────────────────────
-.vercel
-.netlify
-
 # ─── Dependencies ────────────────────────────────────────
 node_modules/
 

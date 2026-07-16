@@ -73,7 +73,7 @@ seven-step pipeline above.
 | Lead discovery   | [Apify](https://apify.com) Google Places / Maps crawler           |
 | AI copywriting   | [Anthropic Claude](https://www.anthropic.com) Messages API        |
 | Email delivery   | Gmail (via n8n OAuth2 node)                                        |
-| Hosting          | Any static host for the front-end (Vercel / Netlify / GitHub Pages) |
+| Hosting          | Any static host (e.g., GitHub Pages) — or open the file locally     |
 
 ## Repository Structure
 
@@ -88,7 +88,6 @@ NearbyNudge/
 ├── .env.example            # Config template — copy to .env and fill in real keys
 ├── .gitattributes          # Line-ending normalization
 ├── .gitignore              # Ignores .env, caches, OS/editor files
-├── vercel.json             # Static-hosting rewrite (serves app/index.html at /)
 ├── LICENSE                 # MIT
 └── README.md
 ```
@@ -145,9 +144,8 @@ const WEBHOOK_URL = 'https://YOUR-N8N-HOST/webhook/nearbynudge';
 
 **6. Run the front-end**
 
-Open `app/index.html` directly in a browser, or deploy to any static host. A `vercel.json` is
-included that serves `app/index.html` at the site root — just import the repo into Vercel
-(or Netlify / GitHub Pages) for a live URL.
+Open `app/index.html` directly in a browser, or host the static `app/` folder on any static
+host (e.g., GitHub Pages) for a live URL.
 
 ## Usage
 
