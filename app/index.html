@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>NearbyNudge.AI — AI-Powered Local Prospecting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0D0F1A;--bg2:#131628;--bg3:#1A1D32;
+  --text:#D8DCF0;--text-dim:rgba(216,220,240,.55);--text-muted:rgba(216,220,240,.3);
+  --cyan:#00E5FF;--cyan-dim:rgba(0,229,255,.1);--cyan-glow:rgba(0,229,255,.25);
+  --blue:#4D8DFF;--blue-dim:rgba(77,141,255,.1);
+  --gold:#FFBE4D;--gold-dim:rgba(255,190,77,.1);
+  --red:#FF6B6B;
+  --border:rgba(216,220,240,.06);
+  --r:14px;--r-lg:20px;
+  --font:'Inter',sans-serif;--mono:'Space Mono',monospace;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg);color:var(--text);overflow-x:hidden;line-height:1.6;-webkit-font-smoothing:antialiased}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 5vw;height:64px;background:rgba(7,10,18,.75);backdrop-filter:blur(20px);border-bottom:.5px solid var(--border)}
+.logo{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--text);text-decoration:none;display:flex;align-items:center;gap:8px;letter-spacing:-.02em}
+.logo-dot{width:8px;height:8px;background:var(--cyan);border-radius:50%;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
+.nav-links{display:flex;align-items:center;gap:28px;list-style:none}
+.nav-links a{font-size:13px;font-weight:400;color:var(--text-dim);text-decoration:none;transition:color .2s}
+.nav-links a:hover{color:var(--text)}
+.nav-cta{font-family:var(--mono);background:var(--cyan);color:var(--bg)!important;padding:7px 16px;border-radius:8px;font-weight:600!important;font-size:12px!important;letter-spacing:.02em;cursor:pointer}
+.nav-cta:hover{filter:brightness(1.1)}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:120px 5vw 80px;position:relative;overflow:hidden}
+.hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:60px 60px;mask-image:radial-gradient(ellipse 70% 50% at 50% 40%,black,transparent)}
+.hero-glow1{position:absolute;width:800px;height:800px;border-radius:50%;background:radial-gradient(circle,rgba(0,229,160,.1),transparent 70%);top:-200px;left:50%;transform:translateX(-50%);pointer-events:none}
+.hero-glow2{position:absolute;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(77,141,255,.08),transparent 70%);bottom:-100px;right:5%;pointer-events:none}
+.hero-category{font-family:var(--mono);display:inline-flex;align-items:center;gap:8px;background:var(--cyan-dim);border:.5px solid var(--cyan-glow);border-radius:100px;padding:6px 18px;font-size:11px;font-weight:600;color:var(--cyan);letter-spacing:.1em;text-transform:uppercase;margin-bottom:36px;position:relative}
+.hero-category .cd{width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:pulse 2s infinite}
+.hero h1{font-family:var(--mono);font-size:clamp(40px,6.5vw,82px);font-weight:900;line-height:1.0;letter-spacing:-.04em;max-width:850px;position:relative}
+.hero h1 .hl{color:var(--cyan)}
+.hero-sub{font-size:clamp(15px,1.8vw,19px);font-weight:300;color:var(--text-dim);max-width:540px;margin-top:24px;line-height:1.7;position:relative}
+.hero-ctas{display:flex;align-items:center;gap:14px;margin-top:40px;flex-wrap:wrap;justify-content:center;position:relative}
+.btn{font-family:var(--mono);display:inline-flex;align-items:center;gap:8px;font-family:var(--font);font-size:14px;font-weight:600;padding:13px 26px;border-radius:10px;border:none;cursor:pointer;text-decoration:none;transition:all .2s;white-space:nowrap}
+.btn-teal{background:var(--cyan);color:var(--bg)}
+.btn-teal:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--text-dim);border:.5px solid rgba(255,255,255,.12)}
+.btn-ghost:hover{border-color:rgba(255,255,255,.3);color:var(--text)}
+
+/* STATS BAR */
+.stats-bar{display:flex;gap:48px;justify-content:center;margin-top:56px;position:relative}
+.stat{text-align:center}
+.stat-val{font-family:var(--mono);font-size:26px;font-weight:800;letter-spacing:-.02em}
+.stat-label{font-size:11px;font-weight:400;color:var(--text-muted);margin-top:2px;text-transform:uppercase;letter-spacing:.08em}
+.stat-div{width:.5px;background:rgba(255,255,255,.08);align-self:stretch}
+
+/* SECTION COMMON */
+.sec{padding:100px 5vw;max-width:1200px;margin:0 auto}
+.sec-label{font-family:var(--mono);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--cyan);margin-bottom:14px}
+.sec-title{font-family:var(--mono);font-size:clamp(28px,4vw,46px);font-weight:800;letter-spacing:-.03em;line-height:1.1;max-width:650px}
+.sec-sub{font-size:16px;font-weight:300;color:var(--text-dim);max-width:520px;margin-top:14px;line-height:1.7}
+
+/* PROBLEM */
+.problem-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:52px}
+.pain-card{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r-lg);padding:32px 24px;position:relative;overflow:hidden;transition:border-color .25s}
+.pain-card:hover{border-color:rgba(255,255,255,.12)}
+.pain-card .top-accent{position:absolute;top:0;left:0;right:0;height:3px}
+.pain-num{font-family:var(--mono);font-size:40px;font-weight:900;letter-spacing:-.03em;line-height:1}
+.pain-label{font-family:var(--mono);font-size:11px;font-weight:400;color:var(--text-muted);margin-top:4px;text-transform:uppercase;letter-spacing:.06em}
+.pain-desc{font-size:13px;font-weight:300;color:var(--text-dim);margin-top:14px;line-height:1.65}
+
+/* OLD vs NEW */
+.compare-section{padding:80px 5vw;max-width:1200px;margin:0 auto}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:48px}
+.compare-card{border-radius:var(--r-lg);padding:40px;position:relative;overflow:hidden}
+.compare-old{background:#0D0F16;border:.5px solid var(--border)}
+.compare-new{background:linear-gradient(135deg,rgba(0,229,160,.06),rgba(77,141,255,.04));border:.5px solid var(--cyan-glow)}
+.compare-tag{font-family:var(--mono);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;padding:4px 12px;border-radius:100px;display:inline-block;margin-bottom:24px}
+.tag-old{background:rgba(255,107,107,.1);color:var(--red)}
+.tag-new{background:var(--cyan-dim);color:var(--cyan)}
+.compare-item{padding:14px 0;border-bottom:.5px solid var(--border);display:flex;align-items:flex-start;gap:12px}
+.compare-item:last-child{border-bottom:none}
+.compare-icon{font-size:16px;flex-shrink:0;margin-top:2px}
+.compare-item h4{font-size:14px;font-weight:600;margin-bottom:2px}
+.compare-item p{font-size:12px;font-weight:300;color:var(--text-dim);line-height:1.6}
+.compare-flow{display:flex;align-items:center;gap:8px;margin:28px 0;flex-wrap:wrap}
+.flow-step{font-family:var(--mono);background:rgba(0,229,160,.08);border:.5px solid var(--cyan-glow);border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;color:var(--cyan)}
+.flow-arrow{color:var(--cyan);font-size:18px}
+.compare-quote{font-size:15px;font-weight:500;color:var(--text);line-height:1.6;margin-top:20px;padding:16px 20px;background:rgba(0,229,160,.05);border-left:3px solid var(--cyan);border-radius:0 8px 8px 0}
+.category-badge{font-family:var(--mono);display:inline-block;margin-top:20px;background:var(--cyan);color:var(--bg);font-size:12px;font-weight:700;padding:8px 20px;border-radius:100px;letter-spacing:.04em}
+
+/* HOW IT WORKS */
+.inputs-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:48px}
+.input-card{background:var(--bg3);border:.5px solid var(--border);border-radius:var(--r);padding:24px;text-align:center}
+.input-card h4{font-size:15px;font-weight:700;margin-bottom:4px}
+.input-card p{font-size:12px;color:var(--text-dim)}
+.pipeline-arrow{text-align:center;font-size:24px;color:var(--cyan);margin:20px 0}
+.pipeline-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.pipe-card{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r-lg);padding:28px 20px;position:relative}
+.pipe-num{font-family:var(--mono);display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--cyan);color:var(--bg);font-size:13px;font-weight:800;margin-bottom:12px}
+.pipe-card h4{font-size:14px;font-weight:700;margin-bottom:6px}
+.pipe-card p{font-size:12px;color:var(--text-dim);line-height:1.6}
+
+/* EMAIL SHOWCASE */
+.emails-section{padding:80px 5vw;max-width:1200px;margin:0 auto}
+.emails-prompt{background:var(--bg3);border:.5px solid var(--border);border-radius:var(--r);padding:16px 24px;margin-top:40px;font-family:var(--mono);font-size:12px;color:var(--text-dim);line-height:1.6}
+.emails-prompt strong{color:var(--cyan);font-weight:500}
+.emails-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px}
+.email-card{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
+.email-badge{padding:10px 20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em}
+.badge-star{background:rgba(0,229,160,.08);color:var(--cyan);border-bottom:.5px solid var(--cyan-glow)}
+.badge-low{background:var(--gold-dim);color:var(--gold);border-bottom:.5px solid rgba(255,190,77,.2)}
+.email-content{padding:24px}
+.email-biz{font-size:13px;font-weight:600;margin-bottom:4px}
+.email-subj{font-size:12px;font-weight:500;color:var(--blue);margin-bottom:12px}
+.email-body{font-size:12px;color:var(--text-dim);line-height:1.7}
+.email-note{text-align:center;margin-top:20px;font-size:13px;color:var(--cyan);font-weight:500;font-style:italic}
+
+/* PRICING */
+.pricing-section{padding:100px 5vw;max-width:1000px;margin:0 auto;text-align:center}
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:48px;text-align:left}
+.price-card{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r-lg);padding:32px 24px;position:relative;transition:border-color .25s}
+.price-card:hover{border-color:rgba(255,255,255,.12)}
+.price-card.featured{border-color:var(--cyan-glow);background:linear-gradient(180deg,rgba(0,229,160,.04),var(--bg2))}
+.price-pop{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--cyan);color:var(--bg);font-size:10px;font-weight:700;padding:3px 14px;border-radius:100px;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
+.plan-name{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
+.plan-price{font-family:var(--mono);font-size:42px;font-weight:900;letter-spacing:-.03em;line-height:1}
+.plan-price span{font-size:15px;font-weight:400;color:var(--text-muted)}
+.plan-mo{font-size:12px;color:var(--text-muted);margin:4px 0 20px}
+.plan-line{height:.5px;background:var(--border);margin-bottom:20px}
+.plan-feat{list-style:none}
+.plan-feat li{display:flex;align-items:flex-start;gap:8px;font-size:13px;font-weight:300;color:var(--text-dim);padding:5px 0}
+.plan-feat .ck{color:var(--cyan);font-size:12px;flex-shrink:0;margin-top:2px}
+.plan-btn{display:block;text-align:center;margin-top:24px;padding:11px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:all .2s;cursor:pointer}
+.plan-btn-outline{border:.5px solid rgba(255,255,255,.12);color:var(--text-dim)}
+.plan-btn-outline:hover{background:rgba(255,255,255,.04)}
+.plan-btn-solid{background:var(--cyan);color:var(--bg)}
+.plan-btn-solid:hover{filter:brightness(1.1)}
+
+/* MARKET */
+.market-section{padding:80px 5vw;max-width:1200px;margin:0 auto}
+.market-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:48px}
+.market-card{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r-lg);padding:28px 20px;text-align:center}
+.market-card .mv{font-family:var(--mono);font-size:28px;font-weight:900;color:var(--gold);letter-spacing:-.02em}
+.market-card .ml{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
+.market-card .md{font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5}
+
+/* CTA */
+.cta-section{margin:40px 5vw 80px;background:var(--bg2);border:.5px solid var(--border);border-radius:24px;padding:72px 48px;text-align:center;position:relative;overflow:hidden}
+.cta-section::before{content:'';position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(0,229,160,.08),transparent 70%);top:-200px;left:50%;transform:translateX(-50%);pointer-events:none}
+.cta-section h2{font-family:var(--mono);font-size:clamp(26px,4vw,48px);font-weight:900;letter-spacing:-.03em;max-width:600px;margin:0 auto 14px;position:relative}
+.cta-section p{font-size:15px;font-weight:300;color:var(--text-dim);max-width:400px;margin:0 auto 32px;position:relative}
+
+/* FOOTER */
+footer{border-top:.5px solid var(--border);padding:36px 5vw;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.footer-logo{font-size:14px;font-weight:800;color:var(--text-muted)}
+.footer-links{display:flex;gap:24px}
+.footer-links a{font-size:11px;color:var(--text-muted);text-decoration:none;transition:color .2s;cursor:pointer}
+.footer-links a:hover{color:var(--text-dim)}
+.footer-copy{font-size:10px;color:rgba(255,255,255,.15);width:100%;margin-top:8px}
+
+/* REVEAL */
+.reveal{opacity:0;transform:translateY(20px);transition:opacity .6s ease,transform .6s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .problem-grid,.pipeline-row,.market-grid{grid-template-columns:1fr 1fr}
+  .inputs-row{grid-template-columns:1fr}
+  .compare-grid,.emails-grid,.pricing-grid{grid-template-columns:1fr}
+  .nav-links{display:none}
+  .stats-bar{gap:20px}
+}
+
+/* ═══ DASHBOARD STYLES ═══ */
+#dashboard-view{display:none}
+#dashboard-view.active{display:flex}
+#landing-view.hidden{display:none}
+
+#dashboard-view{
+  min-height:100vh;font-family:'Space Grotesk',sans-serif;color:#c0d8e8;
+}
+.db-sidebar{
+  width:220px;background:rgba(255,255,255,0.015);border-right:1px solid rgba(100,200,255,0.06);
+  display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;
+}
+.db-sidebar-logo{
+  padding:24px 16px 28px;border-bottom:1px solid rgba(100,200,255,0.06);
+  display:flex;align-items:center;gap:10px;cursor:pointer;
+}
+.db-sidebar-logo-icon{
+  width:32px;height:32px;border-radius:8px;
+  background:linear-gradient(135deg,#00e6c8,#64c8ff);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;color:#0a0f1a;flex-shrink:0;
+}
+.db-sidebar-logo span{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#e0f0ff;letter-spacing:-0.5px}
+.db-nav{padding:16px 8px;display:flex;flex-direction:column;gap:2px;flex:1}
+.db-nav-divider{height:1px;background:rgba(100,200,255,0.06);margin:8px 4px}
+.db-nav-item{
+  display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;cursor:pointer;
+  border:1px solid transparent;transition:all 0.15s;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:#5a7a90;
+}
+.db-nav-item:hover{color:#8ab4d0}
+.db-nav-item.active{background:rgba(100,200,255,0.06);border-color:rgba(0,230,200,0.15);color:#64c8ff}
+.db-nav-item.active.accent{background:rgba(0,230,200,0.12);color:#00e6c8}
+.db-nav-icon{font-size:18px;width:24px;text-align:center;flex-shrink:0}
+.db-sidebar-user{padding:16px;border-top:1px solid rgba(100,200,255,0.06);display:flex;align-items:center;gap:10px}
+.db-avatar{
+  width:28px;height:28px;border-radius:50%;
+  background:linear-gradient(135deg,#1a3040,#2a4050);
+  border:1px solid rgba(100,200,255,0.15);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:#64c8ff;font-weight:600;
+}
+.db-main{flex:1;overflow:auto;padding:28px 32px 40px}
+.db-page{animation:dbFadeIn 0.3s ease}
+@keyframes dbFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+.db-h1{font-size:26px;font-weight:700;color:#e0f0ff;margin-bottom:4px;font-family:'Space Grotesk',sans-serif}
+.db-sub{font-size:13px;color:#4a6a80;font-family:'JetBrains Mono',monospace}
+.db-card{background:rgba(255,255,255,0.02);border:1px solid rgba(100,200,255,0.08);border-radius:10px}
+.db-stat{padding:22px 24px;flex:1;min-width:150px;position:relative;overflow:hidden}
+.db-stat-bar{position:absolute;top:0;left:0;right:0;height:2px}
+.db-stat-label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5a7a90;font-weight:600;margin-bottom:10px;font-family:'JetBrains Mono',monospace}
+.db-stat-val{font-size:32px;font-weight:700;color:#e0f0ff;font-family:'Space Grotesk',sans-serif;line-height:1}
+.db-stat-sub{font-size:12px;color:#4a6a80;margin-top:6px;font-family:'JetBrains Mono',monospace}
+.db-section-hdr{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:#5a7a90;font-weight:600;font-family:'JetBrains Mono',monospace}
+.db-table{width:100%;border-collapse:collapse}
+.db-table th{padding:10px 16px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#3a5a6a;font-weight:600;font-family:'JetBrains Mono',monospace}
+.db-table td{padding:12px 16px;font-size:13px}
+.db-table tr{border-bottom:1px solid rgba(100,200,255,0.03)}
+.db-badge{padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;font-family:'JetBrains Mono',monospace}
+.db-btn-primary{
+  padding:10px 20px;border-radius:8px;border:none;
+  background:linear-gradient(135deg,#00e6c8,#64c8ff);
+  color:#0a0f1a;font-weight:700;font-size:13px;cursor:pointer;
+  font-family:'JetBrains Mono',monospace;letter-spacing:0.5px;
+  box-shadow:0 0 20px rgba(0,230,200,0.2);
+}
+.db-btn-primary:hover{filter:brightness(1.1)}
+.db-filter-btn{
+  padding:7px 16px;border-radius:6px;cursor:pointer;font-family:'JetBrains Mono',monospace;
+  font-size:12px;font-weight:600;border:1px solid rgba(100,200,255,0.1);
+  background:transparent;color:#5a7a90;text-transform:capitalize;
+}
+.db-filter-btn.active{border-color:rgba(0,230,200,0.3);background:rgba(0,230,200,0.1);color:#00e6c8}
+.db-input{
+  width:100%;padding:14px 16px;border-radius:8px;border:1px solid rgba(100,200,255,0.12);
+  background:rgba(0,0,0,0.3);color:#c0d8e8;font-size:14px;font-family:'Space Grotesk',sans-serif;outline:none;
+}
+.db-input-label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#64c8ff;font-weight:600;margin-bottom:8px;font-family:'JetBrains Mono',monospace}
+.db-select{
+  width:100%;padding:14px 16px;border-radius:8px;border:1px solid rgba(100,200,255,0.12);
+  background:rgba(0,0,0,0.3);color:#c0d8e8;font-size:14px;font-family:'Space Grotesk',sans-serif;
+  outline:none;appearance:none;cursor:pointer;
+}
+.db-select option{background:#0d1420;color:#c0d8e8}
+.db-generate-btn{
+  width:100%;padding:16px;border-radius:10px;border:none;
+  background:linear-gradient(135deg,#00e6c8,#64c8ff);
+  color:#0a0f1a;font-weight:700;font-size:14px;cursor:pointer;
+  font-family:'JetBrains Mono',monospace;letter-spacing:0.5px;
+  box-shadow:0 0 24px rgba(0,230,200,0.2);transition:all 0.3s;
+}
+.db-generate-btn:disabled{background:rgba(100,200,255,0.15);color:#64c8ff;cursor:wait;box-shadow:none}
+.db-back-btn{
+  display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:6px;
+  border:1px solid rgba(100,200,255,0.12);background:transparent;color:#5a7a90;
+  font-size:12px;font-family:'JetBrains Mono',monospace;cursor:pointer;margin-bottom:20px;font-weight:600;
+}
+.db-back-btn:hover{border-color:rgba(100,200,255,0.3);color:#8ab4d0}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- LANDING PAGE -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="landing-view">
+
+<nav>
+  <a href="#" class="logo" onclick="showLanding();return false;"><span class="logo-dot"></span>NearbyNudge.AI</a>
+  <ul class="nav-links">
+    <li><a href="#how">How it works</a></li>
+    <li><a href="#emails">See it in action</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+    <li><a href="#" class="nav-cta" onclick="showDashboard();return false;">Try it free →</a></li>
+  </ul>
+</nav>
+
+<section class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow1"></div>
+  <div class="hero-glow2"></div>
+  <div class="hero-category"><span class="cd"></span>A New Category in Outbound</div>
+  <h1>Find local leads.<br>Write <span class="hl">personalized</span><br>outreach. Automatically.</h1>
+  <p class="hero-sub">NearbyNudge discovers nearby businesses from Google Maps, generates hyper-personalized cold emails for each one, and sends them — all from three simple inputs.</p>
+  <div class="hero-ctas">
+    <a href="#" class="btn btn-teal" onclick="showDashboard();return false;">Start for free →</a>
+    <a href="#how" class="btn btn-ghost">See how it works</a>
+  </div>
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-val">3</div><div class="stat-label">Inputs needed</div></div>
+    <div class="stat-div"></div>
+    <div class="stat"><div class="stat-val">~2 min</div><div class="stat-label">To first campaign</div></div>
+    <div class="stat-div"></div>
+    <div class="stat"><div class="stat-val">100%</div><div class="stat-label">Personalized emails</div></div>
+    <div class="stat-div"></div>
+    <div class="stat"><div class="stat-val">$0</div><div class="stat-label">To start</div></div>
+  </div>
+</section>
+
+<section class="sec reveal">
+  <div class="sec-label">The Problem</div>
+  <h2 class="sec-title">Local B2B teams are stuck in the stone age</h2>
+  <p class="sec-sub">Small teams waste hours finding leads manually and get ignored when they finally send emails.</p>
+  <div class="problem-grid">
+    <div class="pain-card"><div class="top-accent" style="background:var(--red)"></div><div class="pain-num" style="color:var(--red)">5+</div><div class="pain-label">hours / week</div><div class="pain-desc">Spent manually searching Google Maps and copying business data into spreadsheets.</div></div>
+    <div class="pain-card"><div class="top-accent" style="background:var(--gold)"></div><div class="pain-num" style="color:var(--gold)">&lt;2%</div><div class="pain-label">reply rate</div><div class="pain-desc">On generic template cold emails that feel copy-pasted and go straight to trash.</div></div>
+    <div class="pain-card"><div class="top-accent" style="background:var(--blue)"></div><div class="pain-num" style="color:var(--blue)">0</div><div class="pain-label">personalization</div><div class="pain-desc">At scale — writing a unique email per prospect is too slow to do manually.</div></div>
+    <div class="pain-card"><div class="top-accent" style="background:var(--cyan)"></div><div class="pain-num" style="color:var(--cyan)">$3K+</div><div class="pain-label">/ month</div><div class="pain-desc">For outsourced SDR agencies — completely out of reach for small teams.</div></div>
+  </div>
+</section>
+
+<section class="compare-section reveal">
+  <div class="sec-label">We Created a New Category</div>
+  <h2 class="sec-title">Every existing tool assumes you already have leads</h2>
+  <div class="compare-grid">
+    <div class="compare-card compare-old">
+      <span class="compare-tag tag-old">The Old World</span>
+      <div class="compare-item"><span class="compare-icon">✗</span><div><h4>Buy a lead list</h4><p>Apollo, Instantly — you bring leads, they help you email. Not built for local.</p></div></div>
+      <div class="compare-item"><span class="compare-icon">✗</span><div><h4>Write templates</h4><p>Mailchimp, HubSpot — you write the copy, they blast it. Zero personalization.</p></div></div>
+      <div class="compare-item"><span class="compare-icon">✗</span><div><h4>Hire an agency</h4><p>SDR firms — $3K–$10K/month. Out of reach for any small team.</p></div></div>
+    </div>
+    <div class="compare-card compare-new">
+      <span class="compare-tag tag-new">The NearbyNudge Way</span>
+      <div class="compare-flow"><span class="flow-step">Location</span><span class="flow-arrow">→</span><span class="flow-step">Industry</span><span class="flow-arrow">→</span><span class="flow-step">Your Prompt</span></div>
+      <div class="compare-flow"><span class="flow-step">Leads Found</span><span class="flow-arrow">→</span><span class="flow-step">Emails Written</span><span class="flow-arrow">→</span><span class="flow-step">Sent ✓</span></div>
+      <div class="compare-quote">We discover leads from Google Maps and generate personalized emails — automatically. No lists. No templates. No agency.</div>
+      <div class="category-badge">AI-Powered Local Prospecting</div>
+    </div>
+  </div>
+</section>
+
+<section class="sec reveal" id="how">
+  <div class="sec-label">How It Works</div>
+  <h2 class="sec-title">Three inputs. One workflow. Personalized outreach at scale.</h2>
+  <div class="inputs-row">
+    <div class="input-card"><h4>📍 Location</h4><p>City or ZIP code</p></div>
+    <div class="input-card"><h4>🏢 Industry</h4><p>Category keyword</p></div>
+    <div class="input-card"><h4>✍️ Brief Prompt</h4><p>Your offer + tone + CTA</p></div>
+  </div>
+  <div class="pipeline-arrow">▼</div>
+  <div class="pipeline-row">
+    <div class="pipe-card"><span class="pipe-num">1</span><h4>Lead Discovery</h4><p>Google Maps API pulls nearby businesses with ratings, websites, and contact signals.</p></div>
+    <div class="pipe-card"><span class="pipe-num">2</span><h4>AI Enrichment</h4><p>Structures listings into profiles with segmentation tags — high reputation, low visibility, multi-location.</p></div>
+    <div class="pipe-card"><span class="pipe-num">3</span><h4>AI Email Gen</h4><p>Generates a hyper-personalized email per prospect, referencing their unique business context.</p></div>
+    <div class="pipe-card"><span class="pipe-num">4</span><h4>Automated Send</h4><p>n8n orchestration handles batching, rate limits, and tracking end-to-end.</p></div>
+  </div>
+</section>
+
+<section class="emails-section reveal" id="emails">
+  <div class="sec-label">See It In Action</div>
+  <h2 class="sec-title">Same prompt. Genuinely different emails.</h2>
+  <div class="emails-prompt">
+    <strong>Location:</strong> Arlington, VA &nbsp;|&nbsp; <strong>Industry:</strong> Dentists &nbsp;|&nbsp; <strong>Prompt:</strong> "We help local dental practices get more patients through targeted Google Ads. Offer a free 15-min audit. Professional tone."
+  </div>
+  <div class="emails-grid">
+    <div class="email-card">
+      <div class="email-badge badge-star">⭐ High-Rated Practice</div>
+      <div class="email-content">
+        <div class="email-biz">Bright Smiles Dental (4.9★, 280 reviews)</div>
+        <div class="email-subj">Subject: Your reviews are impressive — here's how to turn that into more patients</div>
+        <div class="email-body">Hi Dr. [Name], I came across Bright Smiles Dental and your 4.9-star rating with 280 reviews is outstanding. Practices with that reputation see incredible ROI from targeted Google Ads because the trust is already built. I'd love to show you how we could turn that into 15–20 additional new patient bookings per month. Would a quick 15-minute audit call this week work?</div>
+      </div>
+    </div>
+    <div class="email-card">
+      <div class="email-badge badge-low">👁️ Low-Visibility Practice</div>
+      <div class="email-content">
+        <div class="email-biz">Arlington Family Dentistry (3.8★, 22 reviews)</div>
+        <div class="email-subj">Subject: A quick way to boost visibility for Arlington Family Dentistry</div>
+        <div class="email-body">Hi Dr. [Name], I noticed Arlington Family Dentistry has a solid community presence but may not be fully visible to patients searching online. A short Google Ads campaign could help you appear right when local patients search for a new dentist. I'd be happy to run a free 15-minute audit. Would Tuesday or Wednesday work?</div>
+      </div>
+    </div>
+  </div>
+  <div class="email-note">The AI adapts subject line, opening hook, value prop, and CTA based on each business's unique Google Maps signals.</div>
+</section>
+
+<section class="pricing-section reveal" id="pricing">
+  <div class="sec-label">Pricing</div>
+  <h2 class="sec-title" style="max-width:100%;text-align:center">Simple pricing. Clear value.</h2>
+  <p class="sec-sub" style="margin:14px auto 0;text-align:center">Start free. Upgrade when you're ready.</p>
+  <div class="pricing-grid">
+    <div class="price-card">
+      <div class="plan-name">Starter</div>
+      <div class="plan-price">$49<span>/mo</span></div>
+      <div class="plan-mo">150 leads/month</div>
+      <div class="plan-line"></div>
+      <ul class="plan-feat"><li><span class="ck">✓</span>AI-personalized emails</li><li><span class="ck">✓</span>Basic analytics dashboard</li><li><span class="ck">✓</span>Email support</li></ul>
+      <a href="#" class="plan-btn plan-btn-outline" onclick="showDashboard();return false;">Get started</a>
+    </div>
+    <div class="price-card featured">
+      <div class="price-pop">Most Popular</div>
+      <div class="plan-name">Growth</div>
+      <div class="plan-price">$149<span>/mo</span></div>
+      <div class="plan-mo">500 leads/month</div>
+      <div class="plan-line"></div>
+      <ul class="plan-feat"><li><span class="ck">✓</span>Follow-up sequences</li><li><span class="ck">✓</span>Advanced personalization signals</li><li><span class="ck">✓</span>CRM sync</li><li><span class="ck">✓</span>Priority support</li></ul>
+      <a href="#" class="plan-btn plan-btn-solid" onclick="showDashboard();return false;">Start free trial</a>
+    </div>
+    <div class="price-card">
+      <div class="plan-name">Scale</div>
+      <div class="plan-price">$349<span>/mo</span></div>
+      <div class="plan-mo">Unlimited leads</div>
+      <div class="plan-line"></div>
+      <ul class="plan-feat"><li><span class="ck">✓</span>Multi-location campaigns</li><li><span class="ck">✓</span>API access</li><li><span class="ck">✓</span>Full CRM integrations</li><li><span class="ck">✓</span>Dedicated onboarding</li></ul>
+      <a href="#" class="plan-btn plan-btn-outline" onclick="showDashboard();return false;">Contact us</a>
+    </div>
+  </div>
+</section>
+
+<section class="market-section reveal">
+  <div class="sec-label">The Opportunity</div>
+  <h2 class="sec-title">A $6.3 billion market with no owner</h2>
+  <p class="sec-sub">3.5M US B2B small businesses actively prospect — and no tool is built for local outbound.</p>
+  <div class="market-grid">
+    <div class="market-card"><div class="mv">$6.3B</div><div class="ml">TAM</div><div class="md">US B2B SMB outbound spend</div></div>
+    <div class="market-card"><div class="mv">$1.3B</div><div class="ml">SAM</div><div class="md">850K local, tech-comfortable firms</div></div>
+    <div class="market-card"><div class="mv">$7.5M</div><div class="ml">Year 3 ARR</div><div class="md">5,000 customers nationwide</div></div>
+    <div class="market-card"><div class="mv">&lt;1 mo</div><div class="ml">Payback</div><div class="md">CAC recovered in first month</div></div>
+  </div>
+</section>
+
+<div class="cta-section reveal">
+  <h2>Ready to fill your pipeline<br>with local leads?</h2>
+  <p>Enter your location, pick an industry, write your pitch. Your first campaign launches in under 3 minutes.</p>
+  <a href="#" class="btn btn-teal" style="font-size:15px;padding:15px 32px" onclick="showDashboard();return false;">Generate leads now →</a>
+</div>
+
+<footer>
+  <div class="footer-logo">NearbyNudge.AI</div>
+  <div class="footer-links">
+    <a href="#how">How it works</a>
+    <a href="#emails">See it in action</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#" onclick="showDashboard();return false;">Launch app</a>
+  </div>
+  <div class="footer-copy">© 2026 NearbyNudge.AI · AI-Powered Local Prospecting · Built at GWU</div>
+</footer>
+
+</div><!-- END landing-view -->
+
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- DASHBOARD -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="dashboard-view">
+
+  <!-- Sidebar -->
+  <div class="db-sidebar">
+    <div class="db-sidebar-logo" onclick="showLanding()">
+      <div class="db-sidebar-logo-icon">N</div>
+      <span>NearbyNudge</span>
+    </div>
+    <div class="db-nav" id="db-nav"></div>
+    <div class="db-sidebar-user">
+      <div class="db-avatar">AR</div>
+      <div><div style="font-size:12px;font-weight:600;color:#c0d8e8">Alex Rivera</div><div style="font-size:10px;color:#3a5a6a">Free Plan</div></div>
+    </div>
+  </div>
+
+  <!-- Main content area -->
+  <div class="db-main" id="db-main"></div>
+
+</div><!-- END dashboard-view -->
+
+
+<script>
+/* ═══ VIEW SWITCHING ═══ */
+function showDashboard(){
+  document.getElementById('landing-view').classList.add('hidden');
+  document.getElementById('dashboard-view').classList.add('active');
+  document.body.style.overflow='hidden';
+  window.scrollTo(0,0);
+  navigateTo('Dashboard');
+}
+function showLanding(){
+  document.getElementById('landing-view').classList.remove('hidden');
+  document.getElementById('dashboard-view').classList.remove('active');
+  document.body.style.overflow='';
+}
+
+/* ═══ REVEAL OBSERVER ═══ */
+const reveals=document.querySelectorAll('.reveal');
+const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible')})},{threshold:0.1});
+reveals.forEach(r=>obs.observe(r));
+
+/* ═══ DASHBOARD DATA ═══ */
+const CAMPAIGNS=[
+  {id:1,name:"Dental Clinics — Arlington",leads:24,sent:18,opened:12,replied:4,status:"active",date:"Apr 10"},
+  {id:2,name:"Auto Shops — Manassas",leads:31,sent:31,opened:19,replied:7,status:"completed",date:"Apr 8"},
+  {id:3,name:"Gyms — Fairfax",leads:17,sent:17,opened:11,replied:3,status:"completed",date:"Apr 5"},
+  {id:4,name:"Salons — Centreville",leads:12,sent:0,opened:0,replied:0,status:"draft",date:"Apr 11"},
+  {id:5,name:"Restaurants — Woodbridge",leads:28,sent:28,opened:16,replied:5,status:"completed",date:"Apr 3"},
+];
+const LEADS=[
+  {name:"Bright Smile Dental",industry:"Dental",location:"Arlington, VA",rating:4.7,reviews:132,status:"replied",email:"Sent Apr 10",phone:"(703) 555-0142",website:"brightsmile.com"},
+  {name:"QuickFix Auto",industry:"Auto Repair",location:"Manassas, VA",rating:4.3,reviews:89,status:"opened",email:"Sent Apr 8",phone:"(703) 555-0198",website:"quickfixauto.net"},
+  {name:"Iron Temple Gym",industry:"Fitness",location:"Fairfax, VA",rating:4.5,reviews:201,status:"replied",email:"Sent Apr 5",phone:"(703) 555-0234",website:"irontemple.fit"},
+  {name:"Glow Up Salon",industry:"Beauty",location:"Centreville, VA",rating:4.8,reviews:67,status:"pending",email:"Queued",phone:"(703) 555-0311",website:"glowupsalon.co"},
+  {name:"Pho King Good",industry:"Restaurant",location:"Woodbridge, VA",rating:4.6,reviews:312,status:"opened",email:"Sent Apr 3",phone:"(703) 555-0087",website:"phokingood.com"},
+  {name:"Nova Chiropractic",industry:"Health",location:"Arlington, VA",rating:4.9,reviews:54,status:"replied",email:"Sent Apr 9",phone:"(703) 555-0456",website:"novachiro.com"},
+];
+const EMAILS=[
+  {to:"Bright Smile Dental",subject:"Quick idea to get more 5-star reviews",preview:"Hi Dr. Patel, I noticed Bright Smile Dental has a strong 4.7 rating with 132 reviews on Google. I help local dental practices turn happy patients into consistent 5-star reviews with a simple automated follow-up...",date:"Apr 10",status:"replied"},
+  {to:"Iron Temple Gym",subject:"Boost Iron Temple's online presence",preview:"Hey team, Iron Temple Gym already has a great reputation with 201 reviews. I work with fitness businesses in Fairfax to turn that momentum into a steady stream of new members through targeted local outreach...",date:"Apr 5",status:"replied"},
+  {to:"QuickFix Auto",subject:"More customers for QuickFix Auto",preview:"Hi, I came across QuickFix Auto while researching top-rated auto shops in Manassas. With 89 reviews and a 4.3 rating, you're clearly doing great work. I wanted to share a quick strategy that could help you...",date:"Apr 8",status:"opened"},
+  {to:"Pho King Good",subject:"Fill more tables at Pho King Good",preview:"Hi there, I found Pho King Good while looking at the best-reviewed restaurants in Woodbridge. With 312 reviews and a 4.6 rating, you clearly have loyal customers. I help restaurants like yours reach new diners...",date:"Apr 3",status:"opened"},
+  {to:"Nova Chiropractic",subject:"Help Nova Chiropractic attract new patients",preview:"Hi Dr. Chen, I noticed Nova Chiropractic has an outstanding 4.9 rating. I specialize in helping health practices in Arlington grow their patient base through personalized outreach to nearby residents...",date:"Apr 9",status:"replied"},
+];
+const ACTIVITY=[{day:"Mon",sent:8,replied:2},{day:"Tue",sent:12,replied:3},{day:"Wed",sent:6,replied:1},{day:"Thu",sent:15,replied:4},{day:"Fri",sent:18,replied:5},{day:"Sat",sent:4,replied:1},{day:"Sun",sent:2,replied:0}];
+const INDUSTRIES=["Dental Clinics","Auto Repair","Restaurants","Gyms & Fitness","Hair Salons","Real Estate Agents","Chiropractors","Veterinarians","Law Firms","HVAC Services","Plumbers","Photography Studios"];
+
+const NAV=[
+  {icon:"⊞",label:"Dashboard"},
+  {icon:"◎",label:"Campaigns"},
+  {icon:"⊕",label:"New Campaign",accent:true},
+  {icon:"≡",label:"Leads"},
+  {icon:"✉",label:"Emails"},
+  {icon:"⚙",label:"Settings"},
+];
+
+let currentPage="Dashboard";
+
+/* ═══ HELPERS ═══ */
+function badge(status){
+  const m={active:{bg:"rgba(0,230,200,0.12)",c:"#00e6c8",l:"Active"},completed:{bg:"rgba(100,140,180,0.12)",c:"#8ab4d0",l:"Done"},draft:{bg:"rgba(255,200,60,0.12)",c:"#ffc83c",l:"Draft"},replied:{bg:"rgba(0,230,200,0.15)",c:"#00e6c8",l:"Replied"},opened:{bg:"rgba(100,200,255,0.12)",c:"#64c8ff",l:"Opened"},pending:{bg:"rgba(255,200,60,0.12)",c:"#ffc83c",l:"Pending"}};
+  const s=m[status]||m.pending;
+  return `<span class="db-badge" style="background:${s.bg};color:${s.c}">${s.l}</span>`;
+}
+function statCard(label,value,sub,accent){
+  return `<div class="db-card db-stat"><div class="db-stat-bar" style="background:${accent}"></div><div class="db-stat-label">${label}</div><div class="db-stat-val">${value}</div>${sub?`<div class="db-stat-sub">${sub}</div>`:''}</div>`;
+}
+
+/* ═══ NAV RENDER ═══ */
+function renderNav(){
+  const nav=document.getElementById('db-nav');
+  nav.innerHTML=NAV.map((n,i)=>{
+    const isActive=currentPage===n.label;
+    const cls='db-nav-item'+(isActive?' active':'')+(n.accent&&isActive?' accent':'');
+    const divBefore=n.accent?'<div class="db-nav-divider"></div>':'';
+    const divAfter=n.accent?'<div class="db-nav-divider"></div>':'';
+    return divBefore+`<div class="${cls}" onclick="navigateTo('${n.label}')"><span class="db-nav-icon">${n.icon}</span>${n.label}</div>`+divAfter;
+  }).join('');
+}
+
+function navigateTo(page){
+  currentPage=page;
+  renderNav();
+  const main=document.getElementById('db-main');
+  main.innerHTML='<div class="db-page">'+renderPage(page)+'</div>';
+}
+
+/* ═══ PAGE RENDERERS ═══ */
+function renderPage(page){
+  switch(page){
+    case 'Dashboard': return renderDashboard();
+    case 'Campaigns': return renderCampaigns();
+    case 'New Campaign': return renderNewCampaign();
+    case 'Leads': return renderLeads();
+    case 'Emails': return renderEmails();
+    case 'Settings': return renderSettings();
+    default: return renderDashboard();
+  }
+}
+
+function renderDashboard(){
+  const maxSent=Math.max(...ACTIVITY.map(d=>d.sent));
+  const bars=ACTIVITY.map(d=>{
+    const sh=Math.round((d.sent/maxSent)*70);
+    const rh=Math.round((d.replied/maxSent)*70);
+    return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:4px">
+      <div style="width:100%;height:80px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center">
+        <div style="width:100%;max-width:28px;border-radius:4px 4px 0 0;height:${sh}px;background:linear-gradient(180deg,#64c8ff,rgba(100,200,255,0.3));position:relative">
+          <div style="position:absolute;bottom:0;left:0;right:0;height:${rh}px;background:linear-gradient(180deg,#00e6c8,rgba(0,230,200,0.4))"></div>
+        </div>
+      </div>
+      <span style="font-size:10px;color:#4a6a80;font-family:'JetBrains Mono',monospace">${d.day}</span>
+    </div>`;
+  }).join('');
+
+  const pipeline=[{l:"Found",v:112,p:100,c:"#64c8ff"},{l:"Contacted",v:94,p:84,c:"#3a9bdc"},{l:"Opened",v:57,p:51,c:"#00e6c8"},{l:"Replied",v:19,p:17,c:"#00c8a8"}];
+  const pipeHTML=pipeline.map(s=>`<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:12px;font-family:'JetBrains Mono',monospace"><span style="color:#7a9ab0">${s.l}</span><span style="color:${s.c};font-weight:600">${s.v}</span></div><div style="height:6px;border-radius:3px;background:rgba(100,200,255,0.06);overflow:hidden"><div style="width:${s.p}%;height:100%;border-radius:3px;background:${s.c}"></div></div></div>`).join('');
+
+  const rows=CAMPAIGNS.map(c=>`<tr><td style="font-weight:500;color:#c0d8e8">${c.name}</td><td style="color:#7a9ab0;font-family:'JetBrains Mono',monospace">${c.leads}</td><td style="color:#7a9ab0;font-family:'JetBrains Mono',monospace">${c.sent}</td><td style="color:#7a9ab0;font-family:'JetBrains Mono',monospace">${c.opened}</td><td style="color:#64c8ff;font-weight:600;font-family:'JetBrains Mono',monospace">${c.replied}</td><td>${badge(c.status)}</td><td style="font-size:12px;color:#4a6a80;font-family:'JetBrains Mono',monospace">${c.date}</td></tr>`).join('');
+
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px">
+      <div><h1 class="db-h1">Dashboard</h1><p class="db-sub">Last 7 days overview · Updated just now</p></div>
+      <button class="db-btn-primary" onclick="navigateTo('New Campaign')">+ New Campaign</button>
+    </div>
+    <div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap">
+      ${statCard("Leads Found","112","↑ 23 this week","#64c8ff")}
+      ${statCard("Emails Sent","94","↑ 18 this week","#3a9bdc")}
+      ${statCard("Open Rate","61%","Industry avg: 42%","#00e6c8")}
+      ${statCard("Reply Rate","17%","Industry avg: 8%","#00c8a8")}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;margin-bottom:24px">
+      <div class="db-card" style="padding:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <span class="db-section-hdr">Weekly Activity</span>
+          <div style="display:flex;gap:16px">
+            <span style="font-size:10px;color:#64c8ff;display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace"><span style="width:8px;height:8px;border-radius:2px;background:#64c8ff;display:inline-block"></span> Sent</span>
+            <span style="font-size:10px;color:#00e6c8;display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace"><span style="width:8px;height:8px;border-radius:2px;background:#00e6c8;display:inline-block"></span> Replied</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:6px;height:100px">${bars}</div>
+      </div>
+      <div class="db-card" style="padding:24px"><span class="db-section-hdr">Pipeline</span><div style="margin-top:20px">${pipeHTML}</div></div>
+    </div>
+    <div class="db-card" style="overflow:hidden">
+      <div style="padding:18px 24px;border-bottom:1px solid rgba(100,200,255,0.06);display:flex;justify-content:space-between;align-items:center"><span class="db-section-hdr">Recent Campaigns</span><span style="font-size:11px;color:#3a5a6a;font-family:'JetBrains Mono',monospace;cursor:pointer" onclick="navigateTo('Campaigns')">View All →</span></div>
+      <div style="overflow-x:auto"><table class="db-table"><thead><tr style="border-bottom:1px solid rgba(100,200,255,0.06)"><th>Campaign</th><th>Leads</th><th>Sent</th><th>Opened</th><th>Replied</th><th>Status</th><th>Date</th></tr></thead><tbody>${rows}</tbody></table></div>
+    </div>`;
+}
+
+function renderCampaigns(){
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px">
+      <div><h1 class="db-h1">Campaigns</h1><p class="db-sub">Manage and track all your outreach campaigns</p></div>
+      <button class="db-btn-primary" onclick="navigateTo('New Campaign')">+ New Campaign</button>
+    </div>
+    <div id="campaign-filters" style="display:flex;gap:8px;margin-bottom:20px"></div>
+    <div id="campaign-list"></div>`;
+}
+
+function renderCampaignList(filter){
+  const filtered=filter==='all'?CAMPAIGNS:CAMPAIGNS.filter(c=>c.status===filter);
+  document.getElementById('campaign-filters').innerHTML=['all','active','completed','draft'].map(f=>
+    `<button class="db-filter-btn${f===filter?' active':''}" onclick="applyCampaignFilter('${f}')">${f==='all'?'All':f}</button>`
+  ).join('');
+  document.getElementById('campaign-list').innerHTML=filtered.map(c=>`
+    <div class="db-card" style="padding:20px 24px;margin-bottom:12px;cursor:pointer">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:15px;font-weight:600;color:#e0f0ff;margin-bottom:6px">${c.name}</div>
+          <div style="display:flex;gap:24px">${[{l:"Leads",v:c.leads},{l:"Sent",v:c.sent},{l:"Opened",v:c.opened},{l:"Replied",v:c.replied}].map(s=>`<span style="font-size:12px;font-family:'JetBrains Mono',monospace"><span style="color:#4a6a80">${s.l} </span><span style="color:#c0d8e8;font-weight:600">${s.v}</span></span>`).join('')}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px">${badge(c.status)}<span style="font-size:12px;color:#4a6a80;font-family:'JetBrains Mono',monospace">${c.date}</span></div>
+      </div>
+    </div>`).join('');
+}
+let campaignFilter='all';
+function applyCampaignFilter(f){campaignFilter=f;renderCampaignList(f);}
+
+function renderNewCampaign(){
+  return `
+    <div style="margin-bottom:28px"><h1 class="db-h1">New Campaign</h1><p class="db-sub">Find a nearby lead and generate personalized outreach</p></div>
+    <div id="nc-container" style="display:grid;grid-template-columns:1fr;gap:24px;max-width:560px">
+      <div class="db-card" style="padding:32px">
+        <div style="margin-bottom:20px"><label class="db-input-label">Location</label><input class="db-input" id="nc-location" placeholder="e.g., Arlington, VA"/></div>
+        <div style="margin-bottom:20px"><label class="db-input-label">Industry</label><select class="db-select" id="nc-industry"><option value="">Select an industry...</option>${INDUSTRIES.map(i=>`<option value="${i}">${i}</option>`).join('')}</select></div>
+        <div style="margin-bottom:20px"><label class="db-input-label">Outreach Prompt</label><textarea class="db-input" id="nc-prompt" style="resize:vertical;min-height:100px" placeholder="e.g., We help local businesses get more Google reviews. Pitch a free 15-min audit call."></textarea></div>
+        <div style="margin-bottom:20px"><label class="db-input-label">Your Email — we'll send the result here</label><input class="db-input" id="nc-email" placeholder="e.g., you@gmail.com"/></div>
+        <button class="db-generate-btn" id="nc-btn" onclick="generateOutreach()">GENERATE & LAUNCH OUTREACH →</button>
+        <div style="text-align:center;margin-top:14px;font-size:12px;color:#3a5a6a;font-family:'JetBrains Mono',monospace">Powered by Google Maps + AI — no spam, no guesswork.</div>
+      </div>
+    </div>`;
+}
+
+// Point this at your own n8n webhook endpoint (see README → Setup and .env.example).
+const WEBHOOK_URL='https://YOUR-N8N-HOST/webhook/nearbynudge';
+
+function generateOutreach(){
+  const location=(document.getElementById('nc-location').value||'').trim();
+  const industry=(document.getElementById('nc-industry').value||'').trim();
+  const prompt=(document.getElementById('nc-prompt').value||'').trim();
+  const email=(document.getElementById('nc-email').value||'').trim();
+
+  /* ── validation ── */
+  const errEl=document.getElementById('nc-error');
+  if(errEl)errEl.remove();
+  const missing=[];
+  if(!location)missing.push('Location');
+  if(!industry)missing.push('Industry');
+  if(!prompt)missing.push('Outreach Prompt');
+  if(!email)missing.push('Your Email');
+  if(missing.length){
+    const e=document.createElement('div');
+    e.id='nc-error';
+    e.style.cssText='margin-top:12px;padding:12px 16px;border-radius:8px;border:1px solid rgba(255,107,107,0.3);background:rgba(255,107,107,0.08);color:#ff8a8a;font-size:12px;font-family:"JetBrains Mono",monospace';
+    e.textContent='Please fill in: '+missing.join(', ');
+    document.getElementById('nc-btn').after(e);
+    return;
+  }
+
+  /* ── loading state ── */
+  const btn=document.getElementById('nc-btn');
+  btn.disabled=true;
+  btn.innerHTML='<span style="display:inline-block;animation:spin 1s linear infinite;margin-right:8px">⟳</span> FINDING LEAD & GENERATING...';
+
+  /* add spin keyframe once */
+  if(!document.getElementById('spin-style')){
+    const s=document.createElement('style');
+    s.id='spin-style';
+    s.textContent='@keyframes spin{to{transform:rotate(360deg)}}';
+    document.head.appendChild(s);
+  }
+
+  /* loading sub-note */
+  const note=document.createElement('div');
+  note.id='nc-loading-note';
+  note.style.cssText='text-align:center;margin-top:12px;font-size:11px;color:#3a5a6a;font-family:"JetBrains Mono",monospace;line-height:1.6';
+  note.innerHTML='Searching Google Maps &amp; writing your email…<br>This can take up to 2 minutes — please wait.';
+  btn.after(note);
+
+  /* ── fetch n8n webhook ── */
+  fetch(WEBHOOK_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({location,industry,prompt,email})
+  })
+  .then(res=>{
+    if(!res.ok)throw new Error('Server returned '+res.status);
+    return res.json();
+  })
+  .then(data=>{
+    note.remove();
+    btn.disabled=false;
+    btn.innerHTML='GENERATE & LAUNCH OUTREACH →';
+
+    if(!data.success||!data.lead){
+      throw new Error(data.error||'Workflow returned no lead. Try a different location or industry.');
+    }
+
+    const lead=data.lead;
+
+    /* ── expand grid to show result panel ── */
+    const container=document.getElementById('nc-container');
+    container.style.gridTemplateColumns='1fr 1fr';
+    container.style.maxWidth='100%';
+
+    /* remove previous result if any */
+    const old=document.getElementById('nc-result');
+    if(old)old.remove();
+
+    const website=lead.website||'No website listed';
+    const phone=lead.phone||'N/A';
+    const address=lead.address?(lead.address+(lead.city?', '+lead.city:'')):(lead.city||'N/A');
+
+    const resultDiv=document.createElement('div');
+    resultDiv.id='nc-result';
+    resultDiv.style.cssText='display:flex;flex-direction:column;gap:16px;animation:dbFadeIn 0.4s ease';
+    resultDiv.innerHTML=`
+      <div class="db-card" style="padding:24px">
+        <span class="db-section-hdr">Lead Found</span>
+        <div style="margin-top:16px">
+          <div style="font-size:18px;font-weight:700;color:#e0f0ff;margin-bottom:12px;font-family:'Space Grotesk',sans-serif">${escHtml(lead.businessName)}</div>
+          ${[
+            {l:'Category', v:lead.category||'—'},
+            {l:'Address',  v:address},
+            {l:'Phone',    v:phone},
+            {l:'Website',  v:website}
+          ].map(r=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(100,200,255,0.04);font-size:13px"><span style="color:#5a7a90;font-family:'JetBrains Mono',monospace">${r.l}</span><span style="color:#c0d8e8;word-break:break-all">${escHtml(String(r.v))}</span></div>`).join('')}
+          <div style="display:flex;align-items:center;gap:8px;margin-top:12px">
+            <span style="color:#ffc83c;font-size:16px">★</span>
+            <span style="color:#e0f0ff;font-weight:600;font-size:16px">${lead.rating||'—'}</span>
+            <span style="color:#4a6a80;font-size:13px;font-family:'JetBrains Mono',monospace">(${lead.reviews||0} reviews)</span>
+          </div>
+        </div>
+      </div>
+      <div class="db-card" style="padding:24px;flex:1">
+        <span class="db-section-hdr">Generated Email</span>
+        <div style="margin-top:16px">
+          <div style="font-size:12px;font-family:'JetBrains Mono',monospace;color:#5a7a90;margin-bottom:4px">Subject</div>
+          <div style="font-size:14px;font-weight:600;color:#e0f0ff;margin-bottom:16px;padding:10px 14px;background:rgba(0,0,0,0.2);border-radius:6px">${escHtml(lead.emailSubject)}</div>
+          <div style="font-size:12px;font-family:'JetBrains Mono',monospace;color:#5a7a90;margin-bottom:4px">Body</div>
+          <div style="font-size:13px;color:#b0c8d8;line-height:1.7;padding:14px 16px;background:rgba(0,0,0,0.2);border-radius:6px;white-space:pre-wrap;font-family:'Space Grotesk',sans-serif">${escHtml(lead.emailBody)}</div>
+          <div style="margin-top:16px;padding:12px 16px;border-radius:8px;border:1px solid rgba(0,230,200,0.3);background:rgba(0,230,200,0.08);display:flex;align-items:center;gap:10px">
+            <span style="font-size:18px">✓</span>
+            <div>
+              <div style="color:#00e6c8;font-weight:700;font-size:13px;font-family:'JetBrains Mono',monospace">Email Sent to Your Inbox</div>
+              <div style="color:#4a8a70;font-size:11px;font-family:'JetBrains Mono',monospace;margin-top:2px">Check <strong style="color:#00e6c8">${escHtml(email)}</strong> — we sent a full report with the lead details and the email above.</div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    container.appendChild(resultDiv);
+  })
+  .catch(err=>{
+    if(note.parentNode)note.remove();
+    btn.disabled=false;
+    btn.innerHTML='GENERATE & LAUNCH OUTREACH →';
+
+    /* remove previous error card */
+    const oldErr=document.getElementById('nc-fetch-error');
+    if(oldErr)oldErr.remove();
+
+    const errCard=document.createElement('div');
+    errCard.id='nc-fetch-error';
+    errCard.style.cssText='margin-top:16px;padding:20px 24px;border-radius:10px;border:1px solid rgba(255,107,107,0.25);background:rgba(255,107,107,0.06)';
+    errCard.innerHTML=`
+      <div style="font-size:13px;font-weight:700;color:#ff8a8a;font-family:'JetBrains Mono',monospace;margin-bottom:6px">⚠ Something went wrong</div>
+      <div style="font-size:12px;color:#c08080;font-family:'JetBrains Mono',monospace;line-height:1.6">${escHtml(err.message)}</div>
+      <button onclick="document.getElementById('nc-fetch-error').remove()" style="margin-top:12px;padding:8px 18px;border-radius:6px;border:1px solid rgba(255,107,107,0.3);background:transparent;color:#ff8a8a;font-size:12px;font-family:'JetBrains Mono',monospace;cursor:pointer;font-weight:600">↻ Try Again</button>`;
+    document.getElementById('nc-btn').closest('.db-card').appendChild(errCard);
+  });
+}
+
+function escHtml(str){
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderLeads(){
+  return `
+    <div style="margin-bottom:28px"><h1 class="db-h1">Leads</h1><p class="db-sub">${LEADS.length} businesses found across all campaigns</p></div>
+    <div style="display:grid;gap:12px">${LEADS.map(l=>`
+      <div class="db-card" style="padding:18px 24px;cursor:pointer">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px"><span style="font-size:15px;font-weight:600;color:#e0f0ff">${l.name}</span>${badge(l.status)}</div>
+            <div style="display:flex;gap:20px;flex-wrap:wrap">${[{l:"Industry",v:l.industry},{l:"Location",v:l.location},{l:"Phone",v:l.phone},{l:"Website",v:l.website}].map(s=>`<span style="font-size:12px;font-family:'JetBrains Mono',monospace"><span style="color:#4a6a80">${s.l} </span><span style="color:#8ab4d0">${s.v}</span></span>`).join('')}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:20px">
+            <div style="display:flex;align-items:center;gap:4px;justify-content:flex-end"><span style="color:#ffc83c">★</span><span style="color:#e0f0ff;font-weight:600">${l.rating}</span><span style="color:#4a6a80;font-size:12px;font-family:'JetBrains Mono',monospace">(${l.reviews})</span></div>
+            <div style="font-size:11px;color:#4a6a80;font-family:'JetBrains Mono',monospace;margin-top:4px">${l.email}</div>
+          </div>
+        </div>
+      </div>`).join('')}</div>`;
+}
+
+function renderEmails(){
+  return `
+    <div style="margin-bottom:28px"><h1 class="db-h1">Sent Emails</h1><p class="db-sub">${EMAILS.length} outreach emails generated and sent</p></div>
+    <div style="display:grid;gap:12px">${EMAILS.map((em,i)=>`
+      <div class="db-card" style="overflow:hidden;cursor:pointer" onclick="toggleEmail(${i})">
+        <div style="padding:18px 24px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div style="flex:1"><div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:#5a7a90;margin-bottom:4px">To: ${em.to}</div><div style="font-size:15px;font-weight:600;color:#e0f0ff">${em.subject}</div></div>
+            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;margin-left:16px">${badge(em.status)}<span style="font-size:12px;color:#4a6a80;font-family:'JetBrains Mono',monospace">${em.date}</span><span id="email-arrow-${i}" style="color:#3a5a6a;font-size:14px;transition:transform 0.2s">▸</span></div>
+          </div>
+          <div id="email-body-${i}" style="display:none;font-size:13px;color:#7a9ab0;line-height:1.7;font-family:'Space Grotesk',sans-serif;padding:14px 16px;background:rgba(0,0,0,0.15);border-radius:8px;margin-top:12px">${em.preview}</div>
+        </div>
+      </div>`).join('')}</div>`;
+}
+function toggleEmail(i){
+  const body=document.getElementById('email-body-'+i);
+  const arrow=document.getElementById('email-arrow-'+i);
+  if(body.style.display==='none'){body.style.display='block';arrow.style.transform='rotate(90deg)';}
+  else{body.style.display='none';arrow.style.transform='rotate(0deg)';}
+}
+
+function renderSettings(){
+  return `
+    <div style="margin-bottom:28px"><h1 class="db-h1">Settings</h1><p class="db-sub">Manage your account and API connections</p></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:800px">
+      <div class="db-card" style="padding:24px">
+        <span class="db-section-hdr">Profile</span>
+        <div style="margin-top:16px">
+          <div style="margin-bottom:20px"><label class="db-input-label">Name</label><input class="db-input" value="Alex Rivera"/></div>
+          <div style="margin-bottom:20px"><label class="db-input-label">Email</label><input class="db-input" placeholder="you@gmail.com"/></div>
+        </div>
+      </div>
+      <div class="db-card" style="padding:24px">
+        <span class="db-section-hdr">API Connections</span>
+        <div style="margin-top:16px">${[{n:"Google Maps (Apify)"},{n:"OpenRouter AI"},{n:"Gmail OAuth2"}].map(a=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid rgba(100,200,255,0.04)"><span style="font-size:13px;color:#c0d8e8">${a.n}</span><span class="db-badge" style="background:rgba(0,230,200,0.12);color:#00e6c8">Connected</span></div>`).join('')}</div>
+      </div>
+      <div class="db-card" style="padding:24px;grid-column:1/-1">
+        <span class="db-section-hdr">Email Defaults</span>
+        <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div><label class="db-input-label">Sender Name</label><input class="db-input" value="Alex Rivera"/></div>
+          <div><label class="db-input-label">Reply-To</label><input class="db-input" placeholder="you@gmail.com"/></div>
+        </div>
+        <div style="margin-top:16px"><label class="db-input-label">Default Signature</label><textarea class="db-input" style="resize:vertical;min-height:80px" placeholder="Best,&#10;Alex Rivera"></textarea></div>
+      </div>
+    </div>`;
+}
+
+/* ═══ POST-NAVIGATION HOOKS ═══ */
+const _origNavigate=navigateTo;
+navigateTo=function(page){
+  _origNavigate(page);
+  if(page==='Campaigns')renderCampaignList(campaignFilter);
+};
+</script>
+</body>
+</html>

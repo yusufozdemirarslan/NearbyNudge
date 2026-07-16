@@ -1,0 +1,39 @@
+# ─── Secrets & environment ───────────────────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12
+credentials.json
+secrets.json
+service-account*.json
+
+# ─── Deployment ──────────────────────────────────────────
+.vercel
+.netlify
+
+# ─── Dependencies ────────────────────────────────────────
+node_modules/
+
+# ─── Logs & caches ───────────────────────────────────────
+*.log
+npm-debug.log*
+.cache/
+
+# ─── OS files ────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Editor / IDE ────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ─── Temp / lock / backup ────────────────────────────────
+~$*
+*.tmp
+*.bak

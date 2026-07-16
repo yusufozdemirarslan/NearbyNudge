@@ -1,0 +1,330 @@
+{
+  "name": "NearbyNudge",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nearbynudge",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "df2a0aef-f576-43a3-9f38-20dcbd8aafa1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        12736,
+        2064
+      ],
+      "webhookId": "deadbeef-cafe-4bab-babe-000000000001"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-location-001",
+              "name": "location",
+              "value": "={{ $json.body.location }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-industry-002",
+              "name": "industry",
+              "value": "={{ $json.body.industry }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-prompt-003",
+              "name": "userPrompt",
+              "value": "={{ $json.body.prompt }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-email-004",
+              "name": "userEmail",
+              "value": "={{ $json.body.email }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4a170615-7092-400d-8c78-f2d98e784ee7",
+      "name": "Set Variables",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        12960,
+        2064
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/compass~crawler-google-places/run-sync-get-dataset-items",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $env.APIFY_API_TOKEN }}"
+            },
+            {
+              "name": "timeout",
+              "value": "120"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ searchStringsArray: [$json.industry], locationQuery: $json.location, maxCrawledPlacesPerSearch: 5, maxImages: 0, maxReviews: 0, language: 'en', countryCode: 'us' }) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "860ddef2-7d5f-469e-b4a9-fda9624c4692",
+      "name": "HTTP Request — Apify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        13184,
+        2064
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "maxItems": 5
+      },
+      "id": "f107d609-2a67-437b-84cc-c8fc0911872e",
+      "name": "Limit",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        13408,
+        2064
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pick first Apify item that has an actual business name\nconst allItems = $input.all();\nlet lead = null;\nfor (const item of allItems) {\n  if (item.json && item.json.title && item.json.title.trim() !== '') {\n    lead = item.json;\n    break;\n  }\n}\nif (!lead) {\n  throw new Error('Apify returned no usable business data for this location and industry. Try a different search term or location.');\n}\n\nconst title = lead.title || 'Unknown Business';\nconst categoryName = lead.categoryName || (lead.categories && lead.categories[0]) || 'Local Business';\nconst address = lead.address || lead.street || '';\nconst city = lead.city || (lead.location && lead.location.city) || '';\nconst totalScore = lead.totalScore || lead.rating || 0;\nconst reviewsCount = lead.reviewsCount || 0;\nconst website = lead.website || '';\nconst phone = lead.phone || lead.phoneUnformatted || '';\n\nlet painPoint;\nif (!website) {\n  painPoint = title + ' has no website on Google Maps — prospects cannot find them online.';\n} else if (reviewsCount < 10) {\n  painPoint = title + ' has only ' + reviewsCount + ' reviews — missing the social proof that drives new customers.';\n} else if (totalScore < 4.0) {\n  painPoint = title + ' sits at ' + totalScore + ' stars — there is clear room to improve their reputation.';\n} else if (totalScore >= 4.5 && reviewsCount >= 50) {\n  painPoint = title + ' has a strong ' + totalScore + '-star reputation with ' + reviewsCount + ' reviews — primed for growth.';\n} else {\n  painPoint = title + ' is an established ' + categoryName + ' with room to expand their local reach.';\n}\n\nconst userPrompt = $('Set Variables').first().json.userPrompt || '';\n\nconst systemPrompt = 'You are a direct-response marketing copywriter specializing in cold outreach for local businesses. Your emails convert because they open with a hyper-relevant hook, build desire around a specific outcome, and close with a frictionless CTA. You write like a human, never like a bot. Return ONLY valid raw JSON, no markdown, no code blocks, no explanation.';\n\nconst lines = [\n  'Write a cold outreach marketing email for this local business.',\n  '',\n  '=== BUSINESS INTEL ===',\n  'Business Name: ' + title,\n  'Category: ' + categoryName,\n  'Location: ' + address + ', ' + city,\n  'Google Rating: ' + totalScore + ' stars (' + reviewsCount + ' reviews)',\n  'Website: ' + (website || 'None listed on Google Maps'),\n  'Phone: ' + phone,\n  '',\n  '=== PAIN POINT / HOOK ===',\n  painPoint,\n  '',\n  '=== CORE OFFER (treat this as the value proposition for the email) ===',\n  userPrompt,\n  '',\n  '=== MARKETING BRIEF ===',\n  'Apply the AIDA framework (Attention, Interest, Desire, Action):',\n  '- ATTENTION: Open with the pain point above — make it feel like research was done on their business.',\n  '- INTEREST: Bridge their situation to the offer. What specific outcome does it create for this type of business?',\n  '- DESIRE: Add one concrete result or social proof angle that makes the offer feel real and achievable.',\n  '- ACTION: End with one low-commitment CTA such as: Got 10 minutes this week? or Want a quick example?',\n  '',\n  '=== RULES ===',\n  '- Subject line: curiosity-driven, mention the business name, under 10 words',\n  '- Body: conversational tone, no corporate jargon, no fluff',\n  '- Total word count: 80 to 130 words',\n  '- Do NOT start with: I hope this finds you well, I wanted to reach out',\n  '- Do NOT use bullet points in the body — write in flowing sentences',\n  '- End the body with exactly: Reply STOP to opt out.',\n  '',\n  'Return ONLY this exact JSON with no other text:',\n  '{\"subject\":\"...\",\"body\":\"...\"}'\n];\n\nconst userMessage = lines.join('\\n');\n\nconst claudePayload = {\n  model: 'claude-opus-4-6',\n  max_tokens: 1024,\n  system: systemPrompt,\n  messages: [\n    { role: 'user', content: userMessage }\n  ]\n};\n\nreturn {\n  json: {\n    leadName: title,\n    category: categoryName,\n    address: address,\n    city: city,\n    rating: totalScore,\n    reviews: reviewsCount,\n    website: website,\n    phone: phone,\n    claudePayload: claudePayload\n  }\n};"
+      },
+      "id": "60282106-0376-45ac-b86f-e0097a9560eb",
+      "name": "Code — Build AI Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        13616,
+        2064
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.claudePayload) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "0ff4c9b3-afd5-40fd-99ea-76eed47ebfb0",
+      "name": "HTTP Request — Anthropic Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        13840,
+        2064
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResponse = $input.first().json;\nconst leadData = $('Code — Build AI Prompt').first().json;\n\nlet content = '';\nif (aiResponse.content && aiResponse.content[0] && aiResponse.content[0].text) {\n  content = aiResponse.content[0].text || '';\n}\n\ncontent = content.replace(/```json/gi, '').replace(/```/gi, '').trim();\n\nlet emailSubject = 'NearbyNudge Outreach';\nlet emailBody = '';\n\ntry {\n  const parsed = JSON.parse(content);\n  emailSubject = parsed.subject || emailSubject;\n  emailBody = parsed.body || '';\n} catch (e) {\n  const sm = content.match(/subject[\\s\\S]{0,10}?([A-Z][^\\n\"]{5,80})/i);\n  const bm = content.match(/body[\\s\\S]{0,10}?([A-Z][\\s\\S]{20,})/i);\n  if (sm) emailSubject = sm[1].trim().replace(/[\"']/g, '');\n  if (bm) emailBody = bm[1].trim().replace(/[\"'}]/g, '');\n  if (!emailBody) emailBody = content;\n}\n\nreturn {\n  json: {\n    leadName: leadData.leadName,\n    category: leadData.category,\n    address: leadData.address,\n    city: leadData.city,\n    rating: leadData.rating,\n    reviews: leadData.reviews,\n    website: leadData.website,\n    phone: leadData.phone,\n    emailSubject: emailSubject,\n    emailBody: emailBody\n  }\n};"
+      },
+      "id": "611bb267-83ca-4d76-ab4d-893ec5f28dfe",
+      "name": "Code — Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        14064,
+        2064
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Set Variables').first().json.userEmail }}",
+        "subject": "={{ '🚀 NearbyNudge — ' + $json.emailSubject }}",
+        "message": "=<!--\n  ╔══════════════════════════════════════════════════════════════════╗\n  ║  NearbyNudge — Marketing Outreach Email Template                ║\n  ║                                                                  ║\n  ║  This is what the BUSINESS OWNER sees in their inbox.            ║\n  ║                                                                  ║\n  ║  HOW TO USE:                                                     ║\n  ║  1. Open your n8n Gmail node                                     ║\n  ║  2. Subject field (Expression): {{ $json.emailSubject }}         ║\n  ║  3. Message field → switch to Expression mode                    ║\n  ║  4. Paste everything between ▼▼▼ START and ▲▲▲ END              ║\n  ║                                                                  ║\n  ║  VARIABLES:                                                      ║\n  ║  • $json.emailBody — the AI-generated personalized message       ║\n  ║  • $json.emailSubject — goes in the Subject field separately     ║\n  ╚══════════════════════════════════════════════════════════════════╝\n-->\n\n\n<!-- ▼▼▼ START — COPY FROM HERE ▼▼▼ -->\n\n{{ '<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"max-width:600px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 8px 40px rgba(15,23,42,0.08);\"><tr><td style=\"background:#0f172a;padding:0;\"><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr><td style=\"height:5px;background:linear-gradient(90deg,#06b6d4,#818cf8,#a855f7);font-size:0;line-height:0;\">&nbsp;</td></tr><tr><td style=\"padding:32px 48px 0;text-align:center;\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\"><tr><td style=\"width:36px;height:36px;background:linear-gradient(135deg,#06b6d4,#818cf8);border-radius:10px;text-align:center;vertical-align:middle;font-size:18px;font-weight:bold;color:#0f172a;font-family:Helvetica,Arial,sans-serif;\">N</td><td style=\"padding-left:12px;font-family:Trebuchet MS,Helvetica,sans-serif;font-size:20px;font-weight:bold;color:#f1f5f9;letter-spacing:-0.3px;\">Nearby<span style=\"color:#06b6d4;\">Nudge</span></td></tr></table></td></tr><tr><td style=\"padding:28px 48px 12px;text-align:center;\"><h1 style=\"font-family:Trebuchet MS,Helvetica,sans-serif;font-size:32px;font-weight:800;color:#ffffff;margin:0;line-height:1.2;letter-spacing:-0.8px;\">We noticed something<br/>about your business.</h1></td></tr><tr><td style=\"padding:0 48px 8px;text-align:center;\"><p style=\"font-family:Helvetica,Arial,sans-serif;font-size:15px;color:rgba(148,163,184,0.8);margin:0;line-height:1.5;\">And we think it could be your biggest growth lever.</p></td></tr><tr><td style=\"padding:20px 0 36px;text-align:center;\"><div style=\"display:inline-block;width:56px;height:4px;background:linear-gradient(90deg,#06b6d4,#818cf8);border-radius:2px;\"></div></td></tr></table></td></tr><tr><td style=\"background:#ffffff;padding:0;font-size:0;line-height:0;\"><div style=\"height:24px;background:#0f172a;border-radius:0 0 24px 24px;\"></div></td></tr><tr><td style=\"padding:24px 48px 40px;\"><div style=\"font-family:Georgia,Times New Roman,serif;font-size:16.5px;color:#1e293b;line-height:1.9;white-space:pre-line;\">' + $json.emailBody + '</div></td></tr><tr><td style=\"padding:0 48px;\"><div style=\"height:1px;background:linear-gradient(90deg,transparent,#e2e8f0,transparent);\"></div></td></tr><tr><td style=\"padding:28px 48px 20px;text-align:center;\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\"><tr><td style=\"width:22px;height:22px;background:linear-gradient(135deg,#06b6d4,#818cf8);border-radius:6px;text-align:center;vertical-align:middle;font-size:11px;font-weight:bold;color:#0f172a;font-family:Helvetica,Arial,sans-serif;\">N</td><td style=\"padding-left:8px;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;color:#94a3b8;letter-spacing:0.3px;\">NearbyNudge.AI</td></tr></table></td></tr><tr><td style=\"padding:0 48px 10px;text-align:center;\"><p style=\"font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#cbd5e1;margin:0;line-height:1.5;\">Smart outreach for local businesses — powered by AI</p></td></tr><tr><td style=\"padding:0 48px 28px;text-align:center;\"><p style=\"font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#cbd5e1;margin:0;\"><a href=\"#\" style=\"color:#94a3b8;text-decoration:underline;\">Unsubscribe</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href=\"#\" style=\"color:#94a3b8;text-decoration:underline;\">Privacy Policy</a></p></td></tr><tr><td style=\"height:4px;background:linear-gradient(90deg,#06b6d4,#818cf8,#a855f7);font-size:0;line-height:0;\">&nbsp;</td></tr></table>' }}\n\n<!-- ▲▲▲ END — STOP COPYING HERE ▲▲▲ -->\n",
+        "options": {}
+      },
+      "id": "de867a95-6580-4ee3-bb84-bbcfeb486f9f",
+      "name": "Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        14288,
+        2064
+      ],
+      "webhookId": "a606b440-5d4a-409f-8eef-e48af3148c9a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_GMAIL_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, lead: { businessName: $('Code — Parse AI Response').first().json.leadName, category: $('Code — Parse AI Response').first().json.category, address: $('Code — Parse AI Response').first().json.address, rating: $('Code — Parse AI Response').first().json.rating, reviews: $('Code — Parse AI Response').first().json.reviews, website: $('Code — Parse AI Response').first().json.website, phone: $('Code — Parse AI Response').first().json.phone, emailSubject: $('Code — Parse AI Response').first().json.emailSubject, emailBody: $('Code — Parse AI Response').first().json.emailBody } } }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "304a2cbb-ebb5-4134-a00d-a155eaf830d9",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        14496,
+        2064
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Set Variables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Variables": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request — Apify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request — Apify": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Code — Build AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code — Build AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request — Anthropic Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request — Anthropic Claude": {
+      "main": [
+        [
+          {
+            "node": "Code — Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code — Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "3eae7610-d929-41f5-b4d1-4f9e950ba805",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": [
+    {
+      "updatedAt": "2026-03-23T01:59:46.037Z",
+      "createdAt": "2026-03-23T01:59:46.037Z",
+      "id": "Kr9WMUbRbWH69nM8",
+      "name": "NearbyNudge"
+    }
+  ]
+}
