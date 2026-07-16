@@ -699,6 +699,16 @@ function generateOutreach(){
     return;
   }
 
+  /* ── demo guard: published front-end with no live backend configured ── */
+  if(WEBHOOK_URL.includes('YOUR-N8N-HOST')){
+    const info=document.createElement('div');
+    info.id='nc-error';
+    info.style.cssText='margin-top:12px;padding:12px 16px;border-radius:8px;border:1px solid rgba(0,230,200,0.3);background:rgba(0,230,200,0.08);color:#00e6c8;font-size:12px;font-family:"JetBrains Mono",monospace;line-height:1.6';
+    info.innerHTML='Demo front-end — the live pipeline runs on your own n8n backend. Set <strong>WEBHOOK_URL</strong> in <strong>app/index.html</strong> (see README → Setup) to generate and send real emails.';
+    document.getElementById('nc-btn').after(info);
+    return;
+  }
+
   /* ── loading state ── */
   const btn=document.getElementById('nc-btn');
   btn.disabled=true;
@@ -868,7 +878,7 @@ function renderSettings(){
       </div>
       <div class="db-card" style="padding:24px">
         <span class="db-section-hdr">API Connections</span>
-        <div style="margin-top:16px">${[{n:"Google Maps (Apify)"},{n:"OpenRouter AI"},{n:"Gmail OAuth2"}].map(a=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid rgba(100,200,255,0.04)"><span style="font-size:13px;color:#c0d8e8">${a.n}</span><span class="db-badge" style="background:rgba(0,230,200,0.12);color:#00e6c8">Connected</span></div>`).join('')}</div>
+        <div style="margin-top:16px">${[{n:"Google Maps (Apify)"},{n:"Anthropic Claude"},{n:"Gmail OAuth2"}].map(a=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid rgba(100,200,255,0.04)"><span style="font-size:13px;color:#c0d8e8">${a.n}</span><span class="db-badge" style="background:rgba(0,230,200,0.12);color:#00e6c8">Connected</span></div>`).join('')}</div>
       </div>
       <div class="db-card" style="padding:24px;grid-column:1/-1">
         <span class="db-section-hdr">Email Defaults</span>
