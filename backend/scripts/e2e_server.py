@@ -7,6 +7,7 @@ workspace switch (POST /api/dev/workspace) is on, so each test can work in its o
 
     cd backend && .venv/Scripts/python.exe scripts/e2e_server.py --port 8100 [--live]
     # then in frontend/:  E2E_BASE_URL=http://localhost:8100 npx playwright test
+    # --dist frontend/dist-redesign serves another dashboard build (default: frontend/dist)
 """
 
 from __future__ import annotations
@@ -31,13 +32,15 @@ def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--port", type=int, default=8100)
     p.add_argument("--live", action="store_true", help="real Claude API, real listings and real websites")
+    p.add_argument("--dist", type=Path, default=None, help="dashboard build to serve (default: frontend/dist)")
     args = p.parse_args()
+    dist = (args.dist if args.dist is None or args.dist.is_absolute() else ROOT / args.dist) or ROOT / "frontend" / "dist"
 
     tmp = Path(tempfile.mkdtemp(prefix="nn-e2e-"))
     data = tmp / "data"
     data.mkdir(parents=True)
     sites: dict[str, str] = {}
-    common = dict(NN_DATA_DIR=data, NN_FRONTEND_DIST=ROOT / "frontend" / "dist", NN_DEV_WORKSPACES=True,
+    common = dict(NN_DATA_DIR=data, NN_FRONTEND_DIST=dist, NN_DEV_WORKSPACES=True,
                   NN_PUBLIC_URL=f"http://localhost:{args.port}")
     http_client = None
     if args.live:

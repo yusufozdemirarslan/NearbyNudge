@@ -1,12 +1,6 @@
 import * as React from "react"
-import {
-  ArrowRightIcon,
-  ClockIcon,
-  MapPinIcon,
-  RotateCwIcon,
-  TriangleAlertIcon,
-} from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Mark } from "@/components/Mark"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import type { CampaignPlan, PlanCategory } from "@/lib/api/types"
 import { formatNumber, joinList, plural } from "@/lib/format"
@@ -35,16 +29,16 @@ export interface PlanPanelProps {
   headingLevel?: 2 | 3
 }
 
-function CategoryChip({ category }: { category: PlanCategory }) {
+/** A listing category as a directory key line: name, dot leader, count. */
+function CategoryLine({ category }: { category: PlanCategory }) {
   return (
-    <li className="inline-flex h-7 items-center gap-1.5 rounded-sm border bg-card px-2 text-ui text-foreground">
+    <li className="flex items-baseline gap-1.5 text-ui">
       <span>{category.label}</span>
+      <span aria-hidden="true" className="leader" />
       {category.count !== null ? (
-        <span className="font-semibold tabular-nums">
-          {formatNumber(category.count)}
-        </span>
+        <span className="numeral text-lead">{formatNumber(category.count)}</span>
       ) : (
-        <span className="text-meta text-muted-foreground">not loaded yet</span>
+        <span className="aside">not loaded yet</span>
       )}
     </li>
   )
@@ -83,27 +77,27 @@ export function PlanPanel({
     <section
       aria-labelledby={`${id}-title`}
       data-testid="plan-panel"
-      className="rounded-xl border bg-card"
+      className="border border-t-(length:--rule-heavy) border-ink"
     >
       {stale && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-t-xl border-b bg-info-tint px-5 py-3">
-          <p className="text-ui text-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink px-5 py-3">
+          <p className="flex items-center gap-2 text-ui font-bold text-edge">
+            <Mark name="asterisk" />
             You changed the brief after this plan. Review the plan again before
             you start.
           </p>
           <Button size="sm" onClick={onReviewAgain}>
-            <RotateCwIcon aria-hidden="true" />
             Review plan again
           </Button>
         </div>
       )}
 
-      <div className="flex flex-col gap-5 p-5 sm:p-6">
+      <div className="flex flex-col gap-6 p-5 sm:p-6">
         <div className="space-y-2">
-          <div className="max-w-[68ch] text-email text-foreground">
+          <div className="max-w-measure text-body">
             <span
               aria-hidden="true"
-              className="mr-2 inline-flex h-6 items-center rounded-sm border border-[color-mix(in_srgb,var(--primary)_45%,transparent)] px-1.5 align-[2px] text-meta font-semibold text-primary"
+              className="mr-2 inline-flex h-6 items-center border border-ink px-1.5 align-[2px] text-micro font-extrabold stretch-condensed"
             >
               AI
             </span>
@@ -111,52 +105,42 @@ export function PlanPanel({
               id={`${id}-title`}
               ref={headingRef}
               tabIndex={-1}
-              className="inline text-email font-semibold outline-none"
+              className="inline text-body font-bold outline-none"
             >
               {planLabel}:
             </Heading>{" "}
-            <span>“{plan.restatement}”</span>
+            <span className="italic">“{plan.restatement}”</span>
           </div>
-          {plan.location.note && (
-            <p className="flex items-center gap-1.5 text-ui text-ink-secondary">
-              <MapPinIcon aria-hidden="true" className="size-4 shrink-0" />
-              {plan.location.note}
-            </p>
-          )}
+          {plan.location.note && <p className="aside">{plan.location.note}</p>}
         </div>
 
-        <dl className="grid gap-x-6 gap-y-1.5 text-ui lg:grid-cols-[7.5rem_minmax(0,1fr)] lg:gap-y-3">
-          <dt className="font-medium text-foreground lg:pt-1">Categories</dt>
+        <dl className="grid gap-x-6 gap-y-2 text-ui lg:grid-cols-[7.5rem_minmax(0,1fr)] lg:gap-y-4">
+          <dt className="font-bold lg:pt-0.5">Categories</dt>
           <dd className="min-w-0">
             {plan.categories.length > 0 ? (
-              <ul
-                aria-label="Listing categories"
-                className="flex flex-wrap gap-1.5"
-              >
+              <ul aria-label="Listing categories" className="max-w-md space-y-1">
                 {plan.categories.map((category) => (
-                  <CategoryChip key={category.key} category={category} />
+                  <CategoryLine key={category.key} category={category} />
                 ))}
               </ul>
             ) : (
-              <span className="text-ink-secondary">
-                No listing categories matched.
-              </span>
+              <span className="italic">No listing categories matched.</span>
             )}
           </dd>
           {plan.candidate_count !== null && (
             <>
-              <dt className="mt-2 font-medium text-foreground lg:mt-0">
-                Matches
-              </dt>
-              <dd className="text-foreground">
-                <span className="font-semibold tabular-nums">
+              <dt className="mt-2 font-bold lg:mt-0 lg:pt-4">Matches</dt>
+              <dd className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="numeral text-display leading-none">
                   {formatNumber(plan.candidate_count)}
-                </span>{" "}
-                {plan.candidate_count === 1
-                  ? "business matches"
-                  : "businesses match"}
-                , after leaving out chains, closed places and your
-                do-not-contact list
+                </span>
+                <span className="min-w-0 flex-1 basis-56">
+                  {plan.candidate_count === 1
+                    ? "business matches"
+                    : "businesses match"}
+                  , after leaving out chains, closed places and your{" "}
+                  <span className="whitespace-nowrap">do-not-contact list</span>
+                </span>
               </dd>
             </>
           )}
@@ -167,8 +151,8 @@ export function PlanPanel({
             className="flex min-w-0 flex-col gap-2"
             aria-describedby={answerError ? `${id}-answer-error` : undefined}
           >
-            <legend className="mb-2 text-ui font-medium text-foreground">
-              <span className="text-ink-secondary">One question: </span>
+            <legend className="mb-2 text-ui font-bold">
+              <span className="font-normal italic">One question: </span>
               {question.text}
             </legend>
             <div ref={questionRef}>
@@ -183,7 +167,7 @@ export function PlanPanel({
                 {(["yes", "no"] as const).map((value) => (
                   <label
                     key={value}
-                    className="flex min-h-10 min-w-24 cursor-pointer items-center gap-2.5 rounded-lg border border-[color-mix(in_srgb,var(--input)_55%,transparent)] bg-card px-3 py-2 text-ui font-medium text-foreground transition-colors hover:bg-muted has-data-checked:border-primary has-data-checked:bg-accent"
+                    className="flex min-h-11 min-w-24 cursor-pointer items-center gap-2.5 border border-ink px-3 py-2 text-ui font-semibold transition-colors duration-(--dur-fast) hover:bg-tint has-data-checked:outline-2 has-data-checked:outline-ink has-data-checked:-outline-offset-2"
                   >
                     <RadioGroupItem value={value} />
                     {value === "yes" ? "Yes" : "No"}
@@ -192,7 +176,7 @@ export function PlanPanel({
               </RadioGroup>
             </div>
             {question.categories.length > 0 && (
-              <p className="text-meta text-ink-secondary">
+              <p className="aside">
                 Yes adds {joinList(question.categories.map((c) => c.label))}
                 {questionCounts.length > 0 &&
                   ` (${plural(
@@ -216,12 +200,9 @@ export function PlanPanel({
             {plan.warnings.map((warning) => (
               <li
                 key={warning}
-                className="flex items-start gap-2 rounded-lg bg-warning-tint px-3 py-2.5 text-ui text-foreground"
+                className="flex items-start gap-2 border border-t-(length:--rule-heavy) border-ink border-t-edge px-3 py-2.5 text-ui"
               >
-                <TriangleAlertIcon
-                  aria-hidden="true"
-                  className="mt-0.5 size-4 shrink-0 text-warning"
-                />
+                <Mark name="asterisk" className="mt-1 text-edge" />
                 <span>
                   <span className="sr-only">Warning: </span>
                   {warning}
@@ -229,11 +210,8 @@ export function PlanPanel({
               </li>
             ))}
             {loading && (
-              <li className="flex items-start gap-2 rounded-lg bg-info-tint px-3 py-2.5 text-ui text-foreground">
-                <ClockIcon
-                  aria-hidden="true"
-                  className="mt-0.5 size-4 shrink-0 text-info"
-                />
+              <li className="flex items-start gap-2 border border-ink px-3 py-2.5 text-ui">
+                <Mark name="dot" className="mt-1" />
                 <span>
                   First search in this area takes about a minute longer. We're
                   loading the business listings for {plan.location.label} now.
@@ -244,17 +222,14 @@ export function PlanPanel({
         )}
 
         {!stale && (
-          <div className="flex flex-col gap-3 border-t pt-5">
+          <div className="flex flex-col gap-3 border-t-2 border-ink pt-5">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <Button size="lg" onClick={onStart} disabled={starting}>
                 {starting
                   ? "Starting…"
                   : `Find ${plural(leadTarget, "business", "businesses")}`}
-                {!starting && (
-                  <ArrowRightIcon aria-hidden="true" data-icon="inline-end" />
-                )}
               </Button>
-              <p className="text-ui text-ink-secondary">
+              <p className="aside">
                 First results in about{" "}
                 {loading ? "a minute and a half" : "30 seconds"}
               </p>

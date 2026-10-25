@@ -259,6 +259,46 @@ const FLOWS = {
       await p.getByRole("heading", { level: 1, name: "New campaign" }).waitFor()
     }],
   ],
+  "new-campaign": [
+    ["open", async (p) => {
+      await p.goto("/campaigns/new")
+      await p.getByRole("heading", { level: 1, name: "New campaign" }).waitFor()
+    }],
+    ["an empty Who is caught on Review plan", async (p) => {
+      await p.getByRole("textbox", { name: "Who" }).fill("")
+      await p.getByRole("button", { name: "Review plan", exact: true }).click()
+      await p.getByText('Enter who you sell to, like "Dentists".').waitFor()
+    }],
+    ["a suggestion fills Who and shows as pressed", async (p) => {
+      const group = p.getByRole("group", { name: "Suggestions:" })
+      await group.getByRole("button", { name: "Dentists" }).click()
+      await group.locator('[aria-pressed="true"]', { hasText: "Dentists" }).waitFor()
+      if ((await p.getByRole("textbox", { name: "Who" }).inputValue()) !== "Dentists") throw new Error("Who was not filled")
+    }],
+    ["Review plan shows the plan with its heading focused", async (p) => {
+      await p.getByRole("button", { name: "Review plan", exact: true }).click()
+      await visible(p, '[data-testid="plan-panel"]')
+      await p.waitForFunction(() => document.activeElement?.textContent?.endsWith("plan:"))
+    }],
+    ["changing the brief marks the plan as stale", async (p) => {
+      await p.getByRole("textbox", { name: "Your offer" }).fill("Google Ads for dental and orthodontic practices")
+      await p.getByText("You changed the brief after this plan.").waitFor()
+    }],
+    ["Review plan again clears it", async (p) => {
+      await p.getByRole("button", { name: "Review plan again" }).first().click()
+      await gone(p, "text=You changed the brief after this plan.")
+      await visible(p, '[data-testid="plan-panel"]')
+    }],
+    ["Find asks the plan's question first", async (p) => {
+      await p.getByRole("button", { name: /^Find \d+ businesses/ }).click()
+      await p.getByText("Choose Yes or No to continue.").waitFor()
+    }],
+    ["answer No and start: the desk opens", async (p) => {
+      await p.getByRole("radio", { name: "No" }).check()
+      await p.getByRole("button", { name: /^Find \d+ businesses/ }).click()
+      await p.getByRole("heading", { level: 1, name: /Dentists within 5 mi/ }).waitFor({ timeout: 15_000 })
+    }],
+  ],
   desk: [
     ["open", async (p) => {
       await p.goto(CAMPAIGN)

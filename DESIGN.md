@@ -161,7 +161,9 @@ This takes `--dur-file`. It is the only authored motion in the app.
 - **Checkbox:** a 2px square that fills with ink when checked.
 - **Radio:** a circle.
 - **Switch:** a square track whose knob slides; it is ink-filled when on.
-- **Radio cards:** square boxes; the chosen one has a 2px ink border and an ink check.
+- **Radio cards:** square boxes with a 1px ink border; the chosen one takes a 2px inset ink outline and a filled radio.
+- **Toggle chips** (the industry suggestions): 32px square chips with a hairline border that darkens to ink on hover; a pressed chip inverts to ink with a drawn check. They stay buttons with `aria-pressed`.
+- **Forms:** no card around them. A bold label column (7.5rem on desktop, stacked on phones) sits beside each field, and hints run underneath as italic asides. Sections of a long form are ruled off with a 2px ink rule and a condensed head.
 
 ### Data and status
 
@@ -194,6 +196,12 @@ This takes `--dur-file`. It is the only authored motion in the app.
   - Notices never sit on a tinted background.
 - **Empty states:** a condensed head, one sentence about what will fill the space, and the action that fills it. There is no icon tile.
 - **Toasts:** a paper slip with an ink border and `shadow-overlay`, a bold title, a sentence and an Undo button, placed bottom right above the desk's action strip.
+  - The kind shows as a drawn mark: a check (done), a dot (for your information), an edge-red asterisk (warning) or an edge-red cross (error); a three-dot leader while something runs.
+- **The plan (New campaign):** a notice with a 3px ink top rule.
+  - A small boxed "AI" tag, then "Claude's plan:" in bold and the restatement in italic quotes.
+  - Categories are white-pages lines, "General dentistry ······ 38".
+  - The match count is set in display numerals: the page's one bold number.
+  - A stale plan says so in edge red across the top of the notice, with Review plan again beside it.
 - **Dialogs and sheets:** overlay style, with titles in `text-head`.
 - **Menus:** entries run "Label ······ shortcut".
 - **Command menu and shortcut sheet:** both are directory keys, "Next lead ······ J".

@@ -1,5 +1,5 @@
 import * as React from "react"
-import { CircleAlertIcon } from "lucide-react"
+import { Mark } from "@/components/Mark"
 import type { FieldValues, Path, UseFormSetError, UseFormSetFocus } from "react-hook-form"
 import { isApiError } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -61,12 +61,12 @@ export function FormField({
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined
   return (
     <div data-slot="form-field" className={cn("flex min-w-0 flex-col gap-1.5", className)}>
-      <label htmlFor={id} className={cn("w-fit text-ui font-medium text-foreground", hideLabel && "sr-only")}>
+      <label htmlFor={id} className={cn("w-fit text-ui font-bold", hideLabel && "sr-only")}>
         {label}
-        {optional && <span className="font-normal text-muted-foreground"> (optional)</span>}
+        {optional && <span className="font-normal italic"> (optional)</span>}
       </label>
       {description && (
-        <p id={hintId} className="max-w-[68ch] text-ui text-ink-secondary">
+        <p id={hintId} className="max-w-measure aside">
           {description}
         </p>
       )}
@@ -82,18 +82,18 @@ export function FormField({
   )
 }
 
-/** An error line for a field or a group of fields (icon + words, not color alone). */
+/** An error line for a field or a group of fields: a red mark and words, never colour alone. */
 export function FieldMessage({ id, children, className }: { id?: string; children: React.ReactNode; className?: string }) {
   return (
-    <p id={id} data-slot="field-message" className={cn("flex items-start gap-1.5 text-ui text-destructive", className)}>
-      <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+    <p id={id} data-slot="field-message" className={cn("flex items-start gap-1.5 text-ui font-semibold text-edge", className)}>
+      <Mark name="asterisk" className="mt-1" />
       <span>{children}</span>
     </p>
   )
 }
 
-/** Standard input sizing on our type scale (36 px tall, 16 px text on phones so iOS doesn't zoom). */
-export const inputClass = "h-9 text-base md:text-ui"
+/** Standard input sizing on our type scale (40 px tall, 16 px text on phones so iOS doesn't zoom). */
+export const inputClass = "h-10 text-body md:text-ui"
 
 /** The backend's message when several fields failed schema validation. */
 const GENERIC_VALIDATION_MESSAGE = "Please check the highlighted fields."
@@ -141,7 +141,7 @@ export function applyServerErrors<T extends FieldValues>(
   return true
 }
 
-/** A page section in a quiet panel, with its own heading. */
+/** A page section, ruled off like a directory section: a heavy-ish rule, a condensed head, then its content. */
 export function Section({
   id,
   title,
@@ -166,14 +166,14 @@ export function Section({
       id={id}
       aria-labelledby={headingId}
       data-slot="section"
-      className={cn("scroll-mt-4 rounded-xl border bg-card p-5 sm:p-6", className)}
+      className={cn("scroll-mt-4 border-t-2 border-ink pt-5", className)}
     >
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
         <div className="min-w-0 space-y-1">
-          <Heading id={headingId} tabIndex={-1} className="text-pane-title font-semibold text-foreground outline-none">
+          <Heading id={headingId} tabIndex={-1} className="section-head outline-none">
             {title}
           </Heading>
-          {description && <p className="max-w-[68ch] text-ui text-ink-secondary">{description}</p>}
+          {description && <p className="max-w-measure text-ui">{description}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>

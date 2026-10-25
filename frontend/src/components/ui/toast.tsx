@@ -5,7 +5,9 @@ import { Toast as ToastPrimitive } from "@base-ui/react/toast"
 import { cn } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"
-import { XIcon, CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+import { XIcon } from "lucide-react"
+import { Mark } from "@/components/Mark"
+import { Spinner } from "@/components/ui/spinner"
 
 const toast = ToastPrimitive.createToastManager()
 
@@ -139,33 +141,23 @@ function ToastIcon({ type }: { type: string | undefined }) {
   let icon: React.ReactNode = null
 
   if (type === "success") {
-    icon = (
-      <CircleCheckIcon aria-hidden="true" />
-    )
+    icon = <Mark name="check" />
   }
 
   if (type === "info") {
-    icon = (
-      <InfoIcon aria-hidden="true" />
-    )
+    icon = <Mark name="dot" />
   }
 
   if (type === "warning") {
-    icon = (
-      <TriangleAlertIcon aria-hidden="true" />
-    )
+    icon = <Mark name="asterisk" className="text-edge" />
   }
 
   if (type === "error") {
-    icon = (
-      <OctagonXIcon className="text-edge" aria-hidden="true" />
-    )
+    icon = <Mark name="cross" className="text-edge" />
   }
 
   if (type === "loading") {
-    icon = (
-      <Loader2Icon className="animate-spin" aria-hidden="true" />
-    )
+    icon = <Spinner aria-hidden="true" role="presentation" />
   }
 
   if (!icon) {
@@ -175,7 +167,7 @@ function ToastIcon({ type }: { type: string | undefined }) {
   return (
     <span
       data-slot="toast-icon"
-      className="shrink-0 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4"
+      className="flex h-5 shrink-0 items-center self-start [&_svg]:pointer-events-none"
     >
       {icon}
     </span>

@@ -2,7 +2,7 @@ import * as React from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { CheckIcon, SearchIcon } from "lucide-react"
+import { Mark } from "@/components/Mark"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { CalmError } from "@/components/CalmError"
 import { PlaceholderBar } from "@/components/PlaceholderBar"
@@ -80,14 +80,9 @@ function BriefField({
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined
   return (
     <div className="grid gap-x-6 gap-y-1.5 lg:grid-cols-[7.5rem_minmax(0,1fr)]">
-      <label
-        htmlFor={id}
-        className="w-fit text-ui font-medium text-foreground lg:pt-2"
-      >
+      <label htmlFor={id} className="w-fit text-ui font-bold lg:pt-2.5">
         {label}
-        {optional && (
-          <span className="font-normal text-muted-foreground"> (optional)</span>
-        )}
+        {optional && <span className="font-normal italic"> (optional)</span>}
       </label>
       {/* With a second control: side by side from 640 px; on phones it moves under the hint. */}
       <div
@@ -108,10 +103,7 @@ function BriefField({
           <div className="order-last pt-1.5 sm:order-none sm:pt-0">{aside}</div>
         )}
         {hint && (
-          <p
-            id={hintId}
-            className="text-meta text-ink-secondary sm:col-span-full"
-          >
+          <p id={hintId} className="aside sm:col-span-full">
             {hint}
           </p>
         )}
@@ -140,14 +132,13 @@ function AsideSelect({
   const id = `aside${generated.replace(/:/gu, "")}`
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-      <label htmlFor={id} className="text-ui font-medium text-foreground">
+      <label htmlFor={id} className="text-ui font-bold">
         {label}
       </label>
       <NativeSelect
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
-        className="[&_select]:h-9 [&_select]:text-ui"
         {...select}
       >
         {children}
@@ -171,7 +162,7 @@ function BriefSkeleton() {
           className="grid gap-x-6 gap-y-1.5 lg:grid-cols-[7.5rem_minmax(0,1fr)]"
         >
           <PlaceholderBar width={72} className="lg:mt-3" />
-          <PlaceholderBar height={36} className="rounded-lg" />
+          <PlaceholderBar width="100%" className="mt-3 block" />
         </div>
       ))}
     </div>
@@ -192,20 +183,14 @@ function PlanningLine({
     return () => window.clearTimeout(timer)
   }, [])
   return (
-    <div
-      data-testid="planning"
-      className="flex items-start gap-3 rounded-xl border bg-card px-5 py-4"
-    >
-      <span
-        aria-hidden="true"
-        className="mt-1.5 flex size-2 shrink-0 animate-working rounded-full bg-primary motion-reduce:animate-none"
-      />
+    <div data-testid="planning" className="flex items-start gap-3 border border-ink px-5 py-4">
+      <Mark name="dot" className="mt-1 animate-working motion-reduce:animate-none" />
       <div className="space-y-0.5">
-        <p className="text-ui font-medium text-foreground">
+        <p className="text-ui font-bold">
           Checking listings near {location || "your location"} and asking{" "}
           {aiName ?? "the AI"} to restate your plan…
         </p>
-        <p className="text-meta text-ink-secondary">
+        <p className="aside">
           {slow
             ? "Still working. This can take up to 15 seconds."
             : "This usually takes a few seconds."}
@@ -397,7 +382,7 @@ function BriefForm({
         noValidate
         onSubmit={review}
         aria-label="Campaign brief"
-        className="flex flex-col gap-4 rounded-xl border bg-card p-5 sm:p-6"
+        className="flex flex-col gap-5"
       >
         <Controller
           control={control}
@@ -452,10 +437,7 @@ function BriefForm({
                 role="group"
                 aria-labelledby="industry-suggestions"
               >
-                <span
-                  id="industry-suggestions"
-                  className="mr-1 text-meta text-ink-secondary"
-                >
+                <span id="industry-suggestions" className="mr-1 aside">
                   Suggestions:
                 </span>
                 {industries.data.suggestions.map((suggestion) => {
@@ -472,15 +454,13 @@ function BriefForm({
                         })
                       }
                       className={cn(
-                        "inline-flex h-7 items-center gap-1 rounded-sm border px-2 text-list transition-colors",
+                        "inline-flex h-8 items-center gap-1.5 border px-2.5 text-ui transition-colors duration-(--dur-fast)",
                         pressed
-                          ? "border-primary bg-accent font-medium text-accent-foreground"
-                          : "border-border bg-card text-foreground hover:border-[color-mix(in_srgb,var(--input)_70%,transparent)] hover:bg-muted"
+                          ? "border-ink bg-ink font-bold text-paper"
+                          : "border-hairline hover:border-ink"
                       )}
                     >
-                      {pressed && (
-                        <CheckIcon aria-hidden="true" className="size-3.5" />
-                      )}
+                      {pressed && <Mark name="check" />}
                       {suggestion}
                     </button>
                   )
@@ -585,7 +565,7 @@ function BriefForm({
                 step={1}
                 className={cn(inputClass, "w-20 tabular-nums")}
               />
-              <span aria-hidden="true" className="text-ui text-ink-secondary">
+              <span aria-hidden="true" className="text-ui">
                 businesses
               </span>
             </div>
@@ -593,8 +573,8 @@ function BriefForm({
         </BriefField>
 
         <div className="grid gap-x-6 gap-y-1.5 lg:grid-cols-[7.5rem_minmax(0,1fr)]">
-          <span className="text-ui font-medium text-foreground">Sender</span>
-          <p className="min-w-0 text-ui [overflow-wrap:anywhere] text-foreground">
+          <span className="text-ui font-bold">Sender</span>
+          <p className="min-w-0 text-ui [overflow-wrap:anywhere]">
             {profile ? (
               <>
                 {senderLine(profile)}{" "}
@@ -602,7 +582,7 @@ function BriefForm({
                   to="/settings"
                   hash="sender-profile"
                   aria-label="Edit sender profile"
-                  className="text-primary underline underline-offset-2 hover:no-underline"
+                  className="font-semibold underline underline-offset-[3px] hover:text-edge"
                 >
                   (edit)
                 </Link>
@@ -613,7 +593,7 @@ function BriefForm({
                 <Link
                   to="/settings"
                   hash="sender-profile"
-                  className="text-primary underline underline-offset-2"
+                  className="font-semibold underline underline-offset-[3px] hover:text-edge"
                 >
                   Add it in Settings
                 </Link>
@@ -629,7 +609,6 @@ function BriefForm({
             variant={planned && !stale ? "outline" : "default"}
             disabled={planMutation.isPending}
           >
-            <SearchIcon aria-hidden="true" />
             {planMutation.isPending
               ? "Reviewing…"
               : planned && !stale
@@ -637,7 +616,7 @@ function BriefForm({
                 : "Review plan"}
           </Button>
           {!planned && !planMutation.isPending && (
-            <p className="text-meta text-ink-secondary">
+            <p className="aside">
               Nothing starts until you've seen the plan.
             </p>
           )}

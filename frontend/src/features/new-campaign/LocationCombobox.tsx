@@ -1,6 +1,5 @@
 import * as React from "react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import { MapPinIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { useAnnounce } from "@/hooks/use-announce"
 import { api } from "@/lib/api"
@@ -137,10 +136,6 @@ export function LocationCombobox({
 
   return (
     <div className="relative min-w-0 flex-1">
-      <MapPinIcon
-        aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-      />
       <Input
         {...aria}
         id={id}
@@ -157,7 +152,7 @@ export function LocationCombobox({
         spellCheck={false}
         placeholder={placeholder}
         value={value}
-        className={cn(inputClass, "pl-8")}
+        className={inputClass}
         onChange={(event) => {
           onChange(event.target.value)
           setQuery(event.target.value)
@@ -179,7 +174,7 @@ export function LocationCombobox({
         role="listbox"
         aria-label="Suggested places"
         hidden={!expanded}
-        className="absolute inset-x-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-lg border bg-popover p-1 text-popover-foreground shadow-popover"
+        className="absolute inset-x-0 top-full z-30 mt-1 max-h-72 overflow-y-auto border border-ink bg-paper p-1 text-ink shadow-overlay"
       >
         {results.map((place, index) => (
           <li
@@ -191,12 +186,12 @@ export function LocationCombobox({
             onMouseMove={() => setActive(index)}
             onClick={() => choose(index)}
             className={cn(
-              "flex min-h-9 cursor-pointer items-center justify-between gap-3 rounded-md px-2.5 py-1.5 text-ui text-foreground",
-              index === highlighted && "bg-accent text-accent-foreground"
+              "flex min-h-10 cursor-pointer items-center justify-between gap-3 px-2.5 py-1.5 text-ui",
+              index === highlighted && "bg-ink text-paper"
             )}
           >
             <span className="truncate">{place.label}</span>
-            <span className="shrink-0 text-meta text-muted-foreground">
+            <span className="shrink-0 aside">
               {place.kind === "zip" ? "ZIP code" : "City"}
             </span>
           </li>
