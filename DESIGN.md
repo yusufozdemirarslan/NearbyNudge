@@ -213,12 +213,16 @@ This takes `--dur-file`. It is the only authored motion in the app.
 - **Command menu and shortcut sheet:** both are directory keys, "Next lead ······ J".
 - **Loading:** dotted leader lines in the shape of the content. There are no grey bars and no spinners inside content.
 
-### Charts
+### Charts and figures
 
-- Ink bars on a 1px ink baseline, with no gridlines.
+- Ink bars on a 1px ink baseline, square, with no gridlines.
 - The current week or highlighted item is edge red.
-- Labels are direct, in condensed numerals, rather than a legend.
-- Every chart keeps its table view.
+- Labels are direct, in condensed numerals, rather than a legend; the latest column carries the only label.
+- Every chart keeps its table view. The switch is two words, Chart and Table; the pressed one is underlined in edge red.
+- Chart blocks sit under a 2px ink rule with a condensed title; there are no chart cards.
+- **Figures** (`StatTile`) are directory key lines, never tiles: "Found ······ 15", then the comparison and the all-time total as asides. On Numbers they run as one statistics key with the numbers in 36px condensed numerals on one right edge: the page's bold element. Up and down show as small drawn triangles beside the words.
+- **The funnel** is four filled leader tracks, the same device as the meters: solid ink over a dotted rule, with the share of found as an aside.
+- **Tooltips** are a paper slip with an ink border: the period in italic, the value in condensed numerals.
 
 ## Layout
 

@@ -401,6 +401,44 @@ const FLOWS = {
       await p.locator('[data-slot="lead-header"] h2', { hasText: "Sample Bright Dental" }).waitFor()
     }],
   ],
+  numbers: [
+    ["open", async (p) => {
+      await p.goto("/numbers")
+      await p.getByRole("heading", { level: 2, name: "This week" }).waitFor()
+      await visible(p, '[data-slot="stat-tile"]')
+    }],
+    ["the funnel switches to its table and back", async (p) => {
+      const funnel = p.locator("section").filter({ has: p.getByRole("heading", { name: "Funnel" }) })
+      await funnel.getByRole("button", { name: "Table" }).click()
+      await funnel.getByRole("table", { name: "Funnel, all campaigns" }).waitFor()
+      await funnel.getByRole("button", { name: "Chart" }).click()
+      await funnel.getByRole("list", { name: "Funnel steps" }).waitFor()
+    }],
+    ["a weekly chart shows its table", async (p) => {
+      const card = p.locator("[data-slot=chart-card]").filter({ has: p.getByRole("heading", { level: 3, name: "Found" }) })
+      await card.getByRole("button", { name: "Table" }).click()
+      const rows = await card.getByRole("table", { name: "Found by week" }).getByRole("row").count()
+      if (rows !== 9) throw new Error(`expected 9 rows, got ${rows}`)
+      await card.getByRole("button", { name: "Chart" }).click()
+      await card.locator("svg.recharts-surface").waitFor()
+    }],
+    ["hovering a week shows its tooltip", async (p) => {
+      const card = p.locator("[data-slot=chart-card]").filter({ has: p.getByRole("heading", { level: 3, name: "Sent" }) })
+      const box = await card.locator("svg.recharts-surface").boundingBox()
+      await p.mouse.move(box.x + box.width * 0.55, box.y + box.height * 0.6)
+      await card.getByText(/^Week of /).waitFor()
+    }],
+    ["Export CSV downloads the numbers", async (p) => {
+      const download = p.waitForEvent("download")
+      await p.getByRole("button", { name: "Export CSV" }).click()
+      const file = await download
+      if (file.suggestedFilename() !== "nearbynudge-numbers.csv") throw new Error(file.suggestedFilename())
+    }],
+    ["a campaign opens on its review desk", async (p) => {
+      await p.getByRole("table", { name: "Numbers by campaign" }).getByRole("link").first().click()
+      await p.getByRole("heading", { level: 1 }).filter({ hasText: /within/ }).waitFor()
+    }],
+  ],
   desk: [
     ["open", async (p) => {
       await p.goto(CAMPAIGN)

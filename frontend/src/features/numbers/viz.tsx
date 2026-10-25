@@ -1,16 +1,14 @@
 import * as React from "react"
-import { BarChart3Icon, TableIcon } from "lucide-react"
-import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts"
+import { Bar, BarChart, Cell, LabelList, XAxis, YAxis } from "recharts"
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart"
 import { cn } from "@/lib/utils"
 
 /*
- * Charts, figures and tables for Numbers and the admin console, following the
- * dataviz method: one measure per chart with its own scale (never two y-axes),
- * thin columns (<= 24 px) with 4 px rounded data-ends, hairline grid, text in
- * text tokens, selective labels, a hover/focus tooltip, and a table view for
- * every chart. Colors are the brief's tokens: --chart-3 for single series,
- * --chart-1..4 as the validated ordinal ramp for the funnel.
+ * Charts, figures and tables for Numbers and the admin console, set like the
+ * statistics pages at the back of a city directory: one measure per chart with
+ * its own scale (never two y-axes), square ink columns on a 1px ink baseline,
+ * no gridlines, the current period in edge red, one direct label in condensed
+ * numerals, a hover/focus tooltip, and a table view for every chart.
  */
 
 // ---------------------------------------------------------------------------
@@ -39,7 +37,7 @@ export function longDay(day: string): string {
 
 export type ChartView = "chart" | "table"
 
-/** Two pressed-state buttons: Chart | Table. */
+/** Two pressed-state words, Chart and Table; the pressed one is underlined in edge red. */
 export function ViewToggle({
   view,
   onChange,
@@ -51,15 +49,13 @@ export function ViewToggle({
   label: string
 }) {
   const item =
-    "inline-flex h-7 items-center gap-1 rounded-md px-2 text-meta font-medium text-ink-secondary transition-colors hover:text-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-[0_0_0_1px_var(--border)]"
+    "inline-flex h-8 items-center px-0.5 text-ui font-semibold decoration-2 underline-offset-[6px] hover:underline aria-pressed:underline aria-pressed:decoration-edge"
   return (
-    <div role="group" aria-label={`Show ${label} as`} className="inline-flex shrink-0 rounded-lg bg-muted p-0.5">
+    <div role="group" aria-label={`Show ${label} as`} className="inline-flex shrink-0 items-center gap-3">
       <button type="button" aria-pressed={view === "chart"} className={item} onClick={() => onChange("chart")}>
-        <BarChart3Icon aria-hidden="true" className="size-3.5" />
         Chart
       </button>
       <button type="button" aria-pressed={view === "table"} className={item} onClick={() => onChange("table")}>
-        <TableIcon aria-hidden="true" className="size-3.5" />
         Table
       </button>
     </div>
@@ -67,9 +63,9 @@ export function ViewToggle({
 }
 
 /**
- * A chart in a quiet panel with a title, one plain sentence and a Chart |
- * Table switch, so every value is readable without the chart (WCAG 1.1.1,
- * 1.4.1).
+ * A chart ruled off under a 2px ink rule, with a condensed title, one plain
+ * sentence and the Chart and Table switch, so every value is readable without
+ * the chart (WCAG 1.1.1, 1.4.1). No panel.
  */
 export function ChartCard({
   title,
@@ -97,18 +93,18 @@ export function ChartCard({
     <section
       aria-labelledby={headingId}
       data-slot="chart-card"
-      className={cn("flex min-w-0 flex-col rounded-xl border bg-card p-4 sm:p-5", className)}
+      className={cn("flex min-w-0 flex-col border-t-2 border-ink pt-3", className)}
     >
       <div className="flex items-center justify-between gap-3">
         <Heading
           id={headingId}
-          className={cn("min-w-0 font-semibold text-foreground", headingLevel === 2 ? "text-pane-title" : "text-ui")}
+          className={cn("min-w-0", headingLevel === 2 ? "section-head" : "text-lead font-extrabold stretch-condensed")}
         >
           {title}
         </Heading>
         <ViewToggle view={view} onChange={setView} label={title} />
       </div>
-      {description && <p className="mt-1 text-meta text-ink-secondary">{description}</p>}
+      {description && <p className="mt-1 aside">{description}</p>}
       {/* mt-auto keeps plots level across a row of cards whose descriptions wrap differently. */}
       <div className="mt-auto min-w-0 pt-4">{view === "chart" ? chart : table}</div>
       {footer && <div className="mt-3">{footer}</div>}
@@ -155,20 +151,20 @@ function ColumnTooltip({
   const datum = item?.payload
   if (!active || !datum) return null
   return (
-    <div className="grid min-w-36 gap-1 rounded-lg border bg-popover px-3 py-2 shadow-popover">
-      <p className="text-meta text-ink-secondary">{datum.title}</p>
-      <p className="flex items-center gap-2">
-        <span aria-hidden="true" className="h-0.5 w-3 rounded-full bg-[var(--color-value)]" />
-        <span className="text-ui font-semibold text-foreground tabular-nums">{format(datum.value)}</span>
-        <span className="text-meta text-muted-foreground">{series}</span>
+    <div className="grid min-w-36 gap-0.5 border border-ink bg-paper px-3 py-2 text-ink shadow-overlay">
+      <p className="aside">{datum.title}</p>
+      <p className="flex items-baseline gap-2">
+        <span className="numeral text-lead leading-none">{format(datum.value)}</span>
+        <span className="text-meta">{series}</span>
       </p>
     </div>
   )
 }
 
 /**
- * Columns for one measure over time, with its own integer (or money) scale.
- * Labels only the latest column; the axis, tooltip and table carry the rest.
+ * Square ink columns for one measure over time, with its own integer (or
+ * money) scale. The latest period is edge red and carries the only label; the
+ * axis, tooltip and table carry the rest.
  */
 export function ColumnChart({
   data,
@@ -179,7 +175,8 @@ export function ColumnChart({
   height = 168,
   barSize = 20,
   labelLast = true,
-  color = "var(--chart-3)",
+  color = "var(--ink)",
+  highlight = "var(--edge)",
   chartTitle,
   className,
 }: {
@@ -194,6 +191,8 @@ export function ColumnChart({
   barSize?: number
   labelLast?: boolean
   color?: string
+  /** Fill of the latest column, the current period. */
+  highlight?: string
   /** Accessible title of the chart's SVG: "Found by week". */
   chartTitle?: string
   className?: string
@@ -205,7 +204,7 @@ export function ColumnChart({
   return (
     <ChartContainer
       config={config}
-      className={cn("aspect-auto w-full [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-[var(--muted)]", className)}
+      className={cn("aspect-auto w-full [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-tint", className)}
       style={{ height }}
       initialDimension={{ width: 320, height }}
     >
@@ -216,11 +215,11 @@ export function ColumnChart({
         title={chartTitle ?? series}
         desc={latest ? `Latest: ${format(latest.value)}` : undefined}
       >
-        <CartesianGrid vertical={false} stroke="var(--border)" strokeWidth={1} />
         <XAxis
           dataKey="tick"
           tickLine={false}
-          axisLine={{ stroke: "color-mix(in srgb, var(--foreground) 24%, transparent)" }}
+          axisLine={{ stroke: "var(--ink)", strokeWidth: 1 }}
+          tick={{ fill: "var(--ink)" }}
           tickMargin={6}
           minTickGap={10}
           interval="preserveStartEnd"
@@ -230,9 +229,10 @@ export function ColumnChart({
           width={integer ? 28 : 44}
           tickLine={false}
           axisLine={false}
+          tick={{ fill: "var(--ink)" }}
           allowDecimals={!integer}
           domain={[0, top]}
-          tickCount={integer ? (top <= 4 ? top + 1 : 5) : 3}
+          tickCount={integer ? (top <= 4 ? top + 1 : 3) : 3}
           tickFormatter={(value: number) => (axisFormat ?? format)(value)}
           fontSize={12}
         />
@@ -240,10 +240,12 @@ export function ColumnChart({
         <Bar
           dataKey="value"
           fill="var(--color-value)"
-          radius={[4, 4, 0, 0]}
           maxBarSize={barSize}
           isAnimationActive={false}
         >
+          {data.map((datum, index) => (
+            <Cell key={datum.key} fill={index === data.length - 1 ? highlight : color} />
+          ))}
           {labelLast && (
             <LabelList
               dataKey="value"
@@ -271,8 +273,8 @@ export function ColumnChart({
                     x={fits ? cx : cx + room}
                     y={Number(y) - 6}
                     textAnchor={fits ? "middle" : "end"}
-                    className="fill-foreground text-meta font-semibold"
-                    style={{ fontVariantNumeric: "tabular-nums" }}
+                    className="fill-ink text-ui font-extrabold"
+                    style={{ fontVariantNumeric: "tabular-nums", fontStretch: "62.5%" }}
                   >
                     {text}
                   </text>
@@ -296,8 +298,6 @@ export interface FunnelStep {
   value: number
 }
 
-const FUNNEL_COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"]
-
 /** "43% of found", or null when there is nothing to compare with. */
 export function shareOf(value: number, of: number): string | null {
   if (of <= 0) return null
@@ -305,40 +305,37 @@ export function shareOf(value: number, of: number): string | null {
 }
 
 /**
- * Found → Approved → Sent → Replied in four teal steps (the ordinal ramp,
- * lightest first). Each bar carries its label and value; the share of the
- * first step sits beside it. Bars are decorative: the words carry the data.
+ * Found, Approved, Sent, Replied as four filled leader tracks, like the
+ * meters: solid ink over a dotted rule. Each step carries its label and
+ * value; the share of the first step sits beside it. The tracks are
+ * decorative: the words carry the data.
  */
 export function Funnel({ steps, className }: { steps: FunnelStep[]; className?: string }) {
   const first = steps[0]?.value ?? 0
   const max = Math.max(1, ...steps.map((step) => step.value))
   return (
-    <ol className={cn("grid gap-3.5", className)} aria-label="Funnel steps">
+    <ol className={cn("grid gap-5", className)} aria-label="Funnel steps">
       {steps.map((step, index) => {
         const width = (step.value / max) * 100
         const share = index > 0 ? shareOf(step.value, first) : null
         return (
-          <li key={step.key} className="grid gap-1.5">
+          <li key={step.key} className="grid gap-2">
             <p className="flex items-baseline justify-between gap-3">
-              <span className="flex items-baseline gap-2">
-                <span className="text-ui font-medium text-foreground">{step.label}</span>
-                <span className="text-ui font-semibold text-foreground tabular-nums">
-                  {step.value.toLocaleString("en-US")}
-                </span>
+              <span className="flex items-baseline gap-2.5">
+                <span className="text-ui font-bold">{step.label}</span>
+                <span className="numeral text-head leading-none">{step.value.toLocaleString("en-US")}</span>
               </span>
               {share && (
-                <span className="text-meta text-ink-secondary tabular-nums">
+                <span className="aside tabular-nums">
                   {share} of {steps[0].label.toLowerCase()}
                 </span>
               )}
             </p>
-            <span aria-hidden="true" className="block h-5 w-full">
+            <span aria-hidden="true" className="relative block h-2 w-full">
+              <span className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-b-2 border-dotted border-leader" />
               <span
-                className="block h-full rounded-r-[4px]"
-                style={{
-                  width: step.value > 0 ? `max(4px, ${width}%)` : 0,
-                  background: FUNNEL_COLORS[index % FUNNEL_COLORS.length],
-                }}
+                className="absolute inset-y-0 left-0 bg-ink"
+                style={{ width: step.value > 0 ? `max(3px, ${width}%)` : 0 }}
               />
             </span>
           </li>
@@ -353,28 +350,39 @@ export function Funnel({ steps, className }: { steps: FunnelStep[]; className?: 
 // ---------------------------------------------------------------------------
 
 /**
- * A headline number: label, value (proportional figures), an optional
- * comparison line and a secondary line.
+ * A figure set as a directory key line: the label, a dot leader, the value in
+ * condensed numerals, then an optional comparison and a secondary line as
+ * asides. Lives in a <dl>; the leader is the label's ::after, so the line
+ * stays valid dt/dd markup. `wide` lays the asides out as columns on desktop.
  */
 export function StatTile({
   label,
   value,
   detail,
   secondary,
+  wide = false,
   className,
 }: {
   label: React.ReactNode
   value: React.ReactNode
   detail?: React.ReactNode
   secondary?: React.ReactNode
+  wide?: boolean
   className?: string
 }) {
   return (
-    <div data-slot="stat-tile" className={cn("flex min-w-0 flex-col gap-1 rounded-xl border bg-card p-4", className)}>
-      <dt className="text-ui text-ink-secondary">{label}</dt>
-      <dd className="text-headline font-semibold text-foreground">{value}</dd>
-      {detail && <dd className="text-meta text-ink-secondary">{detail}</dd>}
-      {secondary && <dd className="text-meta text-muted-foreground">{secondary}</dd>}
+    <div
+      data-slot="stat-tile"
+      className={cn(
+        "grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-2 gap-y-0.5 border-b border-hairline py-3",
+        wide && "md:grid-cols-[minmax(0,1fr)_auto_minmax(0,19rem)_9rem] md:gap-x-0 md:py-4",
+        className
+      )}
+    >
+      <dt className="flex min-w-0 items-baseline gap-2 text-ui font-bold after:leader after:content-['']">{label}</dt>
+      <dd className={cn("numeral text-head leading-none", wide && "text-title md:pl-2")}>{value}</dd>
+      {detail && <dd className={cn("col-span-2 aside", wide && "md:col-span-1 md:pl-8")}>{detail}</dd>}
+      {secondary && <dd className={cn("col-span-2 aside", wide && "md:col-span-1 md:pl-4 md:text-right")}>{secondary}</dd>}
     </div>
   )
 }
@@ -406,17 +414,18 @@ export function DataTable({
       role="region"
       aria-label={label}
       tabIndex={0}
-      className={cn("focus-inset w-full min-w-0 overflow-x-auto rounded-lg", className)}
+      className={cn("focus-inset w-full min-w-0 overflow-x-auto", className)}
     >
-      <table aria-label={label} className="w-full border-collapse text-left text-list">
-        {caption && <caption className="caption-bottom pt-2 text-left text-meta text-muted-foreground">{caption}</caption>}
+      <table aria-label={label} className="w-full border-collapse text-left text-ui">
+        {caption && <caption className="caption-bottom pt-2 text-left aside">{caption}</caption>}
         {children}
       </table>
     </div>
   )
 }
 
-export const th = "border-b px-2.5 py-2 text-meta font-medium whitespace-nowrap text-ink-secondary first:pl-0 last:pr-0"
+export const th =
+  "border-b-2 border-ink px-2.5 pt-1 pb-2 align-bottom text-ui font-extrabold whitespace-nowrap stretch-condensed first:pl-0 last:pr-0"
 export const thNum = cn(th, "text-right")
-export const td = "border-b px-2.5 py-2 align-top text-foreground first:pl-0 last:pr-0"
+export const td = "border-b border-hairline px-2.5 py-2.5 align-top first:pl-0 last:pr-0"
 export const tdNum = cn(td, "text-right whitespace-nowrap tabular-nums")
