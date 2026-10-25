@@ -26,6 +26,10 @@ frontend/blob-report/
 docs/live-run-*.json
 docs/live-run-*.log
 
+# design review screenshots (regenerate with: node design-review/shoot.mjs before|after)
+design-review/before/
+design-review/after/
+
 # test output (live screenshots show real business contact details)
 docs/live-ui/
 docs/e2e-real/
