@@ -505,7 +505,20 @@ function SendingPreview({
           {formatTime(sending.resets_at)}).
         </p>
       )}
-      <div className={cn(compact ? "grid grid-cols-2 gap-2 [&>*:first-child]:col-span-2" : "flex flex-wrap items-center gap-2")}>{buttons}</div>
+      <div className={cn(compact ? "grid grid-cols-2 gap-2 [&>*:first-child]:col-span-2" : "flex flex-wrap items-center gap-2")}>
+        {buttons}
+        {lead.last_action?.action === "approve" && (
+          <Button
+            variant="link"
+            size={compact ? "lg" : "sm"}
+            className={cn("px-1", compact ? "col-span-2 justify-self-start" : "ml-auto")}
+            onClick={c.undoLast}
+            disabled={c.busy !== null}
+          >
+            Undo approval
+          </Button>
+        )}
+      </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {sending && (
           <Meter
@@ -520,11 +533,6 @@ function SendingPreview({
         {!noContact && (
           <Button variant="link" size="xs" className="h-auto px-0 text-meta font-normal" onClick={c.toggleWebmail}>
             {c.webmail ? "Use an email app? Make Open the main button" : "Use Gmail or Outlook in the browser? Make Copy the main button"}
-          </Button>
-        )}
-        {lead.last_action?.action === "approve" && (
-          <Button variant="ghost" size="sm" className="ml-auto" onClick={c.undoLast} disabled={c.busy !== null}>
-            Undo approval
           </Button>
         )}
       </div>

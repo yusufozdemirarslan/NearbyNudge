@@ -50,12 +50,12 @@ function WaitingLine({ campaigns }: { campaigns: CampaignSummary[] }) {
     return <p className="aside">No drafts are waiting for you.</p>
   }
   return (
-    <p className="flex flex-wrap items-baseline gap-x-3">
-      <span className="text-title leading-none text-edge stretch-condensed tabular-nums sm:text-display">{waiting}</span>
-      <span className="text-lead font-bold">
-        {waiting === 1 ? "draft is" : "drafts are"} waiting for you
-        {campaigns.length > 1 ? `, in ${plural(holding, "campaign")}` : ""}.
+    <p className="max-w-measure text-lead font-bold">
+      <span className="mr-2 text-title leading-none font-extrabold text-edge stretch-condensed tabular-nums sm:text-display">
+        {waiting}
       </span>
+      {waiting === 1 ? "draft is" : "drafts are"} waiting for you
+      {campaigns.length > 1 ? `, in ${plural(holding, "campaign")}` : ""}.
     </p>
   )
 }

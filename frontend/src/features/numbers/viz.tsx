@@ -331,7 +331,7 @@ export function Funnel({ steps, className }: { steps: FunnelStep[]; className?: 
                 </span>
               )}
             </p>
-            <span aria-hidden="true" className="relative block h-2 w-full">
+            <span aria-hidden="true" className="relative block h-1 w-full">
               <span className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-b-2 border-dotted border-leader" />
               <span
                 className="absolute inset-y-0 left-0 bg-ink"

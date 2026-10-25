@@ -118,8 +118,8 @@ function SentenceMarks({
               target?.focus({ preventScroll: true })
             }}
             className={cn(
-              "ml-px inline-flex h-4 min-w-4 items-center justify-center px-0.5 align-super text-micro leading-none font-extrabold stretch-condensed tabular-nums transition-colors duration-(--dur-fast)",
-              active ? "bg-ink text-paper" : "underline decoration-1 underline-offset-2 hover:text-edge"
+              "inline-flex h-4 min-w-3 items-center justify-center px-px align-super text-micro leading-none font-extrabold stretch-condensed tabular-nums transition-colors duration-(--dur-fast)",
+              active ? "bg-ink text-paper" : "underline decoration-1 underline-offset-1 hover:text-edge"
             )}
           >
             {n}

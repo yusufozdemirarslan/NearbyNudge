@@ -131,7 +131,7 @@ export const LeadRow = React.memo(function LeadRow({
         flash && !selected && "animate-row-new motion-reduce:animate-none"
       )}
     >
-      <div className={cn("flex w-9 shrink-0 justify-center", compact ? "items-center" : "items-start pt-3")}>
+      <div className={cn("flex w-10 shrink-0 justify-start pl-4 sm:w-9 sm:justify-center sm:pl-0", compact ? "items-center" : "items-start pt-3")}>
         <Checkbox
           checked={checked}
           onCheckedChange={(value) => onToggleChecked(Boolean(value))}
@@ -154,11 +154,15 @@ export const LeadRow = React.memo(function LeadRow({
         )}
       >
         <span className="flex min-w-0 items-baseline gap-1.5">
-          <Mark name="pointer" className={cn("size-2.5 shrink-0 self-center text-edge", !selected && "invisible")} />
+          <Mark name="pointer" className={cn("size-2.5 shrink-0 self-center text-edge max-sm:hidden", !selected && "invisible")} />
           {name}
           <span aria-hidden="true" className="leader" />
           {compact && <span className="shrink-0">{status}</span>}
-          <FitBadge score={lead.fit_score} label={lead.fit_label} variant="list" />
+          {lead.status === "failed" && lead.fit_score === null ? (
+            <span className="shrink-0 aside">Not scored</span>
+          ) : (
+            <FitBadge score={lead.fit_score} label={lead.fit_label} variant="list" />
+          )}
         </span>
         {!compact && (
           <span className="flex min-w-0 items-baseline gap-3 pl-4">

@@ -151,7 +151,7 @@ export function CampaignRow({
     <li
       data-testid="campaign-row"
       className={cn(
-        "group relative -mx-3 flex flex-col gap-3 border-b border-hairline px-3 py-4 transition-colors duration-(--dur-fast) hover:bg-tint",
+        "group relative -mx-3 flex flex-col gap-3 px-3 py-4 transition-colors duration-(--dur-fast) after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-hairline after:content-[''] hover:bg-tint",
         ROW_GRID
       )}
     >

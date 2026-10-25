@@ -165,7 +165,7 @@ function RowActions({ item, roomy = false }: { item: SentItem; roomy?: boolean }
   )
 }
 
-function BusinessCell({ item }: { item: SentItem }) {
+function BusinessCell({ item, showTo = false }: { item: SentItem; showTo?: boolean }) {
   return (
     <div className="min-w-0 space-y-0.5">
       <Link
@@ -177,6 +177,11 @@ function BusinessCell({ item }: { item: SentItem }) {
         {item.name}
       </Link>
       <p className="truncate aside">{item.campaign_name}</p>
+      {showTo && (
+        <p className="text-meta [overflow-wrap:anywhere]">
+          To {item.contact_email ? <EmailAddress email={item.contact_email} /> : <span className="italic">no published email address</span>}
+        </p>
+      )}
     </div>
   )
 }
@@ -213,18 +218,7 @@ const columns = helper.columns([
     id: "business",
     header: "Business",
     sortFn: "alphanumeric",
-    cell: (info) => <BusinessCell item={info.row.original} />,
-  }),
-  helper.accessor((row) => row.contact_email ?? "", {
-    id: "to",
-    header: "To",
-    enableSorting: false,
-    cell: (info) =>
-      info.row.original.contact_email ? (
-        <EmailAddress email={info.row.original.contact_email} className="text-ui" />
-      ) : (
-        <span className="aside">No email address</span>
-      ),
+    cell: (info) => <BusinessCell item={info.row.original} showTo />,
   }),
   helper.accessor((row) => row.email_subject ?? "", {
     id: "subject",
@@ -245,11 +239,10 @@ const columns = helper.columns([
 ])
 
 const WIDTHS: Record<string, string> = {
-  business: "w-[22%]",
-  to: "w-[19%]",
-  subject: "w-[20%]",
-  date: "w-[15%]",
-  actions: "w-[24%]",
+  business: "w-[30%]",
+  subject: "w-[24%]",
+  date: "w-[17%]",
+  actions: "w-[29%]",
 }
 
 function SentTable({ items, filter }: { items: SentItem[]; filter: SentStatusFilter }) {

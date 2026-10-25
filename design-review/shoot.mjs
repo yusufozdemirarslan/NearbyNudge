@@ -605,7 +605,8 @@ const FLOWS = {
       await p.goto(CAMPAIGN)
       await visible(p, '[data-slot="email-text"]')
       await p.keyboard.press("a")
-      await p.getByRole("button", { name: "Undo approval" }).click()
+      // The toast and the sending preview both offer it, under the same name; use the desk's.
+      await p.locator('[data-slot="sending-preview"]').getByRole("button", { name: "Undo approval" }).click()
       await rowStatus(p, "Sample Dental Studio").filter({ hasText: "Ready" }).waitFor()
     }],
     ["skip reasons with S", async (p) => {

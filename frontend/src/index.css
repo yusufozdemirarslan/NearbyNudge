@@ -325,6 +325,17 @@
   outline-offset: var(--focus-offset, 2px);
 }
 
+/*
+ * The command menu's field is always focused: instead of a box inside the box,
+ * its heavy rule turns edge red while it has focus.
+ */
+[data-slot="command-input"]:focus-visible {
+  outline: none;
+}
+[data-slot="command-input-wrapper"]:has(:focus-visible) {
+  border-bottom-color: var(--edge);
+}
+
 /* Live updates paused (WCAG 2.2.2): nothing moves. */
 .motion-paused,
 .motion-paused * {

@@ -18,7 +18,7 @@ What this refuses is the SaaS dashboard made of soft cards, tinted panels and ic
    - There is no grey text. Weight, width, size and italic carry the hierarchy.
 2. **Every list is a directory.** An entry is a white-pages line: name, dot leader, number. Details read like a directory listing, in short sentences separated by full stops, never by middle dots.
 3. **Navigation is a thumb index.** Views and sections are die-cut tabs. The open tab is red.
-4. **Sources are footnotes; checks are keys.** Claims carry superscript numbers, and the site check is a key with dot leaders.
+4. **Sources are footnotes; checks are keys.** Claims carry superscript numbers set tight against the sentence's last mark, and the site check is a key with dot leaders.
 5. **Spend boldness once per screen.** The running head and the thumb index are loud. Everything else is quiet black type on white.
 6. **Corners are square,** except where paper is die-cut (tabs) and where a circle means a dot.
 7. **One motion: filing.** It is described below. Nothing else moves except to show a state change.
@@ -105,8 +105,8 @@ Under `prefers-reduced-motion`, or with live updates paused, nothing moves and e
 ### The thumb index
 
 The status views of the review desk are die-cut tabs on the list's outer edge, the way a directory is cut for A–Z:
-- each tab shows its count in condensed numerals;
-- the open tab is edge red, and the others are ink;
+- each tab shows its count in condensed numerals, clear of the rounded end;
+- tabs are drawn in ink on paper and open on the rule they stand on; the open tab is filled edge red;
 - the labels run up the tab on desktop;
 - on phones, the tabs run along the top edge.
 
@@ -157,7 +157,7 @@ This takes `--dur-file`. It is the only authored motion in the app.
 ### Form controls
 
 - **Inputs, textareas and selects:** square, 1px ink border, 40px tall.
-  - Placeholders are italic `ink-soft`.
+  - Placeholders are italic `ink-soft`: with disabled labels, the one place `ink-soft` is allowed, because a hint must never read as a typed value.
   - An error turns the border edge red, with the message underneath in red beside a drawn mark.
 - **Checkbox:** a 2px square that fills with ink when checked.
 - **Radio:** a circle.
@@ -199,7 +199,7 @@ This takes `--dur-file`. It is the only authored motion in the app.
 - **Empty states:** a condensed head, one sentence about what will fill the space, and the action that fills it. There is no icon tile.
 - **Toasts:** a paper slip with an ink border and `shadow-overlay`, a bold title, a sentence and an Undo button, placed bottom right above the desk's action strip.
   - The kind shows as a drawn mark: a check (done), a dot (for your information), an edge-red asterisk (warning) or an edge-red cross (error); a three-dot leader while something runs.
-- **The footer slip (Onboarding and Settings):** the locked email footer, set at reading size (16/26) in a 2px ink frame with a drawn lock and "Locked" above it. It fills in as you type; empty lines show their placeholders in italic `ink-soft`. It is those pages' one bold element.
+- **The footer slip (Onboarding and Settings):** the locked email footer, set at reading size (16/26) in a 2px ink frame under a heading with a drawn lock. It fills in as you type; a value not given yet is a fill-in blank in ink, its name in italic followed by a dot leader. It is those pages' one bold element.
 - **Danger zone (Delete all data):** a notice with an edge-red 3px top rule, the confirm field and the edge-red destructive button. No pink wash.
 - **The ledger (Sent):** the status filters are a horizontal thumb index along the top of the table, each tab carrying its count in condensed numerals (24px on desktop, 18px on phones); the open filter is edge red. The table has no box. Logging a reply is a choice of underlined words, "Replied? Interested  No thanks  Other", not three more boxed buttons per row; only the approved rows carry real buttons. On phones each email is a white-pages entry with 44px buttons.
 - **The register (Do not contact):** each entry is a white-pages entry led by the edge-red barred circle: the name in 18px bold, the website and email as plain text beside each other, the reason as an aside, who added it and when in italic, and Remove as an underlined word. A removed entry stays in place with its name struck through in edge red (the filing strike) and Undo beside it.
@@ -215,7 +215,7 @@ This takes `--dur-file`. It is the only authored motion in the app.
   - A stale plan says so in edge red across the top of the notice, with Review plan again beside it.
 - **Dialogs and sheets:** overlay style, with titles in `text-head`.
 - **Menus:** entries run "Label ······ shortcut".
-- **Command menu and shortcut sheet:** both are directory keys, "Next lead ······ J".
+- **Command menu and shortcut sheet:** both are directory keys, "Next lead ······ J". The selected command is marked like the open lead: a red pointer and its name in red, never a grey fill. The command field's heavy rule turns red while it has focus.
 - **Loading:** dotted leader lines in the shape of the content. There are no grey bars and no spinners inside content.
 
 ### Charts and figures
@@ -240,7 +240,7 @@ This takes `--dur-file`. It is the only authored motion in the app.
   On phones it shrinks to the wordmark, the daily count and a Menu button that opens the index as a sheet.
 - **Running head (every page):**
   - the h1 in `text-title` caps on the left;
-  - one fact or the page actions on the right;
+  - one fact or the page actions on the right, staying beside the head on phones (the head wraps instead);
   - a 3px ink rule underneath;
   - one plain sentence under the rule.
 - **Review desk:** thumb index (44px), then the list (340px), then the open entry, then the footnotes and site check (300px).
@@ -251,6 +251,8 @@ This takes `--dur-file`. It is the only authored motion in the app.
 
 - Sentence case and plain verbs.
 - Every action keeps one name through its flow: Approve leads to Approved, and Mark as sent leads to Marked as sent.
+- Undo names what it undoes, in the message and on the desk alike: Undo approval, Undo skip, Undo do not contact, Undo mark as sent, Undo reply.
+- A lead whose research ended without a fit says "Not scored"; a dotted blank only ever means "still coming".
 - No arrows on links or buttons, and no middle dots in meta. Directory punctuation (full stops and commas) does that job.
 - Errors say what happened and what to do next.
 - Empty states name the next action.

@@ -435,7 +435,7 @@ function Desk({ campaignId }: { campaignId: string }) {
         title: `Skipped ${plural(done.length, "lead")}`,
         description: failed ? `${failed} couldn't be skipped. Try them again.` : reason,
         action: {
-          label: "Undo",
+          label: "Undo skip",
           onClick: () => {
             void (async () => {
               for (const item of [...done].reverse()) await leadActions.undo(item.actionId)

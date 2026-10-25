@@ -159,7 +159,38 @@ function ByCampaign({ stats }: { stats: Stats }) {
         By campaign
       </h2>
       <p className="mt-1 aside">Newest first. The CSV export has the same numbers.</p>
-      <div className="mt-4 min-w-0">
+      {/* Phones: each campaign as an entry with its four counts as key lines. */}
+      <ul aria-label="Campaigns" className="mt-3 border-t-2 border-ink sm:hidden">
+        {stats.by_campaign.map((row) => (
+          <li key={row.campaign_id} className="border-b border-hairline py-3">
+            <Link
+              to="/campaigns/$campaignId"
+              params={{ campaignId: row.campaign_id }}
+              search={{}}
+              className="font-bold underline-offset-3 hover:underline"
+            >
+              {row.name}
+            </Link>
+            <span className="block aside">Started {formatDate(row.created_at)}</span>
+            <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1">
+              {(
+                [
+                  ["Found", row.found],
+                  ["Approved", row.approved],
+                  ["Sent", row.sent],
+                  ["Replies", row.replied],
+                ] as const
+              ).map(([label, value]) => (
+                <div key={label} className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-2">
+                  <dt className="flex min-w-0 items-baseline gap-2 text-ui after:leader after:content-['']">{label}</dt>
+                  <dd className="numeral text-lead leading-none">{formatNumber(value)}</dd>
+                </div>
+              ))}
+            </dl>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-4 min-w-0 max-sm:hidden">
         <DataTable label="Numbers by campaign">
           <thead>
             <tr>

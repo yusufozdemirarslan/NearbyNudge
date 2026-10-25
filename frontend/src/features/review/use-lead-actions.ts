@@ -82,14 +82,15 @@ export function useLeadActions(options: LeadActionOptions = {}) {
 
   /** Shared bookkeeping after an action that returns ActionResult. */
   const after = React.useCallback(
-    (lead: AnyLead, result: ActionResult, label: string, description: string) => {
+    (lead: AnyLead, result: ActionResult, label: string, description: string, undoLabel: string) => {
       writeLead(queryClient, result.lead)
       setSendingInCache(queryClient, result.sending)
       desk?.pushUndo({ actionId: result.action_id, leadId: lead.id, leadName: lead.name, label })
       notify({
         title: label,
         description,
-        action: { label: "Undo", onClick: () => void undo(result.action_id) },
+        // The same name as the undo button on the desk (one name per action).
+        action: { label: undoLabel, onClick: () => void undo(result.action_id) },
       })
     },
     [desk, queryClient, undo]
@@ -99,7 +100,7 @@ export function useLeadActions(options: LeadActionOptions = {}) {
     async (lead: AnyLead): Promise<ActionOutcome> => {
       try {
         const result = await api.approveLead(lead.id)
-        after(lead, result, "Approved", `${lead.name}. Send it from your own email account.`)
+        after(lead, result, "Approved", `${lead.name}. Send it from your own email account.`, "Undo approval")
         return { ok: true }
       } catch (error) {
         return failure(error)
@@ -112,7 +113,7 @@ export function useLeadActions(options: LeadActionOptions = {}) {
     async (lead: AnyLead, reason: string, advance = true): Promise<ActionOutcome> => {
       try {
         const result = await api.skipLead(lead.id, { reason })
-        after(lead, result, "Skipped", `${lead.name}: ${reason}`)
+        after(lead, result, "Skipped", `${lead.name}: ${reason}`, "Undo skip")
         if (advance) optionsRef.current.onAdvance?.(lead.id)
         return { ok: true }
       } catch (error) {
@@ -126,7 +127,7 @@ export function useLeadActions(options: LeadActionOptions = {}) {
     async (lead: AnyLead, reason?: string): Promise<ActionOutcome> => {
       try {
         const result = await api.dncLead(lead.id, reason ? { reason } : {})
-        after(lead, result, "Won't contact again", `${lead.name} is on your do-not-contact list.`)
+        after(lead, result, "Won't contact again", `${lead.name} is on your do-not-contact list.`, "Undo do not contact")
         optionsRef.current.onAdvance?.(lead.id)
         return { ok: true }
       } catch (error) {
@@ -140,7 +141,7 @@ export function useLeadActions(options: LeadActionOptions = {}) {
     async (lead: AnyLead, advance = true): Promise<ActionOutcome> => {
       try {
         const result = await api.markSent(lead.id)
-        after(lead, result, "Marked as sent", `${lead.name}. Sent today: ${result.sending.sent_today} of ${result.sending.daily_cap}.`)
+        after(lead, result, "Marked as sent", `${lead.name}. Sent today: ${result.sending.sent_today} of ${result.sending.daily_cap}.`, "Undo mark as sent")
         if (advance) optionsRef.current.onAdvance?.(lead.id)
         return { ok: true }
       } catch (error) {
@@ -158,7 +159,7 @@ export function useLeadActions(options: LeadActionOptions = {}) {
       try {
         const result = await api.markReplied(lead.id, { outcome })
         const extra = outcome === "no_thanks" ? " Added to your do-not-contact list." : ""
-        after(lead, result, "Reply logged", `${lead.name}: ${REPLY_LABEL[outcome]}.${extra}`)
+        after(lead, result, "Reply logged", `${lead.name}: ${REPLY_LABEL[outcome]}.${extra}`, "Undo reply")
         return { ok: true }
       } catch (error) {
         return failure(error)

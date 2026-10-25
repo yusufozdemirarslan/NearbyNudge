@@ -19,9 +19,9 @@ export interface PageHeaderProps {
 export function PageHeader({ title, description, actions, children, className }: PageHeaderProps) {
   return (
     <header data-slot="page-header" className={cn("flex flex-col gap-3 pb-8", className)}>
-      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b-(length:--rule-heavy) border-ink pb-2">
-        <h1 className="running-head min-w-0">{title}</h1>
-        {actions && <div className="flex flex-wrap items-center gap-2 pb-1">{actions}</div>}
+      <div className="flex items-end justify-between gap-x-4 border-b-(length:--rule-heavy) border-ink pb-2 sm:gap-x-6">
+        <h1 className="running-head min-w-0 [overflow-wrap:anywhere]">{title}</h1>
+        {actions && <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 pb-1">{actions}</div>}
       </div>
       {description && <p className="max-w-measure text-ui">{description}</p>}
       {children}

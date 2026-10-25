@@ -252,7 +252,7 @@ export function LeadList(props: LeadListProps) {
               </div>
             ) : (
               <>
-                <span className="flex w-9 shrink-0 justify-center">
+                <span className="flex w-10 shrink-0 justify-start pl-4 sm:w-9 sm:justify-center sm:pl-0">
                   <Checkbox
                     checked={allChecked}
                     indeterminate={someChecked && !allChecked}
