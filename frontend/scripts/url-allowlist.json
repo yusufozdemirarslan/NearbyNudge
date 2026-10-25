@@ -1,0 +1,87 @@
+[
+  {
+    "url": "http://www.w3.org/2000/svg",
+    "match": "exact",
+    "reason": "SVG namespace URI. React DOM and Lucide pass it to createElementNS / xmlns; it names a namespace and is never fetched."
+  },
+  {
+    "url": "http://www.w3.org/1998/Math/MathML",
+    "match": "exact",
+    "reason": "MathML namespace URI used by React DOM's createElementNS. Never fetched."
+  },
+  {
+    "url": "http://www.w3.org/1999/xlink",
+    "match": "exact",
+    "reason": "XLink namespace URI used by React DOM's setAttributeNS for xlink:* attributes. Never fetched."
+  },
+  {
+    "url": "http://www.w3.org/XML/1998/namespace",
+    "match": "exact",
+    "reason": "XML namespace URI used by React DOM for xml:* attributes. Never fetched."
+  },
+  {
+    "url": "https://react.dev/errors/",
+    "match": "prefix",
+    "reason": "React's production error-decoder link. It only appears inside error message text; nothing requests it."
+  },
+  {
+    "url": "https://base-ui.com/production-error",
+    "match": "exact",
+    "reason": "Base UI's production error-decoder link, only inside error message text. Never fetched."
+  },
+  {
+    "url": "https://tailwindcss.com",
+    "match": "exact",
+    "reason": "License banner comment at the top of the compiled CSS. Not a URL the stylesheet loads."
+  },
+  {
+    "url": "http://localhost",
+    "match": "exact",
+    "reason": "TanStack Router's fallback base for parsing paths when window.origin is \"null\" (new URL(path, base)). Never fetched."
+  },
+  {
+    "url": "http://www.w3.org/1999/xhtml",
+    "match": "exact",
+    "reason": "XHTML namespace URI on the wrapper Recharts renders for chart tooltips. Never fetched."
+  },
+  {
+    "url": "https://redux.js.org/Errors",
+    "match": "prefix",
+    "reason": "Redux production error-decoder link (Recharts uses Redux Toolkit internally); only inside error text. Never fetched."
+  },
+  {
+    "url": "https://redux-toolkit.js.org/Errors",
+    "match": "prefix",
+    "reason": "Redux Toolkit production error-decoder link (inside Recharts); only inside error text. Never fetched."
+  },
+  {
+    "url": "https://bit.ly/3cXEKWf",
+    "match": "exact",
+    "reason": "Immer minified-error help link (inside Redux Toolkit/Recharts); only inside error text. Never fetched."
+  },
+  {
+    "url": "https://json-schema.org/draft/2020-12/schema",
+    "match": "exact",
+    "reason": "JSON Schema dialect identifier that zod 4 writes into generated schemas ($schema). An identifier, never fetched."
+  },
+  {
+    "url": "http://json-schema.org/draft-07/schema#",
+    "match": "exact",
+    "reason": "JSON Schema draft-07 dialect identifier in zod 4. Never fetched."
+  },
+  {
+    "url": "http://json-schema.org/draft-04/schema#",
+    "match": "exact",
+    "reason": "JSON Schema draft-04 dialect identifier in zod 4. Never fetched."
+  },
+  {
+    "url": "http://[$",
+    "match": "exact",
+    "reason": "zod 4 builds \"http://[<address>]\" only to parse an IPv6 address with new URL() during validation. Never fetched."
+  },
+  {
+    "url": "https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business",
+    "match": "exact",
+    "reason": "user-clicked link in Terms, never fetched"
+  }
+]

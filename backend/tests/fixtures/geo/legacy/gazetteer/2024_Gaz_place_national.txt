@@ -1,0 +1,4 @@
+USPS	GEOID	ANSICODE	NAME	LSAD	FUNCSTAT	ALAND	AWATER	ALAND_SQMI	AWATER_SQMI	INTPTLAT	INTPTLONG                                                                                                 
+DC	1150000	02390665	Washington city	25	N	158316181	18709785	61.126	7.224	38.904247	-77.016517                                                                                                           
+TX	4804000	02409731	Arlington city	25	A	248243927	9313600	95.848	3.596	32.700708	-97.124691                                                                                                             
+VA	5103000	02389148	Arlington CDP	57	S	67332991	273562	25.997	0.106	38.878337	-77.100703                                                                                                                

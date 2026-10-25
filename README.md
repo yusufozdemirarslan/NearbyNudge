@@ -1,0 +1,85 @@
+# NearbyNudge 2.0
+
+Find nearby businesses, learn what they need, and see the email worth sending, with one AI (Claude Sonnet 5.5) plus free open data and tools.
+
+You enter **where** you sell, **who** you sell to and **what** you offer. NearbyNudge finds matching businesses in free open listings (Overture Maps), visits each business's own website politely, records facts with an exact quote and a link to the page, picks the reason to reach out, writes a short email, has an AI editor check every claim against its source, and puts it all on a review desk. NearbyNudge never sends email: you copy it or open it in your own email app, then mark it sent.
+
+## Quick start (Windows)
+
+1. Put your Anthropic API key in `.env` at the project root (already done on this machine):
+   ```
+   ANTHROPIC_API_KEY=sk-ant-...
+   AI_MODEL=claude-sonnet-5-5
+   AI_EFFORT=medium
+   ```
+2. Run `start.ps1` (right-click, then **Run with PowerShell**). The first run installs packages, downloads the free location files and DC-area listings, and builds the dashboard.
+3. Open **http://localhost:8000** in your browser. There's no sign-in. The first time, the app asks once for your sender details (name, company and the postal address every email's footer needs), then opens on your campaigns. You can change them later in Settings.
+
+## What runs where
+
+| Part | Technology | Notes |
+|---|---|---|
+| AI | Claude Sonnet 5.5 (`claude-sonnet-5-5`), effort `medium`, via the official Anthropic Python SDK | The only outside API. Structured outputs, a strict `read_pages` tool, server-side refusal fallback, prompt caching on each skill |
+| Backend | Python 3.14, FastAPI, SQLite (WAL), SQLAlchemy 2 | One process: API, live updates (Server-Sent Events), job worker, the built dashboard |
+| Listings | Overture Maps Places in DuckDB (`data/listings.duckdb`) | DC metro preloaded (196,608 places); other US areas load on first use (about a minute) |
+| Locations | Census Gazetteer files (`data/gazetteer/`) | ZIP codes and "City, ST", no geocoding API |
+| Reader | httpx + trafilatura + extruct + protego | Names itself NearbyNudgeBot, obeys robots.txt, 1 page a second, 5 pages per business, blocks private addresses |
+| Dashboard | React 19, Vite 8, TypeScript, Tailwind 4, shadcn/ui on Base UI, TanStack Router and Query | Served by the backend with `Content-Security-Policy: default-src 'self'` |
+
+The five AI roles are Agent Skills files in `backend/nearbynudge/skills/<role>/SKILL.md`: Planner, Scout, Researcher, Writer and Editor.
+
+## Commands
+
+From `backend/` (use `.venv\Scripts\python.exe`):
+
+| Command | What it does |
+|---|---|
+| `python -m nearbynudge serve` | Run the app on http://localhost:8000 |
+| `python -m nearbynudge status` | Show configuration (key present, data present, dashboard built) |
+| `python -m nearbynudge setup-data --metro dc` | Download location files and load listings (metros: `dc`, plus others in `listings/loader.py`) |
+| `python -m nearbynudge purge` | Apply retention now (page copies 30 days, expired plans, old jobs) |
+| `python -m nearbynudge check-connections` | Release check: the code connects only to the AI API, businesses' sites and open data |
+| `python -m pytest` | Backend tests (fixture websites + a fake Claude API; no network, no cost) |
+| `python scripts/live_run.py --leads 5` | A real campaign against real Claude and real websites, with a cost and timing report |
+
+From `frontend/`: `npm run dev` (dashboard on :5173 with the API proxied to :8000), `npm run build`, `npm run test:e2e`.
+
+## Testing
+
+`verify.ps1` runs every automated check, with no network and no cost: the backend tests, the release check, the dashboard build, and the browser tests (Playwright, with axe accessibility checks) twice. One run is against the real backend with fixture websites and a fake Claude API, the other against the dashboard's built-in sample data.
+
+Two live checks use real Claude, real listings and real websites (about $0.30 to $0.40 each). Stop the app first: they open the same listings file, and only one program can have it open at a time.
+
+- `backend\.venv\Scripts\python.exe backend\scripts\live_run.py --leads 5` runs a campaign through the backend and writes a cost and timing report to `docs/`.
+- The whole flow through the dashboard: start `backend\.venv\Scripts\python.exe backend\scripts\e2e_server.py --live --port 8200`, then from `frontend/` run `$env:E2E_BASE_URL="http://localhost:8200"; $env:LIVE_UI="1"; npx playwright test e2e/live-ui.spec.ts`. Screenshots land in `docs/live-ui/`.
+
+## Settings (`.env`)
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | (required) | The Anthropic API key |
+| `AI_MODEL` / `AI_EFFORT` | `claude-sonnet-5-5` / `medium` | Model and effort for every AI call |
+| `NN_AI_FALLBACKS` | `true` | Server-side refusal fallback (Claude API `fallbacks: "default"`) |
+| `NN_AI_WEB_SEARCH` | `true` | Use one web search to check businesses that have no website |
+| `NN_LEAD_COST_CAP` | `0.30` | A lead that reaches this AI cost stops ("Couldn't finish") |
+| `NN_WORKER_CONCURRENCY` | `4` | Leads researched at the same time |
+| `NN_PUBLIC_URL` | `http://localhost:8000` | Where the app is served; the server answers only to this host name and this computer's own addresses |
+| `NN_DAILY_SEND_CAP` / `NN_MONTHLY_LEAD_LIMIT` | `20` / `100` | Sending-preview cap per day; beta leads per month |
+
+## Project layout
+
+```
+backend/nearbynudge/   app.py (startup, security headers, CSRF)  api/  ai/ (Claude client)  roles/ + skills/ (the five AI roles)
+                       pipeline/ (jobs, worker, steps, actions, live events)  reader/  listings/  geo/
+backend/tests/         fake_ai.py (fake Claude API), sites/ (fixture websites)
+frontend/src/          app/ (router, session)  components/ (shell, shared, ui)  features/ (one folder per screen)  lib/api/
+docs/                  plan.md, api-contract.md, api-types.ts (the API contract), live-run reports
+```
+
+## Notes
+
+- **AI provider.** The PRD named Xiaomi MiMo as the one API. Per the product owner's instruction in `API.md`, the app uses Claude Sonnet 5.5 at medium effort instead; the one-API rule is unchanged (Claude is the only outside API). Every vendor-specific name lives in `backend/nearbynudge/ai/` and the settings.
+- **Costs.** Claude Sonnet 5.5 lists at $2 per million input tokens and $10 per million output. A lead takes about 5 AI calls; see `docs/live-run-report.json` for measured cost per lead. The admin console shows spend by day and by role.
+- **No sign-in.** Per the product owner's instruction (the app is shown as a demo), there are no accounts, passkeys or invites: everyone who opens the app works in one shared workspace, and the admin console is open to everyone. That's fine for a demo on this computer: the server listens only on this computer's own addresses (`127.0.0.1` and `::1`), and it refuses requests for any other host name, so a web page can't reach it through a look-alike address (DNS rebinding). Before serving it anywhere else, put sign-in back or put it behind a sign-in proxy: anyone who can reach it can run campaigns on your Anthropic key. "Delete all data" in Settings starts over.
+- **Setup-time downloads** (like `pip` or `npm`, not runtime APIs): Python and npm packages, DuckDB's `httpfs` extension (fetched once from extensions.duckdb.org the first time listings are loaded), the Census Gazetteer files and the Overture Maps listings.
+- **Listings refresh.** Overture publishes a new release monthly; reload with `python -m nearbynudge load-listings --metro dc` while the app is stopped (DuckDB allows one writer).

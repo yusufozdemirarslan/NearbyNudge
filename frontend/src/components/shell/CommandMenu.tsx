@@ -1,0 +1,145 @@
+import { useNavigate } from "@tanstack/react-router"
+import { useQuery } from "@tanstack/react-query"
+import { KeyboardIcon, MapIcon, MonitorIcon, MoonIcon, SunIcon } from "lucide-react"
+import { campaignsQuery } from "@/lib/api/queries"
+import {
+  CommandDialog,
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from "@/components/ui/command"
+import { keyLabel } from "@/components/KeyHint"
+import { usePreferences, useUpdatePreferences } from "@/hooks/use-account"
+import { useCommandMenu, type Command as CommandEntry } from "@/hooks/use-commands"
+import { useShortcuts } from "@/hooks/use-shortcuts"
+import { NAV_ITEMS } from "./AppSidebar"
+import { useShortcutSheet } from "./ShortcutSheet"
+
+/**
+ * The command menu (Ctrl/⌘ K): navigation, theme and shortcut commands, plus
+ * whatever the current screen adds with `useRegisterCommands`.
+ */
+export function CommandMenu() {
+  const { open, setOpen, list } = useCommandMenu()
+  const navigate = useNavigate()
+  const preferences = usePreferences()
+  const updatePreferences = useUpdatePreferences()
+  const sheet = useShortcutSheet()
+  const campaigns = useQuery({ ...campaignsQuery(), enabled: open })
+
+  useShortcuts(
+    {
+      "mod+k": {
+        description: "Open the command menu",
+        handler: () => setOpen(!open),
+        allowInInputs: true,
+      },
+    },
+    { group: "General" }
+  )
+
+  const run = (action: () => void) => {
+    setOpen(false)
+    // Let the dialog close and return focus before the action moves it.
+    window.setTimeout(action, 0)
+  }
+
+  const screenCommands = open ? list() : []
+  const groups = new Map<string, CommandEntry[]>()
+  for (const command of screenCommands) {
+    if (!groups.has(command.group)) groups.set(command.group, [])
+    groups.get(command.group)!.push(command)
+  }
+
+  return (
+    <CommandDialog
+      open={open}
+      onOpenChange={setOpen}
+      title="Command menu"
+      description="Type a command or a page name"
+      className="sm:max-w-xl"
+    >
+      <Command loop>
+        <CommandInput placeholder="Type a command or a page" aria-label="Command" />
+        <CommandList className="max-h-[min(24rem,60vh)]">
+          <CommandEmpty>No matching commands.</CommandEmpty>
+          {[...groups.entries()].map(([group, commands]) => (
+            <CommandGroup key={group} heading={group}>
+              {commands.map((command) => (
+                <CommandItem
+                  key={command.id}
+                  value={`${group} ${command.label}`}
+                  keywords={command.keywords}
+                  disabled={command.disabled}
+                  onSelect={() => run(command.run)}
+                >
+                  {command.icon && <command.icon aria-hidden="true" />}
+                  <span>{command.label}</span>
+                  {command.shortcut && <CommandShortcut>{keyLabel(command.shortcut)}</CommandShortcut>}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          ))}
+          {campaigns.data && campaigns.data.length > 0 && (
+            <CommandGroup heading="Campaigns">
+              {campaigns.data.slice(0, 12).map((campaign) => (
+                <CommandItem
+                  key={campaign.id}
+                  value={`Open campaign ${campaign.name}`}
+                  onSelect={() =>
+                    run(() => void navigate({ to: "/campaigns/$campaignId", params: { campaignId: campaign.id }, search: {} }))
+                  }
+                >
+                  <MapIcon aria-hidden="true" />
+                  <span className="truncate">{campaign.name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+          <CommandGroup heading="Go to">
+            {NAV_ITEMS.map((item) => (
+              <CommandItem
+                key={item.to}
+                value={`Go to ${item.label}`}
+                onSelect={() => run(() => void navigate({ to: item.to }))}
+              >
+                <item.icon aria-hidden="true" />
+                <span>{item.label}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+          <CommandGroup heading="General">
+            <CommandItem value="Keyboard shortcuts help" onSelect={() => run(() => sheet.setOpen(true))}>
+              <KeyboardIcon aria-hidden="true" />
+              <span>Keyboard shortcuts</span>
+              <CommandShortcut>?</CommandShortcut>
+            </CommandItem>
+            <CommandItem
+              value="Turn single-key shortcuts on off"
+              onSelect={() => run(() => void updatePreferences({ shortcuts_enabled: !preferences.shortcuts_enabled }))}
+            >
+              <KeyboardIcon aria-hidden="true" />
+              <span>{preferences.shortcuts_enabled ? "Turn off single-key shortcuts" : "Turn on single-key shortcuts"}</span>
+            </CommandItem>
+            <CommandItem value="Theme match my computer system" onSelect={() => run(() => void updatePreferences({ theme: "system" }))}>
+              <MonitorIcon aria-hidden="true" />
+              <span>Theme: match my computer</span>
+            </CommandItem>
+            <CommandItem value="Theme light" onSelect={() => run(() => void updatePreferences({ theme: "light" }))}>
+              <SunIcon aria-hidden="true" />
+              <span>Theme: light</span>
+            </CommandItem>
+            <CommandItem value="Theme dark" onSelect={() => run(() => void updatePreferences({ theme: "dark" }))}>
+              <MoonIcon aria-hidden="true" />
+              <span>Theme: dark</span>
+            </CommandItem>
+          </CommandGroup>
+        </CommandList>
+      </Command>
+    </CommandDialog>
+  )
+}

@@ -1,0 +1,6 @@
+# We welcome search engines but not prospecting tools.
+User-agent: NearbyNudgeBot
+Disallow: /
+
+User-agent: *
+Allow: /

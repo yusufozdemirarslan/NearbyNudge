@@ -1,0 +1,3 @@
+GEOID	ALAND	AWATER	ALAND_SQMI	AWATER_SQMI	INTPTLAT	INTPTLONG                                                                                                                                  
+20001	5302364	159887	2.047	0.062	38.910353	-77.017739                                                                                                                                                   
+22201	5943660	0	2.295	0.	38.886804	-77.094992                                                                                                                                                           

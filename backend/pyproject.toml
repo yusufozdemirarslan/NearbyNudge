@@ -1,0 +1,40 @@
+[project]
+name = "nearbynudge"
+version = "2.0.0"
+description = "NearbyNudge 2.0: nearby businesses, sourced research and checked emails on one AI (Claude Sonnet 5.5) plus free tools."
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+  "fastapi>=0.162",
+  "uvicorn[standard]>=0.54",
+  "sqlalchemy>=2.1",
+  "pydantic>=2.14",
+  "pydantic-settings>=2.16",
+  "httpx>=0.28",
+  "trafilatura>=2.3",
+  "extruct>=0.18",
+  "protego>=0.7",
+  "duckdb>=2.0",
+  "python-multipart>=0.0.32",
+  "anthropic>=2.3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=9.1", "pytest-asyncio>=1.4", "respx>=0.23"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = ["ignore::DeprecationWarning"]
+markers = ["network: touches the internet (skipped unless NN_NETWORK_TESTS=1)"]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["nearbynudge*"]
+
+[tool.setuptools.package-data]
+nearbynudge = ["skills/*/SKILL.md"]

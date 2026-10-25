@@ -1,0 +1,33 @@
+# secrets and local data
+.env
+data/
+*.duckdb
+*.duckdb.wal
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+
+# node
+node_modules/
+frontend/dist/
+frontend/test-results*/
+frontend/playwright-report/
+frontend/blob-report/
+
+# live-run reports contain real business contact details
+docs/live-run-*.json
+docs/live-run-*.log
+
+# test output (live screenshots show real business contact details)
+docs/live-ui/
+docs/e2e-real/
+docs/e2e-mock/
+docs/*.log

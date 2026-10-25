@@ -1,0 +1,244 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+/* Self-hosted font: the files ship inside the app, no font service is contacted. */
+@import "@fontsource-variable/atkinson-hyperlegible-next";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ------------------------------------------------------------------------- */
+/* NearbyNudge 2.0 · Direction A "Street index" · contrast measured for WCAG 2.2 AA */
+/* Tokens pasted verbatim from the design brief, section 6.                  */
+/* ------------------------------------------------------------------------- */
+:root {
+  --radius: 0.375rem;              /* 6px buttons and inputs; chips 4px; panels 10px */
+  --background: #f5f8fa;           /* page */
+  --foreground: #16252f;           /* map ink, 14.7:1 on page */
+  --card: #ffffff;            --card-foreground: #16252f;
+  --popover: #ffffff;         --popover-foreground: #16252f;
+  --primary: #007378;         --primary-foreground: #ffffff;   /* teal, 5.6:1 both ways */
+  --secondary: #eef3f5;       --secondary-foreground: #16252f; /* sunken panels */
+  --muted: #eef3f5;           --muted-foreground: #636d75;     /* 4.7:1 on panels */
+  --accent: #dff5f6;          --accent-foreground: #16252f;    /* hover; selected row + teal edge */
+  --destructive: #b1322d;                                      /* 6.2:1 */
+  --border: #dde3e6;                                           /* dividers only */
+  --input: #858d92;                                            /* form borders, 3.2:1+ */
+  --ring: #007378;
+  --chart-1: #5dbcc1; --chart-2: #37999f; --chart-3: #00787d; --chart-4: #00585d;
+  --chart-5: #858d92;                                          /* context series */
+  --sidebar: #eef3f5;         --sidebar-foreground: #16252f;
+  --sidebar-primary: #007378; --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #dff5f6;  --sidebar-accent-foreground: #16252f;
+  --sidebar-border: #dde3e6;  --sidebar-ring: #007378;
+  /* extras: status ink on its own tint, always shown with an icon and a word */
+  --ink-secondary: #45525b;
+  --success: #206b38; --success-tint: #e5f9e8;
+  --warning: #8a5619; --warning-tint: #fff3d7;
+  --info: #3260a3;    --info-tint: #eaf3ff;
+  --danger-tint: #ffedeb;
+}
+.dark {
+  --background: #0e1318;      --foreground: #edf1f4;
+  --card: #151b20;            --card-foreground: #edf1f4;
+  --popover: #151b20;         --popover-foreground: #edf1f4;
+  --primary: #47bfc3;         --primary-foreground: #0e171e;
+  --secondary: #11171b;       --secondary-foreground: #edf1f4;
+  --muted: #11171b;           --muted-foreground: #9ba3a8;
+  --accent: #113436;          --accent-foreground: #edf1f4;
+  --destructive: #f7857d;                                      /* pair with dark text */
+  --border: #2b3136;          --input: #636a6f;   --ring: #47bfc3;
+  --chart-1: #005b60; --chart-2: #0a7e83; --chart-3: #42a3a8; --chart-4: #6ac9ce;
+  --chart-5: #636a6f;
+  --sidebar: #11171b;         --sidebar-foreground: #edf1f4;
+  --sidebar-primary: #47bfc3; --sidebar-primary-foreground: #0e171e;
+  --sidebar-accent: #113436;  --sidebar-accent-foreground: #edf1f4;
+  --sidebar-border: #2b3136;  --sidebar-ring: #47bfc3;
+  --ink-secondary: #bfc5ca;
+  --success: #76cf8a; --success-tint: #1a321f;
+  --warning: #edbb64; --warning-tint: #3b2a12;
+  --info: #89b3f1;    --info-tint: #1d2c42;
+  --danger-tint: #442321;
+}
+@theme inline {
+  --font-sans: "Atkinson Hyperlegible Next Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-ink-secondary: var(--ink-secondary);
+  --color-success: var(--success); --color-success-tint: var(--success-tint);
+  --color-warning: var(--warning); --color-warning-tint: var(--warning-tint);
+  --color-info: var(--info);       --color-info-tint: var(--info-tint);
+  --color-danger-tint: var(--danger-tint);
+}
+/* ------------------------------ end of brief tokens ---------------------- */
+
+/* shadcn/ui variable mapping (Tailwind CSS v4) plus NearbyNudge scales. */
+@theme inline {
+  --font-heading: var(--font-sans);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Corners: chips 4px, buttons and inputs 6px (--radius), panels 10px. */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 4px;
+  --radius-lg: var(--radius);
+  --radius-xl: 10px;
+  --radius-2xl: 12px;
+  --radius-3xl: 14px;
+  --radius-4xl: 16px;
+}
+
+@theme {
+  /* Type scale (brief §6). Fixed sizes stepping about 1.15x. */
+  --text-page-title: 22px;
+  --text-page-title--line-height: 28px;
+  --text-page-title--font-weight: 650;
+  --text-pane-title: 18px;
+  --text-pane-title--line-height: 24px;
+  --text-pane-title--font-weight: 600;
+  --text-email: 16px;
+  --text-email--line-height: 25px;
+  --text-ui: 14px;
+  --text-ui--line-height: 20px;
+  --text-list: 13px;
+  --text-list--line-height: 18px;
+  --text-meta: 12px;
+  --text-meta--line-height: 16px;
+  --text-headline: 28px;
+  --text-headline--line-height: 32px;
+  --text-headline--font-weight: 600;
+
+  /* Layout breakpoints for the review desk. */
+  --breakpoint-desk2: 52.5rem; /* 840px: list + email, evidence under the email */
+  --breakpoint-desk3: 80rem; /* 1280px: three columns */
+
+  /* Motion: state changes take 150–200 ms. */
+  --default-transition-duration: 160ms;
+  --ease-calm: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Shadows only on menus and popovers. */
+  --shadow-popover: 0 8px 24px -6px rgb(22 37 47 / 0.18), 0 2px 6px -2px rgb(22 37 47 / 0.12);
+
+  --animate-row-new: nn-row-new 1s ease-out 1;
+  --animate-working: nn-working 1.6s ease-in-out infinite;
+}
+
+@keyframes nn-row-new {
+  from {
+    background-color: color-mix(in srgb, var(--primary) 22%, var(--card));
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@keyframes nn-working {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-background text-ui text-foreground;
+    font-optical-sizing: auto;
+  }
+  ::selection {
+    background-color: color-mix(in srgb, var(--primary) 24%, transparent);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--foreground) 22%, transparent) transparent;
+  }
+  a {
+    text-underline-offset: 3px;
+  }
+  /* Lucide icons: 1.75 stroke everywhere (brief §6). */
+  svg.lucide {
+    stroke-width: 1.75;
+  }
+  /* Tabular figures for any number column (fit scores, counts, distances). */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  [hidden] {
+    display: none !important;
+  }
+}
+
+@layer utilities {
+  /* Inset focus ring for rows and controls inside clipped scroll areas. */
+  .focus-inset {
+    --focus-offset: -2px;
+  }
+  .scroll-pb-actions {
+    scroll-padding-bottom: 6rem;
+  }
+}
+
+/*
+ * Visible focus (WCAG 2.4.7 / 2.4.11). Unlayered on purpose so it beats any
+ * utility that removes outlines. The ring color reaches 3:1 on every surface;
+ * shadcn's default translucent ring does not.
+ */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: var(--focus-offset, 2px);
+}
+
+/* Live updates paused (WCAG 2.2.2): nothing moves. */
+.motion-paused,
+.motion-paused * {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
