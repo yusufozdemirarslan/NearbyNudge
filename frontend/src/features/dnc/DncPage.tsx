@@ -5,11 +5,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
-import {
-  DownloadIcon,
-  SearchIcon,
-  XIcon,
-} from "lucide-react"
+import { XIcon } from "lucide-react"
 import { CalmError } from "@/components/CalmError"
 import { EmptyState } from "@/components/EmptyState"
 import { PageContainer } from "@/components/PageContainer"
@@ -238,19 +234,19 @@ export function DncPage() {
     body = (
       <ul aria-hidden="true" className="divide-y">
         {[0, 1, 2].map((index) => (
-          <li key={index} className="flex items-center gap-6 px-4 py-4 sm:px-5">
-            <div className="flex flex-1 flex-col gap-2">
+          <li key={index} className="flex items-center gap-6 py-5">
+            <div className="flex flex-1 flex-col gap-3">
               <PlaceholderBar width={index === 1 ? 140 : 190} />
               <PlaceholderBar width={index === 1 ? 220 : 160} />
             </div>
-            <PlaceholderBar width={72} height={32} />
+            <PlaceholderBar width={56} />
           </li>
         ))}
       </ul>
     )
   } else if (results.isError && !results.data) {
     body = (
-      <div className="p-4 sm:p-5">
+      <div className="py-5">
         <CalmError
           size="inline"
           title="We couldn't load your Do not contact list"
@@ -329,7 +325,6 @@ export function DncPage() {
             disabled={exportCsv.isPending}
             onClick={() => exportCsv.mutate()}
           >
-            <DownloadIcon aria-hidden="true" />
             {exportCsv.isPending ? "Exporting…" : "Export CSV"}
           </Button>
         }
@@ -343,22 +338,16 @@ export function DncPage() {
           onRetry={() => exportCsv.mutate()}
         />
       )}
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-12">
         <AddEntryForm onAdded={(entry) => markFresh(entry.id)} />
 
-        <section
-          aria-labelledby="dnc-list-title"
-          className="overflow-hidden rounded-xl border bg-card"
-        >
-          <div className="flex flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-            <div className="min-w-0 space-y-0.5">
-              <h2
-                id="dnc-list-title"
-                className="text-pane-title font-semibold text-foreground"
-              >
+        <section aria-labelledby="dnc-list-title" className="border-t-2 border-ink pt-5">
+          <div className="flex flex-col gap-3 border-b-2 border-ink pb-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0 space-y-1">
+              <h2 id="dnc-list-title" className="section-head">
                 On your list
               </h2>
-              <p id="dnc-count" className="text-ui text-ink-secondary">
+              <p id="dnc-count" className="aside">
                 {countLine}
               </p>
             </div>
@@ -366,10 +355,6 @@ export function DncPage() {
               <label htmlFor="dnc-search" className="sr-only">
                 Search the list
               </label>
-              <SearchIcon
-                aria-hidden="true"
-                className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-              />
               <Input
                 id="dnc-search"
                 ref={searchRef}
@@ -386,13 +371,13 @@ export function DncPage() {
                 autoComplete="off"
                 spellCheck={false}
                 aria-describedby="dnc-count"
-                className="h-9 pr-9 pl-8 text-base md:text-ui [&::-webkit-search-cancel-button]:appearance-none"
+                className="h-10 pr-10 text-body md:text-ui [&::-webkit-search-cancel-button]:appearance-none"
               />
               {search && (
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="absolute top-1/2 right-0.5 -translate-y-1/2"
+                  className="absolute top-1/2 right-1 -translate-y-1/2"
                   aria-label="Clear search"
                   onClick={() => {
                     setSearch("")

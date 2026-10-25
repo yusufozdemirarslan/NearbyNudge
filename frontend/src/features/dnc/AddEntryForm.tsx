@@ -1,10 +1,10 @@
 import * as React from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { CheckIcon, PlusIcon } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { CalmError } from "@/components/CalmError"
+import { Mark } from "@/components/Mark"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useAnnounce } from "@/hooks/use-announce"
@@ -231,7 +231,6 @@ export function AddEntryForm({
             disabled={mutation.isPending}
             className="w-fit max-sm:h-11"
           >
-            <PlusIcon aria-hidden="true" />
             {mutation.isPending ? "Adding…" : "Add to list"}
           </Button>
         </div>
@@ -245,8 +244,8 @@ export function AddEntryForm({
           />
         ) : null}
         {added && (
-          <p className="flex items-center gap-1.5 text-ui text-success">
-            <CheckIcon aria-hidden="true" className="size-4" />
+          <p className="flex items-center gap-1.5 text-ui font-semibold">
+            <Mark name="check" />
             Added {added}.
           </p>
         )}

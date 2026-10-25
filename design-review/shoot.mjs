@@ -439,6 +439,50 @@ const FLOWS = {
       await p.getByRole("heading", { level: 1 }).filter({ hasText: /within/ }).waitFor()
     }],
   ],
+  dnc: [
+    ["open", async (p) => {
+      await p.goto("/dnc")
+      await p.getByRole("heading", { level: 1, name: "Do not contact" }).waitFor()
+      await visible(p, '[data-testid="dnc-row"]')
+    }],
+    ["an empty add asks for one identifier", async (p) => {
+      await p.getByRole("button", { name: "Add to list" }).click()
+      await p.getByText("Add a business name, a website or an email address.").waitFor()
+    }],
+    ["add a business with a reason", async (p) => {
+      const form = p.getByRole("form", { name: "Add to the Do not contact list" })
+      await form.getByRole("textbox", { name: "Business name" }).fill("Harbor Family Dentistry")
+      await form.getByRole("textbox", { name: /Reason/ }).fill("Already a client")
+      await form.getByRole("button", { name: "Add to list" }).click()
+      await form.getByText("Added Harbor Family Dentistry.").waitFor()
+      await p.getByTestId("dnc-row").filter({ hasText: "Harbor Family Dentistry" }).filter({ hasText: "Reason: Already a client" }).waitFor()
+    }],
+    ["search narrows the list", async (p) => {
+      await p.getByRole("searchbox", { name: "Search the list" }).fill("harbor")
+      await p.getByText("1 match for “harbor”").waitFor()
+    }],
+    ["a search with no match clears", async (p) => {
+      await p.getByRole("searchbox", { name: "Search the list" }).fill("zzzz")
+      await p.getByText("Nothing matches “zzzz”").waitFor()
+      await p.getByRole("button", { name: "Clear search" }).first().click()
+      await p.getByText("4 entries on your list").waitFor()
+    }],
+    ["remove keeps Undo on the row", async (p) => {
+      await p.getByRole("button", { name: "Remove Sample Roofing Co." }).click()
+      await p.getByTestId("dnc-removed-row").filter({ hasText: "Removed Sample Roofing Co." }).waitFor()
+    }],
+    ["Undo puts it back", async (p) => {
+      await p.getByRole("button", { name: "Undo removing Sample Roofing Co." }).click()
+      await p.getByTestId("dnc-row").filter({ hasText: "Sample Roofing Co." }).waitFor()
+      await gone(p, '[data-testid="dnc-removed-row"]')
+    }],
+    ["Export CSV downloads the list", async (p) => {
+      const download = p.waitForEvent("download")
+      await p.getByRole("button", { name: "Export CSV" }).click()
+      const file = await download
+      if (file.suggestedFilename() !== "do-not-contact.csv") throw new Error(file.suggestedFilename())
+    }],
+  ],
   desk: [
     ["open", async (p) => {
       await p.goto(CAMPAIGN)
