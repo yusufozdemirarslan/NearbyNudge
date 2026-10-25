@@ -1,14 +1,14 @@
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { CirclePauseIcon, PlusIcon, RotateCwIcon } from "lucide-react"
+import { PlusIcon } from "lucide-react"
 import { CalmError } from "@/components/CalmError"
-import { Meter } from "@/components/Meter"
+import { Mark } from "@/components/Mark"
 import { PageContainer } from "@/components/PageContainer"
 import { PageHeader } from "@/components/PageHeader"
 import { PlaceholderBar } from "@/components/PlaceholderBar"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { useAccount, useAiName, usePreferences } from "@/hooks/use-account"
+import { useAiName, usePreferences } from "@/hooks/use-account"
 import { useAnnounce } from "@/hooks/use-announce"
 import { useDocumentTitle } from "@/hooks/use-document-title"
 import { useReducedMotion } from "@/hooks/use-media-query"
@@ -39,42 +39,35 @@ function pollInterval(
   return false
 }
 
-/** Today's sends and this month's leads, in words and bars. */
-function UsageMeters() {
-  const { data: account } = useAccount()
-  if (!account) return <PlaceholderBar width={320} />
-  const { sending, usage } = account
+/**
+ * The number that matters on this page: drafts waiting for a decision, set
+ * large. Nothing waiting says so plainly.
+ */
+function WaitingLine({ campaigns }: { campaigns: CampaignSummary[] }) {
+  const waiting = campaigns.reduce((sum, c) => sum + c.counts.ready + c.counts.needs_review, 0)
+  const holding = campaigns.filter((c) => c.counts.ready + c.counts.needs_review > 0).length
+  if (waiting === 0) {
+    return <p className="aside">No drafts are waiting for you.</p>
+  }
   return (
-    <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
-      <Meter
-        label="Sent today"
-        value={sending.sent_today}
-        max={sending.daily_cap}
-        tone={sending.sent_today >= sending.daily_cap ? "warning" : "default"}
-        barClassName="w-28 flex-none"
-      />
-      <Meter
-        label={`Leads in ${usage.month_label.split(" ")[0]}`}
-        value={usage.used}
-        max={usage.limit}
-        tone={usage.used >= usage.limit ? "warning" : "default"}
-        barClassName="w-28 flex-none"
-      />
-    </div>
+    <p className="flex flex-wrap items-baseline gap-x-3">
+      <span className="text-title leading-none text-edge stretch-condensed tabular-nums sm:text-display">{waiting}</span>
+      <span className="text-lead font-bold">
+        {waiting === 1 ? "draft is" : "drafts are"} waiting for you
+        {campaigns.length > 1 ? `, in ${plural(holding, "campaign")}` : ""}.
+      </span>
+    </p>
   )
 }
 
 function ListSkeleton() {
   return (
-    <div aria-busy="true" className="rounded-xl border bg-card">
+    <div aria-busy="true" className="border-t-2 border-ink">
       <span className="sr-only">Loading your campaigns</span>
       {[0, 1, 2].map((row) => (
-        <div
-          key={row}
-          className="flex flex-col gap-2 border-b px-5 py-4 last:border-b-0"
-        >
-          <PlaceholderBar width="16rem" />
-          <PlaceholderBar width="7rem" className="text-meta" />
+        <div key={row} className="flex flex-col gap-3 border-b border-hairline py-5">
+          <PlaceholderBar width="16rem" className="block" />
+          <PlaceholderBar width="7rem" className="block" />
         </div>
       ))}
     </div>
@@ -148,7 +141,7 @@ export function CampaignsPage() {
           ) : undefined
         }
       >
-        <UsageMeters />
+        {campaigns.isSuccess && list.length > 0 && <WaitingLine campaigns={list} />}
       </PageHeader>
 
       {campaigns.isPending && <ListSkeleton />}
@@ -166,14 +159,11 @@ export function CampaignsPage() {
           aria-labelledby="first-campaign-title"
           className="flex flex-col gap-5"
         >
-          <div className="space-y-1">
-            <h2
-              id="first-campaign-title"
-              className="text-pane-title font-semibold text-foreground"
-            >
+          <div className="space-y-2">
+            <h2 id="first-campaign-title" className="section-head">
               Start your first campaign
             </h2>
-            <p className="max-w-[68ch] text-ui text-ink-secondary">
+            <p className="max-w-measure text-ui">
               Tell us where you sell, who you sell to and what you offer.{" "}
               {aiName ?? "The AI"} restates the plan, then finds nearby
               businesses and drafts an email for each one. You review every
@@ -191,42 +181,25 @@ export function CampaignsPage() {
           aria-labelledby="campaign-list-title"
           className="flex flex-col gap-3"
         >
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <h2
-              id="campaign-list-title"
-              className="text-ui font-semibold text-foreground"
-            >
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+            <h2 id="campaign-list-title" className="section-head">
               {plural(list.length, "campaign")}
             </h2>
             {!live && anyRunning && (
-              <div className="flex flex-wrap items-center gap-2 text-ui text-ink-secondary">
-                <CirclePauseIcon
-                  aria-hidden="true"
-                  className="size-4 text-info"
-                />
-                <span>
-                  Live updates are paused, so this list doesn't refresh on its
-                  own.
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void campaigns.refetch()}
-                >
-                  <RotateCwIcon aria-hidden="true" />
+              <div className="flex flex-wrap items-center gap-2 text-ui">
+                <Mark name="pause" className="size-3.5" />
+                <span>Live updates are paused, so this list doesn't refresh on its own.</span>
+                <Button variant="outline" size="sm" onClick={() => void campaigns.refetch()}>
                   Refresh
                 </Button>
               </div>
             )}
           </div>
 
-          <div className="overflow-hidden rounded-xl border bg-card">
+          <div>
             <div
               aria-hidden="true"
-              className={cn(
-                "hidden border-b bg-muted px-5 py-2 text-meta font-medium text-ink-secondary xl:grid",
-                ROW_GRID
-              )}
+              className={cn("hidden border-b-2 border-ink pb-2 text-ui font-extrabold stretch-condensed xl:grid", ROW_GRID)}
             >
               <span>Campaign</span>
               <span>Status</span>
@@ -235,9 +208,8 @@ export function CampaignsPage() {
                   {column.label}
                 </span>
               ))}
-              <span />
             </div>
-            <ul aria-labelledby="campaign-list-title" className="divide-y">
+            <ul aria-labelledby="campaign-list-title" className="max-xl:border-t-2 max-xl:border-ink">
               {list.map((campaign) => (
                 <CampaignRow
                   key={campaign.id}

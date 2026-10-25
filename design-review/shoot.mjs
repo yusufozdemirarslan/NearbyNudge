@@ -241,6 +241,24 @@ const rowStatus = (page, name) =>
 
 /** Each flow is a list of [step name, action]. An action throws when the step doesn't land. */
 const FLOWS = {
+  campaigns: [
+    ["open", async (p) => {
+      await p.goto("/")
+      await p.getByRole("heading", { level: 1, name: "Campaigns" }).waitFor()
+    }],
+    ["open a finished campaign", async (p) => {
+      await p.getByRole("link", { name: "HVAC within 10 mi of Fairfax, VA" }).click()
+      await p.getByRole("heading", { level: 1, name: /HVAC within 10 mi/ }).waitFor()
+    }],
+    ["back to campaigns from the masthead", async (p) => {
+      await p.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Campaigns", exact: true }).click()
+      await p.getByRole("heading", { level: 1, name: "Campaigns" }).waitFor()
+    }],
+    ["start a new campaign", async (p) => {
+      await p.getByRole("link", { name: "New campaign" }).first().click()
+      await p.getByRole("heading", { level: 1, name: "New campaign" }).waitFor()
+    }],
+  ],
   desk: [
     ["open", async (p) => {
       await p.goto(CAMPAIGN)

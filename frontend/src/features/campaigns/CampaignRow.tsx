@@ -1,10 +1,5 @@
 import { Link } from "@tanstack/react-router"
-import {
-  ChevronRightIcon,
-  CircleAlertIcon,
-  CircleCheckIcon,
-  CirclePauseIcon,
-} from "lucide-react"
+import { Mark } from "@/components/Mark"
 import { Meter } from "@/components/Meter"
 import type { CampaignSummary, LeadCounts } from "@/lib/api/types"
 import { formatDate, formatEta, plural } from "@/lib/format"
@@ -39,23 +34,13 @@ export const COUNT_COLUMNS: {
 
 /** Grid shared by the header row and every campaign row (wide screens only). */
 export const ROW_GRID =
-  "xl:grid xl:grid-cols-[minmax(0,1fr)_15rem_repeat(5,5rem)_1.25rem] xl:items-center xl:gap-x-4"
+  "xl:grid xl:grid-cols-[minmax(0,1fr)_16rem_repeat(5,5.5rem)] xl:items-start xl:gap-x-4"
 
 function WorkingDot({ animate }: { animate: boolean }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="flex size-4 shrink-0 items-center justify-center"
-    >
-      <span
-        className={cn(
-          "block size-2 rounded-full bg-muted-foreground",
-          animate && "animate-working motion-reduce:animate-none"
-        )}
-      />
-    </span>
-  )
+  return <Mark name="dot" className={cn(animate && "animate-working motion-reduce:animate-none")} />
 }
+
+const line = "inline-flex items-center gap-2 text-ui font-bold"
 
 /**
  * A campaign's state as an icon plus words (brief 3.3): finding, researching
@@ -74,7 +59,7 @@ export function CampaignStatusLine({
     case "finding":
       return (
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="inline-flex items-center gap-1.5 text-ui text-foreground">
+          <span className={line}>
             <WorkingDot animate={animate} />
             {campaign.status_detail ?? "Finding businesses"}
           </span>
@@ -84,7 +69,7 @@ export function CampaignStatusLine({
       const eta = formatEta(campaign.eta_seconds)
       return (
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="inline-flex items-center gap-1.5 text-ui text-foreground">
+          <span className={line}>
             <WorkingDot animate={animate} />
             Researching
           </span>
@@ -97,10 +82,10 @@ export function CampaignStatusLine({
             valueText={`${Math.min(drafted, target)} of ${campaign.lead_target} ready`}
             size="sm"
             barClassName="w-20 flex-none"
-            className="pl-5.5"
+            className="pl-5"
           />
           {eta && (
-            <span className="pl-5.5 text-meta text-ink-secondary">
+            <span className="pl-5 aside">
               {eta[0].toUpperCase() + eta.slice(1)}
             </span>
           )}
@@ -110,11 +95,11 @@ export function CampaignStatusLine({
     case "paused":
       return (
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="inline-flex items-center gap-1.5 text-ui font-medium text-info">
-            <CirclePauseIcon aria-hidden="true" className="size-4 shrink-0" />
+          <span className={line}>
+            <Mark name="pause" />
             Paused
           </span>
-          <span className="pl-5.5 text-meta text-ink-secondary">
+          <span className="pl-5 aside">
             {campaign.status_detail ??
               "Research paused. We'll resume automatically, and nothing is lost."}
           </span>
@@ -123,12 +108,12 @@ export function CampaignStatusLine({
     case "failed":
       return (
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="inline-flex items-center gap-1.5 text-ui font-medium text-ink-secondary">
-            <CircleAlertIcon aria-hidden="true" className="size-4 shrink-0" />
+          <span className={line}>
+            <Mark name="cross" />
             Couldn't finish
           </span>
           {campaign.status_detail && (
-            <span className="pl-5.5 text-meta text-ink-secondary">
+            <span className="pl-5 aside">
               {campaign.status_detail}
             </span>
           )}
@@ -138,11 +123,11 @@ export function CampaignStatusLine({
     default:
       return (
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="inline-flex items-center gap-1.5 text-ui font-medium text-success">
-            <CircleCheckIcon aria-hidden="true" className="size-4 shrink-0" />
+          <span className={line}>
+            <Mark name="check" />
             Done
           </span>
-          <span className="pl-5.5 text-meta text-ink-secondary">
+          <span className="pl-5 aside">
             {plural(drafted, "draft")}
             {campaign.finished_at
               ? `, finished ${formatDate(campaign.finished_at)}`
@@ -166,9 +151,8 @@ export function CampaignRow({
     <li
       data-testid="campaign-row"
       className={cn(
-        "group relative flex flex-col gap-3 px-4 py-4 transition-colors hover:bg-muted sm:px-5",
-        ROW_GRID,
-        "xl:py-3"
+        "group relative -mx-3 flex flex-col gap-3 border-b border-hairline px-3 py-4 transition-colors duration-(--dur-fast) hover:bg-tint",
+        ROW_GRID
       )}
     >
       <div className="min-w-0 space-y-0.5 pr-6 xl:pr-0">
@@ -176,13 +160,12 @@ export function CampaignRow({
           to="/campaigns/$campaignId"
           params={{ campaignId: campaign.id }}
           search={{}}
-          className="text-ui font-semibold text-foreground after:absolute after:inset-0 after:content-[''] hover:underline"
+          className="text-lead font-bold underline-offset-4 after:absolute after:inset-0 after:content-[''] group-hover:underline"
         >
           {campaign.name}
         </Link>
-        <p className="text-meta text-ink-secondary">
-          Created {formatDate(campaign.created_at)} ·{" "}
-          {plural(campaign.lead_target, "business", "businesses")}
+        <p className="aside">
+          Created {formatDate(campaign.created_at)}, {plural(campaign.lead_target, "business", "businesses")}.
         </p>
       </div>
 
@@ -190,22 +173,20 @@ export function CampaignRow({
         <CampaignStatusLine campaign={campaign} animate={animate} />
 
         {/* Counts: columns with a shared header on wide screens, a sentence on narrow ones. */}
-        <p className="flex flex-wrap gap-x-3 gap-y-1 text-ui text-ink-secondary md:justify-end md:pt-0.5 xl:contents">
+        <p className="flex flex-wrap gap-x-3 gap-y-1 text-ui md:justify-end md:pt-0.5 xl:contents">
           {COUNT_COLUMNS.map((column) => {
             const value = counts[column.key]
+            const waiting = value > 0 && (column.key === "ready" || column.key === "needs_review")
             return (
               <span
                 key={column.key}
                 data-count={column.key}
-                className={cn(
-                  "whitespace-nowrap xl:text-right",
-                  value === 0 && "xl:text-muted-foreground"
-                )}
+                className={cn("whitespace-nowrap xl:text-right", waiting && "text-edge")}
               >
                 <span
                   className={cn(
-                    "font-semibold tabular-nums",
-                    value > 0 ? "text-foreground" : "text-muted-foreground"
+                    "tabular-nums xl:text-head xl:leading-none xl:stretch-condensed",
+                    value > 0 ? "font-extrabold" : "font-normal"
                   )}
                 >
                   {value}
@@ -221,10 +202,6 @@ export function CampaignRow({
         </p>
       </div>
 
-      <ChevronRightIcon
-        aria-hidden="true"
-        className="absolute top-4 right-3 size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:right-4 xl:static"
-      />
     </li>
   )
 }
