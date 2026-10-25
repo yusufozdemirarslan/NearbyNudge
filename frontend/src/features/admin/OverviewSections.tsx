@@ -1,7 +1,6 @@
 import * as React from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { PlayIcon } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { CalmError } from "@/components/CalmError"
@@ -84,7 +83,6 @@ export function AiStatusSection({ overview }: { overview: AdminOverview }) {
               if (!resume.isPending) resume.mutate()
             }}
           >
-            <PlayIcon aria-hidden="true" />
             {resume.isPending ? "Resuming…" : "Resume now"}
           </Button>
         ) : undefined
@@ -93,8 +91,8 @@ export function AiStatusSection({ overview }: { overview: AdminOverview }) {
       <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
         <Fact label="State">{state}</Fact>
         <Fact label="Model">
-          {name ? `${name} · ` : ""}
-          <span className="font-medium">{ai.model}</span>
+          {name ? `${name}, ` : ""}
+          <span className="font-semibold">{ai.model}</span>
         </Fact>
         <Fact label="Web search">{search}</Fact>
         <Fact label="Since">{ai.since ? formatDateTime(ai.since) : ai.state === "ok" ? "No pause recorded" : "Unknown"}</Fact>
@@ -105,7 +103,7 @@ export function AiStatusSection({ overview }: { overview: AdminOverview }) {
         )}
       </dl>
       {ai.state === "unconfigured" && (
-        <p className="mt-4 text-ui text-ink-secondary">
+        <p className="mt-4 text-ui">
           Add the AI provider's API key to the server's .env file and restart the server. Campaigns wait until then.
         </p>
       )}
@@ -134,16 +132,16 @@ export function SpendSection({ overview }: { overview: AdminOverview }) {
       title="Spend"
       description="AI cost from the usage records of every request, in US dollars. Days follow UTC."
     >
-      <div className="space-y-5">
-        <dl className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <div className="space-y-10">
+        <dl className="grid gap-x-10 sm:grid-cols-2 xl:grid-cols-3">
           <StatTile label="Today" value={formatMoney(spend.today)} />
           <StatTile label="Last 7 days" value={formatMoney(spend.d7)} />
           <StatTile label="Last 30 days" value={formatMoney(spend.d30)} />
           <StatTile
             label="Per lead, average"
-            value={spend.per_lead_avg === null ? <span className="text-pane-title text-muted-foreground">No leads yet</span> : formatMoney(spend.per_lead_avg)}
+            value={spend.per_lead_avg === null ? <span className="text-lead">No leads yet</span> : formatMoney(spend.per_lead_avg)}
           />
-          <StatTile label="Requests today" value={formatNumber(spend.requests_today)} className="col-span-2 md:col-span-1" />
+          <StatTile label="Requests today" value={formatNumber(spend.requests_today)} />
         </dl>
 
         <ChartCard
@@ -192,9 +190,9 @@ export function SpendSection({ overview }: { overview: AdminOverview }) {
         />
 
         <div>
-          <h3 className="mb-2 text-ui font-semibold text-foreground">By skill, last 30 days</h3>
+          <h3 className="mb-3 text-lead font-extrabold stretch-condensed">By skill, last 30 days</h3>
           {spend.by_skill.length === 0 ? (
-            <p className="text-ui text-ink-secondary">No AI requests in the last 30 days.</p>
+            <p className="aside">No AI requests in the last 30 days.</p>
           ) : (
             <DataTable label="AI spend by skill, last 30 days">
               <thead>
@@ -216,7 +214,7 @@ export function SpendSection({ overview }: { overview: AdminOverview }) {
               <tbody>
                 {spend.by_skill.map((row) => (
                   <tr key={row.skill}>
-                    <th scope="row" className={`${td} font-medium`}>
+                    <th scope="row" className={`${td} font-semibold`}>
                       {skillLabel(row.skill)}
                     </th>
                     <td className={tdNum}>{formatNumber(row.requests)}</td>
@@ -288,7 +286,7 @@ export function BalanceSection({ overview }: { overview: AdminOverview }) {
         <form noValidate onSubmit={onSubmit} aria-label="Prepaid balance" className="flex flex-col gap-3">
           <FormField label="Current prepaid balance" error={formState.errors.amount?.message} required>
             {(control) => (
-              <InputGroup className="h-9">
+              <InputGroup className="h-10">
                 <InputGroupAddon>$</InputGroupAddon>
                 <InputGroupInput
                   {...control}
@@ -296,7 +294,7 @@ export function BalanceSection({ overview }: { overview: AdminOverview }) {
                   inputMode="decimal"
                   autoComplete="off"
                   placeholder="50.00"
-                  className="text-base md:text-ui"
+                  className="text-body md:text-ui"
                 />
               </InputGroup>
             )}
@@ -310,7 +308,7 @@ export function BalanceSection({ overview }: { overview: AdminOverview }) {
         </form>
 
         {balance.amount === null ? (
-          <p className="text-ui text-ink-secondary lg:pt-7">
+          <p className="aside lg:pt-8">
             No balance entered yet. Average spend over the last 7 days is {formatMoney(balance.avg_daily)} a day.
           </p>
         ) : (
@@ -318,7 +316,7 @@ export function BalanceSection({ overview }: { overview: AdminOverview }) {
             <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
               <Fact label="Balance entered">
                 <span className="font-semibold">{formatMoney(balance.amount)}</span>
-                {balance.as_of && <span className="block text-meta text-muted-foreground">{formatDateTime(balance.as_of)}</span>}
+                {balance.as_of && <span className="block aside">{formatDateTime(balance.as_of)}</span>}
               </Fact>
               <Fact label="Spent since">{formatMoney(balance.spent_since)}</Fact>
               <Fact label="Remaining">
@@ -326,7 +324,7 @@ export function BalanceSection({ overview }: { overview: AdminOverview }) {
               </Fact>
               <Fact label="Average a day, last 7 days">{formatMoney(balance.avg_daily)}</Fact>
               <Fact label="Days left" className="sm:col-span-2 xl:col-span-4">
-                <span className="text-pane-title font-semibold">
+                <span className="numeral text-title leading-none">
                   {daysLeft === null ? "Not enough data" : `About ${formatNumber(Math.floor(daysLeft))} ${Math.floor(daysLeft) === 1 ? "day" : "days"}`}
                 </span>
               </Fact>
@@ -358,13 +356,13 @@ function QualityRow({
   status: React.ReactNode
 }) {
   return (
-    <li className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1.5 py-3">
+    <li className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1.5 py-4">
       <div className="min-w-0 flex-1 basis-60">
-        <p className="text-ui text-foreground">{label}</p>
-        <p className="text-meta text-muted-foreground">{detail}</p>
+        <p className="text-ui font-bold">{label}</p>
+        <p className="aside">{detail}</p>
       </div>
-      <div className="flex items-center gap-4">
-        <span className="min-w-14 text-right text-pane-title font-semibold text-foreground tabular-nums">{value}</span>
+      <div className="flex items-baseline gap-4">
+        <span className="min-w-16 text-right numeral text-head leading-none">{value}</span>
         <span className="w-36 text-ui">{status}</span>
       </div>
     </li>
@@ -381,16 +379,16 @@ export function QueueQualitySection({ overview }: { overview: AdminOverview }) {
       title="Queue and quality"
       description="Research jobs waiting and running now, and the quality measures from the PRD."
     >
-      <div className="space-y-6">
-        <dl className="grid grid-cols-3 gap-3">
+      <div className="space-y-8">
+        <dl className="grid gap-x-10 sm:grid-cols-3">
           <StatTile label="Queued" value={formatNumber(queue.queued)} />
           <StatTile label="Running" value={formatNumber(queue.running)} />
           <StatTile label="Failed in 24 h" value={formatNumber(queue.failed_24h)} />
         </dl>
-        <ul aria-label="Quality measures" className="divide-y border-y">
+        <ul aria-label="Quality measures" className="divide-y border-t-2 border-b border-t-ink">
           <QualityRow
             label="Audited facts supported by their source"
-            detail={`Target ${SUPPORTED_TARGET}% or more · ${formatNumber(quality.audited_facts)} ${quality.audited_facts === 1 ? "fact" : "facts"} audited`}
+            detail={`Target ${SUPPORTED_TARGET}% or more, ${formatNumber(quality.audited_facts)} ${quality.audited_facts === 1 ? "fact" : "facts"} audited`}
             value={quality.supported_pct === null ? "–" : `${quality.supported_pct}%`}
             status={<TargetStatus meets={supportedMeets} />}
           />

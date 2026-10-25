@@ -483,6 +483,61 @@ const FLOWS = {
       if (file.suggestedFilename() !== "do-not-contact.csv") throw new Error(file.suggestedFilename())
     }],
   ],
+  admin: [
+    ["open", async (p) => {
+      await p.goto("/admin")
+      await p.getByRole("heading", { level: 1, name: "Admin console" }).waitFor()
+      await visible(p, '[data-slot="stat-tile"]')
+    }],
+    ["the jump list goes to the audit sample", async (p) => {
+      await p.getByRole("navigation", { name: "Admin sections" }).getByRole("link", { name: "Audit sample" }).click()
+      await p.waitForFunction(() => document.activeElement?.textContent === "Audit sample")
+    }],
+    ["a fact can be marked supported, then not supported", async (p) => {
+      const fact = p.locator("#audit details").first().getByRole("listitem").first()
+      await fact.getByRole("button", { name: "Supported", exact: true }).click()
+      await fact.locator('button[aria-pressed="true"]', { hasText: "Supported" }).waitFor()
+      await fact.getByRole("button", { name: "Not supported" }).click()
+      await fact.locator('button[aria-pressed="true"]', { hasText: "Not supported" }).waitFor()
+    }],
+    ["the daily cost shows its table", async (p) => {
+      const daily = p.locator("#spend [data-slot=chart-card]")
+      await daily.getByRole("button", { name: "Table" }).click()
+      const rows = await daily.getByRole("table", { name: "Daily AI cost, last 30 days" }).getByRole("row").count()
+      if (rows !== 31) throw new Error(`expected 31 rows, got ${rows}`)
+      await daily.getByRole("button", { name: "Chart" }).click()
+    }],
+    ["a bad balance is caught", async (p) => {
+      const balance = p.locator("#balance")
+      await balance.getByRole("textbox", { name: "Current prepaid balance" }).fill("lots")
+      await balance.getByRole("button", { name: "Save balance" }).click()
+      await balance.getByText("Enter dollars and cents only, like 50 or 125.40.").waitFor()
+    }],
+    ["a balance saves and the forecast updates", async (p) => {
+      const balance = p.locator("#balance")
+      await balance.getByRole("textbox", { name: "Current prepaid balance" }).fill("125.40")
+      await balance.getByRole("button", { name: "Save balance" }).click()
+      await balance.getByText("$125.40").first().waitFor()
+    }],
+    ["an opt-out needs its domain", async (p) => {
+      const optOuts = p.locator("#optouts")
+      await optOuts.getByRole("button", { name: "Add opt-out" }).click()
+      await optOuts.getByText("Enter the site's domain, like example.com.").waitFor()
+    }],
+    ["add an opt-out", async (p) => {
+      const optOuts = p.locator("#optouts")
+      await optOuts.getByRole("textbox", { name: "Website domain" }).fill("flow-test.example")
+      await optOuts.getByRole("button", { name: "Add opt-out" }).click()
+      await optOuts.getByRole("row").filter({ hasText: "flow-test.example" }).waitFor()
+    }],
+    ["removing an opt-out asks first", async (p) => {
+      const optOuts = p.locator("#optouts")
+      await optOuts.getByRole("button", { name: "Remove the opt-out for flow-test.example" }).click()
+      await optOuts.getByText("NearbyNudgeBot may read flow-test.example again.").waitFor()
+      await optOuts.getByRole("button", { name: "Remove opt-out" }).click()
+      await gone(p, '#optouts tr:has-text("flow-test.example")')
+    }],
+  ],
   desk: [
     ["open", async (p) => {
       await p.goto(CAMPAIGN)

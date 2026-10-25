@@ -49,7 +49,9 @@ export function AppShell() {
             id="main-content"
             ref={mainRef}
             tabIndex={-1}
-            className={cn("min-h-0 flex-1 outline-none", desk ? "overflow-hidden" : "overflow-y-auto")}
+            // relative: hidden (sr-only) text is absolutely positioned; without a positioned
+            // ancestor it escapes this scroller and stretches the whole document.
+            className={cn("relative min-h-0 flex-1 outline-none", desk ? "overflow-hidden" : "overflow-y-auto")}
           >
             <Outlet />
           </main>

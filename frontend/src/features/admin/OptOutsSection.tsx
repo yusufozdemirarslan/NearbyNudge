@@ -1,7 +1,6 @@
 import * as React from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { PlusIcon, Trash2Icon } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { CalmError } from "@/components/CalmError"
@@ -55,16 +54,16 @@ function OptOutRow({ optOut }: { optOut: OptOut }) {
   }, [confirming])
   return (
     <tr>
-      <th scope="row" className={`${td} font-medium [overflow-wrap:anywhere]`}>
+      <th scope="row" className={`${td} font-semibold [overflow-wrap:anywhere]`}>
         {optOut.domain}
       </th>
-      <td className={`${td} [overflow-wrap:anywhere]`}>{optOut.contact_email ?? <span className="text-muted-foreground">None</span>}</td>
-      <td className={`${td} min-w-40 [overflow-wrap:anywhere]`}>{optOut.note ?? <span className="text-muted-foreground">None</span>}</td>
+      <td className={`${td} [overflow-wrap:anywhere]`}>{optOut.contact_email ?? <span className="aside">None</span>}</td>
+      <td className={`${td} min-w-40 [overflow-wrap:anywhere]`}>{optOut.note ?? <span className="aside">None</span>}</td>
       <td className={`${td} whitespace-nowrap tabular-nums`}>{formatDate(optOut.created_at)}</td>
       <td className={`${td} text-right`}>
         {confirming ? (
           <div className="flex min-w-64 flex-col items-end gap-2">
-            <p className="text-meta text-ink-secondary">NearbyNudgeBot may read {optOut.domain} again.</p>
+            <p className="aside">NearbyNudgeBot may read {optOut.domain} again.</p>
             <div className="flex gap-2">
               <Button
                 ref={keepRef}
@@ -88,11 +87,10 @@ function OptOutRow({ optOut }: { optOut: OptOut }) {
                 {remove.isPending ? "Removing…" : "Remove opt-out"}
               </Button>
             </div>
-            {remove.isError && <p className="text-meta text-ink-secondary">We couldn't remove it. Please try again.</p>}
+            {remove.isError && <p className="text-meta font-semibold text-edge">We couldn't remove it. Please try again.</p>}
           </div>
         ) : (
-          <Button ref={removeRef} variant="ghost" size="sm" onClick={() => setConfirming(true)}>
-            <Trash2Icon aria-hidden="true" />
+          <Button ref={removeRef} variant="link" size="sm" className="h-6 px-1" onClick={() => setConfirming(true)}>
             Remove<span className="sr-only"> the opt-out for {optOut.domain}</span>
           </Button>
         )}
@@ -149,7 +147,6 @@ export function OptOutsSection() {
         </FormField>
         <div className="flex flex-wrap items-center gap-3 md:col-span-2">
           <Button type="submit" aria-disabled={add.isPending || undefined}>
-            <PlusIcon aria-hidden="true" />
             {add.isPending ? "Adding…" : "Add opt-out"}
           </Button>
         </div>
@@ -158,7 +155,7 @@ export function OptOutsSection() {
         )}
       </form>
 
-      <div className="mt-6">
+      <div className="mt-8">
         {optOuts.isPending ? (
           <div aria-hidden="true" className="space-y-3">
             <PlaceholderBar width="60%" />
@@ -167,7 +164,7 @@ export function OptOutsSection() {
         ) : optOuts.isError ? (
           <CalmError size="inline" title="We couldn't load the opt-outs" error={optOuts.error} onRetry={() => void optOuts.refetch()} />
         ) : optOuts.data.length === 0 ? (
-          <p className="text-ui text-ink-secondary">No site owners have opted out.</p>
+          <p className="aside">No site owners have opted out.</p>
         ) : (
           <DataTable label="Site-owner opt-outs">
             <thead>

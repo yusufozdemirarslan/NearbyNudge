@@ -32,14 +32,14 @@ function JumpNav() {
     section.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true })
   }
   return (
-    <nav aria-label="Admin sections" className="-mt-2 mb-6">
-      <ul className="flex flex-wrap gap-1.5">
+    <nav aria-label="Admin sections" className="-mt-4 mb-10">
+      <ul className="flex flex-wrap gap-x-6 gap-y-1">
         {SECTIONS.map((section) => (
           <li key={section.id}>
             <a
               href={`#${section.id}`}
               onClick={(event) => jump(event, section.id)}
-              className="inline-flex h-7 items-center rounded-sm border bg-card px-2.5 text-meta font-medium text-ink-secondary transition-colors hover:border-[color-mix(in_srgb,var(--primary)_45%,transparent)] hover:text-foreground"
+              className="inline-flex min-h-10 items-center text-ui font-bold decoration-2 underline-offset-[6px] hover:underline"
             >
               {section.label}
             </a>
@@ -52,14 +52,14 @@ function JumpNav() {
 
 function OverviewLoading() {
   return (
-    <div aria-hidden="true" className="space-y-6">
+    <div aria-hidden="true" className="space-y-12">
       {[0, 1].map((i) => (
-        <div key={i} className="space-y-4 rounded-xl border bg-card p-5 sm:p-6">
-          <PlaceholderBar width="10ch" height={18} />
-          <PlaceholderBar width="60%" />
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div key={i} className="space-y-4 border-t-2 border-ink pt-5">
+          <PlaceholderBar width="10ch" className="block" />
+          <PlaceholderBar width="60%" className="block" />
+          <div className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-4">
             {[0, 1, 2, 3].map((j) => (
-              <div key={j} className="h-20 rounded-xl border" />
+              <PlaceholderBar key={j} width="100%" className="block" />
             ))}
           </div>
         </div>
@@ -80,7 +80,7 @@ export function AdminPage() {
         description="The app's health in one place: the AI's status and spend, the balance forecast, quality checks and site-owner opt-outs."
       />
       <JumpNav />
-      <div className="space-y-6">
+      <div className="space-y-12">
         {overview.isPending && <OverviewLoading />}
         {overview.isError && !overview.data && (
           <CalmError

@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query"
-import { RotateCwIcon } from "lucide-react"
 import { CalmError } from "@/components/CalmError"
 import { PlaceholderBar } from "@/components/PlaceholderBar"
 import { Button } from "@/components/ui/button"
@@ -43,7 +42,6 @@ export function RecentErrorsSection() {
             if (!errors.isFetching) void errors.refetch()
           }}
         >
-          <RotateCwIcon aria-hidden="true" />
           Refresh
         </Button>
       }
@@ -79,9 +77,9 @@ export function RecentErrorsSection() {
                 <td className={`${td} min-w-72 [overflow-wrap:anywhere]`}>
                   {entry.message}
                   {(entry.campaign_id || entry.lead_id) && (
-                    <span className="mt-0.5 block text-meta text-muted-foreground">
+                    <span className="mt-0.5 block aside">
                       {entry.campaign_id && `Campaign ${entry.campaign_id.slice(0, 8)}`}
-                      {entry.campaign_id && entry.lead_id && " · "}
+                      {entry.campaign_id && entry.lead_id && ", "}
                       {entry.lead_id && `Lead ${entry.lead_id.slice(0, 8)}`}
                     </span>
                   )}
@@ -111,7 +109,6 @@ export function RecentCallsSection() {
             if (!calls.isFetching) void calls.refetch()
           }}
         >
-          <RotateCwIcon aria-hidden="true" />
           Refresh
         </Button>
       }
@@ -121,7 +118,7 @@ export function RecentCallsSection() {
       ) : calls.isError ? (
         <CalmError size="inline" title="We couldn't load the AI calls" error={calls.error} onRetry={() => void calls.refetch()} />
       ) : calls.data.length === 0 ? (
-        <p className="text-ui text-ink-secondary">No AI calls yet.</p>
+        <p className="aside">No AI calls yet.</p>
       ) : (
         <DataTable label="Recent AI calls">
           <thead>
@@ -161,7 +158,7 @@ export function RecentCallsSection() {
                 <td className={`${td} whitespace-nowrap tabular-nums`}>{formatDateTime(call.created_at)}</td>
                 <td className={`${td} whitespace-nowrap`}>
                   {skillLabel(call.skill)}
-                  {call.thinking && <span className="block text-meta text-muted-foreground">Extended thinking</span>}
+                  {call.thinking && <span className="block aside">Extended thinking</span>}
                 </td>
                 <td className={tdNum}>{formatNumber(call.prompt_tokens)}</td>
                 <td className={tdNum}>{formatNumber(call.cached_tokens)}</td>
@@ -176,7 +173,7 @@ export function RecentCallsSection() {
                     <>
                       <StatusWord tone="bad">Error</StatusWord>
                       {call.error && (
-                        <span className="mt-0.5 block max-w-80 text-meta text-ink-secondary [overflow-wrap:anywhere]">
+                        <span className="mt-0.5 block max-w-80 aside [overflow-wrap:anywhere]">
                           {call.error}
                         </span>
                       )}

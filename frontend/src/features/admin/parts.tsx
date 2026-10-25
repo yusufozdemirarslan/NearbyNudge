@@ -1,12 +1,5 @@
 import type * as React from "react"
-import {
-  CircleCheckIcon,
-  CircleDashedIcon,
-  CirclePauseIcon,
-  CircleXIcon,
-  TriangleAlertIcon,
-  type LucideIcon,
-} from "lucide-react"
+import { Mark, type MarkName } from "@/components/Mark"
 import { cn } from "@/lib/utils"
 
 /*
@@ -15,31 +8,29 @@ import { cn } from "@/lib/utils"
 
 export type Tone = "good" | "warning" | "paused" | "bad" | "neutral"
 
-const TONE: Record<Tone, { icon: LucideIcon; className: string }> = {
-  good: { icon: CircleCheckIcon, className: "text-success" },
-  warning: { icon: TriangleAlertIcon, className: "text-warning" },
-  paused: { icon: CirclePauseIcon, className: "text-info" },
-  bad: { icon: CircleXIcon, className: "text-destructive" },
-  neutral: { icon: CircleDashedIcon, className: "text-ink-secondary" },
+/* Ink for what is fine or waiting; edge red only for what needs someone. */
+const TONE: Record<Tone, { mark: MarkName; className: string }> = {
+  good: { mark: "check", className: "" },
+  warning: { mark: "asterisk", className: "text-edge" },
+  paused: { mark: "pause", className: "" },
+  bad: { mark: "cross", className: "text-edge" },
+  neutral: { mark: "ring", className: "" },
 }
 
-/** A state as an icon plus a word, never color alone (brief §3.3). */
+/** A state as a drawn mark plus a word, never colour alone (brief §3.3). */
 export function StatusWord({
   tone,
-  icon,
   children,
   className,
 }: {
   tone: Tone
-  icon?: LucideIcon
   children: React.ReactNode
   className?: string
 }) {
   const meta = TONE[tone]
-  const Icon = icon ?? meta.icon
   return (
-    <span className={cn("inline-flex items-center gap-1.5 font-medium", meta.className, className)}>
-      <Icon aria-hidden="true" className="size-4 shrink-0" />
+    <span className={cn("inline-flex items-baseline gap-1.5 font-semibold", meta.className, className)}>
+      <Mark name={meta.mark} className="translate-y-px" />
       <span>{children}</span>
     </span>
   )
@@ -55,8 +46,8 @@ export function TargetStatus({ meets }: { meets: boolean | null }) {
 export function Fact({ label, children, className }: { label: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
     <div className={cn("flex min-w-0 flex-col gap-0.5", className)}>
-      <dt className="text-meta text-ink-secondary">{label}</dt>
-      <dd className="text-ui text-foreground [overflow-wrap:anywhere]">{children}</dd>
+      <dt className="aside">{label}</dt>
+      <dd className="text-ui [overflow-wrap:anywhere]">{children}</dd>
     </div>
   )
 }
