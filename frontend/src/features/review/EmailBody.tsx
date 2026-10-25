@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link } from "@tanstack/react-router"
-import { LockIcon, PencilIcon } from "lucide-react"
+import { PencilIcon } from "lucide-react"
 import { Mark } from "@/components/Mark"
 import type { Email, Fact, Sentence } from "@/lib/api/types"
 import { cn } from "@/lib/utils"
@@ -150,7 +150,7 @@ export function LockedFooter({ footer }: { footer: string }) {
   return (
     <div className="mt-2 border-t border-dashed border-leader pt-4 pb-1" data-slot="locked-footer">
       <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 aside">
-        <LockIcon aria-hidden="true" className="size-3.5" />
+        <Mark name="lock" />
         <span>Footer added to every email.</span>
         <Link to="/settings" className="font-semibold not-italic underline underline-offset-[3px] hover:text-edge">
           Edit in Settings

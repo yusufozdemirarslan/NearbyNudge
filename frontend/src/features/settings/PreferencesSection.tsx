@@ -1,6 +1,6 @@
 import * as React from "react"
-import { CheckIcon } from "lucide-react"
 import { CalmError } from "@/components/CalmError"
+import { Mark } from "@/components/Mark"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Switch } from "@/components/ui/switch"
 import { useAnnounce } from "@/hooks/use-announce"
@@ -71,12 +71,12 @@ export function PreferencesSection({ preferences }: { preferences: Preferences }
       description="Changes save as soon as you make them and apply wherever NearbyNudge is open."
       actions={
         state.status === "saved" ? (
-          <span className="inline-flex items-center gap-1.5 text-ui text-success">
-            <CheckIcon aria-hidden="true" className="size-4" />
+          <span className="inline-flex items-center gap-1.5 text-ui font-semibold">
+            <Mark name="check" />
             Saved
           </span>
         ) : state.status === "saving" ? (
-          <span className="text-ui text-ink-secondary">Saving…</span>
+          <span className="aside">Saving…</span>
         ) : null
       }
     >
@@ -84,31 +84,34 @@ export function PreferencesSection({ preferences }: { preferences: Preferences }
         {SWITCHES.map((item) => {
           const id = `${ids}-${item.key}`
           return (
-            <div key={item.key} className="flex items-start justify-between gap-6 border-b py-4 first:pt-0">
-              <div className="min-w-0 space-y-1">
-                <label htmlFor={id} className="block cursor-pointer text-ui font-medium text-foreground">
+            <div key={item.key} className="border-b border-hairline py-4 first:pt-0">
+              <div className="flex items-center gap-3">
+                <label htmlFor={id} className="min-w-0 cursor-pointer text-ui font-bold">
                   {item.label}
                 </label>
-                <p id={`${id}-hint`} className="max-w-[60ch] text-ui text-ink-secondary">
-                  {item.description}
-                </p>
+                <span aria-hidden="true" className="leader self-center" />
+                <span aria-hidden="true" className="w-6 text-right text-ui font-extrabold stretch-condensed">
+                  {preferences[item.key] ? "On" : "Off"}
+                </span>
+                <Switch
+                  id={id}
+                  aria-describedby={`${id}-hint`}
+                  checked={preferences[item.key]}
+                  onCheckedChange={(checked) => void save({ [item.key]: checked })}
+                />
               </div>
-              <Switch
-                id={id}
-                aria-describedby={`${id}-hint`}
-                checked={preferences[item.key]}
-                onCheckedChange={(checked) => void save({ [item.key]: checked })}
-                className="mt-0.5"
-              />
+              <p id={`${id}-hint`} className="mt-1.5 max-w-measure pr-14 aside">
+                {item.description}
+              </p>
             </div>
           )
         })}
 
-        <fieldset className="mt-4">
-          <legend id={`${ids}-theme`} className="text-ui font-medium text-foreground">
+        <fieldset className="mt-6">
+          <legend id={`${ids}-theme`} className="text-ui font-bold">
             Theme
           </legend>
-          <p id={`${ids}-theme-hint`} className="mt-1 mb-3 text-ui text-ink-secondary">
+          <p id={`${ids}-theme-hint`} className="mt-1 mb-3 aside">
             Match my computer follows your system setting for light or dark.
           </p>
           <RadioGroup
@@ -121,7 +124,7 @@ export function PreferencesSection({ preferences }: { preferences: Preferences }
             {THEMES.map((theme) => (
               <label
                 key={theme.value}
-                className="flex min-h-9 cursor-pointer items-center gap-2.5 rounded-lg border border-[color-mix(in_srgb,var(--input)_55%,transparent)] bg-card px-3 py-2 text-ui font-medium text-foreground transition-colors hover:bg-muted has-data-checked:border-primary has-data-checked:bg-accent"
+                className="flex min-h-11 cursor-pointer items-center gap-2.5 px-3 py-2 text-ui font-semibold border border-ink transition-colors duration-(--dur-fast) hover:bg-tint has-data-checked:outline-2 has-data-checked:outline-ink has-data-checked:-outline-offset-2"
               >
                 <RadioGroupItem value={theme.value} />
                 {theme.label}

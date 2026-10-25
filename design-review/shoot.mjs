@@ -299,6 +299,68 @@ const FLOWS = {
       await p.getByRole("heading", { level: 1, name: /Dentists within 5 mi/ }).waitFor({ timeout: 15_000 })
     }],
   ],
+  settings: [
+    ["open", async (p) => {
+      await p.goto("/settings")
+      await p.getByRole("heading", { level: 1, name: "Settings" }).waitFor()
+    }],
+    ["the jump list goes to Preferences", async (p) => {
+      await p.getByRole("navigation", { name: "Settings sections" }).getByRole("link", { name: "Preferences" }).click()
+      await p.waitForFunction(() => document.activeElement?.textContent === "Preferences")
+    }],
+    ["a switch saves at once and says so", async (p) => {
+      await p.getByRole("switch", { name: "Compact rows" }).click()
+      await p.getByText("Saved", { exact: true }).first().waitFor()
+      if ((await p.getByRole("switch", { name: "Compact rows" }).getAttribute("aria-checked")) !== "true") throw new Error("Compact rows did not turn on")
+      await p.getByRole("switch", { name: "Compact rows" }).click()
+    }],
+    ["the theme switches to dark and back", async (p) => {
+      await p.getByRole("radio", { name: "Dark" }).click()
+      await p.waitForFunction(() => document.documentElement.classList.contains("dark"))
+      await p.getByRole("radio", { name: "Light" }).click()
+      await p.waitForFunction(() => !document.documentElement.classList.contains("dark"))
+    }],
+    ["the footer preview follows the form", async (p) => {
+      await p.getByRole("textbox", { name: /Job title/ }).fill("Owner")
+      await p.locator('[data-testid="footer-preview"]', { hasText: "Owner, Brightline Ads" }).waitFor()
+      await p.getByText("Preview of your changes.", { exact: false }).waitFor()
+    }],
+    ["an empty name is caught on save", async (p) => {
+      await p.getByRole("textbox", { name: "Your name" }).fill("")
+      await p.getByRole("button", { name: "Save sender profile" }).click()
+      await p.getByText("Enter your name as it should appear in emails.").waitFor()
+    }],
+    ["the profile saves", async (p) => {
+      await p.getByRole("textbox", { name: "Your name" }).fill("Maya Chen")
+      await p.getByRole("button", { name: "Save sender profile" }).click()
+      await p.locator('[data-testid="footer-preview"]', { hasText: "Owner, Brightline Ads" }).waitFor()
+      await p.getByText("Saved", { exact: true }).first().waitFor()
+    }],
+    ["delete all data asks for the word", async (p) => {
+      await p.getByRole("textbox", { name: "Type delete to confirm" }).fill("nope")
+      await p.getByRole("button", { name: "Delete all data" }).click()
+      await p.getByText("Type delete to confirm.").waitFor()
+    }],
+    ["typing delete starts over at set-up", async (p) => {
+      await p.getByRole("textbox", { name: "Type delete to confirm" }).fill("delete")
+      await p.getByRole("button", { name: "Delete all data" }).click()
+      await p.getByRole("heading", { level: 1, name: "Set up your sender profile" }).waitFor()
+      await p.getByText("All data deleted").waitFor()
+    }],
+    ["set-up checks the required fields", async (p) => {
+      await p.getByRole("button", { name: "Save and set up a campaign" }).click()
+      await p.getByText("Enter your name as it should appear in emails.").waitFor()
+      await p.getByText("Enter your company's name.").waitFor()
+    }],
+    ["set-up saves and continues to New campaign", async (p) => {
+      await p.getByRole("textbox", { name: "Your name" }).fill("Maya Chen")
+      await p.getByRole("textbox", { name: "Company" }).fill("Brightline Ads")
+      await p.getByRole("textbox", { name: "Postal address" }).fill("123 Example St, Arlington, VA 22201")
+      await p.locator('[data-testid="footer-preview"]', { hasText: "123 Example St" }).waitFor()
+      await p.getByRole("button", { name: "Save and set up a campaign" }).click()
+      await p.getByRole("heading", { level: 1, name: "New campaign" }).waitFor()
+    }],
+  ],
   desk: [
     ["open", async (p) => {
       await p.goto(CAMPAIGN)

@@ -50,13 +50,13 @@ export function SettingsPage() {
         description="Your sender details, how NearbyNudge behaves, this month's usage, and your data."
       >
         <nav aria-label="Settings sections">
-          <ul className="flex flex-wrap gap-2">
+          <ul className="flex flex-wrap gap-x-6 gap-y-1">
             {SETTINGS_SECTIONS.map((section) => (
               <li key={section.id}>
                 <a
                   href={`#${section.id}`}
                   aria-current={hash === section.id ? "location" : undefined}
-                  className="inline-flex min-h-8 items-center rounded-sm border border-[color-mix(in_srgb,var(--input)_45%,transparent)] bg-card px-2.5 text-ui text-foreground transition-colors hover:bg-muted aria-[current=location]:border-primary aria-[current=location]:bg-accent"
+                  className="inline-flex min-h-10 items-center text-ui font-bold decoration-2 underline-offset-[6px] hover:underline aria-[current=location]:underline aria-[current=location]:decoration-edge"
                 >
                   {section.label}
                 </a>
@@ -69,18 +69,18 @@ export function SettingsPage() {
       {account.isError ? (
         <CalmError title="We couldn't load your settings" error={account.error} onRetry={() => void account.refetch()} />
       ) : !ready ? (
-        <div className="flex flex-col gap-6" aria-busy="true">
+        <div className="flex flex-col gap-12" aria-busy="true">
           <p className="sr-only">Loading your settings…</p>
           {[0, 1, 2].map((panel) => (
-            <div key={panel} className="flex flex-col gap-4 rounded-xl border bg-card p-6">
-              <PlaceholderBar width={160} height={18} />
-              <PlaceholderBar width="70%" />
-              <PlaceholderBar height={36} />
+            <div key={panel} className="flex flex-col gap-4 border-t-2 border-ink pt-5">
+              <PlaceholderBar width={160} className="block" />
+              <PlaceholderBar width="70%" className="block" />
+              <PlaceholderBar width="100%" className="block" />
             </div>
           ))}
         </div>
       ) : (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-12">
           <Section
             id="sender-profile"
             title="Sender profile"

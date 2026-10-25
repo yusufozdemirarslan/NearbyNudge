@@ -11,7 +11,7 @@ import { qk } from "@/lib/api/queries"
 import { notify } from "@/lib/toast"
 import { FormField, Section, applyServerErrors, inputClass } from "./form-kit"
 
-const linkClass = "font-medium text-primary underline underline-offset-3 hover:text-foreground"
+const linkClass = "font-semibold underline underline-offset-[3px] hover:text-edge"
 
 /** The word to type, so a stray click can't wipe everything. */
 const CONFIRM_WORD = "delete"
@@ -63,14 +63,14 @@ export function DeleteDataSection() {
       description="Start over: this deletes everything in NearbyNudge right now. It can't be undone."
     >
       <div className="flex flex-col gap-5">
-        <div className="space-y-2 text-ui text-foreground">
-          <p>What's deleted:</p>
-          <ul className="ml-5 list-disc space-y-1 text-ink-secondary marker:text-muted-foreground">
+        <div className="space-y-2 text-ui">
+          <p className="font-bold">What's deleted:</p>
+          <ul className="ml-5 list-disc space-y-1 marker:text-ink">
             <li>your sender profile and preferences;</li>
             <li>your campaigns, leads, facts, page copies and emails;</li>
             <li>your do-not-contact list.</li>
           </ul>
-          <p className="text-ink-secondary">
+          <p>
             Want to keep anything? Export your{" "}
             <Link to="/dnc" className={linkClass}>
               do-not-contact list
@@ -87,13 +87,13 @@ export function DeleteDataSection() {
           noValidate
           onSubmit={onSubmit}
           aria-label="Delete all data"
-          className="flex flex-col gap-4 rounded-lg border border-[color-mix(in_srgb,var(--destructive)_35%,transparent)] bg-danger-tint p-4"
+          className="flex flex-col gap-4 border border-ink border-t-(length:--rule-heavy) border-t-edge p-4 sm:p-5"
         >
           <FormField
             label="Type delete to confirm"
             description={
               <>
-                Type <span className="font-semibold text-foreground">{CONFIRM_WORD}</span>
+                Type <span className="font-bold not-italic">{CONFIRM_WORD}</span>
               </>
             }
             error={fieldError}
@@ -107,7 +107,7 @@ export function DeleteDataSection() {
                 autoComplete="off"
                 autoCapitalize="none"
                 spellCheck={false}
-                className={`${inputClass} bg-card dark:bg-card`}
+                className={inputClass}
               />
             )}
           </FormField>

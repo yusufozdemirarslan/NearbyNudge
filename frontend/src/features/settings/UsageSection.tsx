@@ -23,7 +23,7 @@ export function UsageSection({ account }: { account: Account }) {
             max={usage.limit}
             tone={atLimit ? "warning" : "default"}
           />
-          <p className="text-ui text-ink-secondary">
+          <p className="aside">
             {atLimit
               ? "You've used this month's allowance. It resets on the first of next month."
               : `${plural(remaining, "lead")} left this month. The count resets on the first of next month.`}
@@ -36,7 +36,7 @@ export function UsageSection({ account }: { account: Account }) {
             max={sending.daily_cap}
             tone={atCap ? "warning" : "default"}
           />
-          <p className="text-ui text-ink-secondary">
+          <p className="aside">
             NearbyNudge doesn't send email. This counts the emails you marked as sent, up to{" "}
             {formatNumber(sending.daily_cap)} a day; it resets at {formatTime(sending.resets_at)}.
           </p>

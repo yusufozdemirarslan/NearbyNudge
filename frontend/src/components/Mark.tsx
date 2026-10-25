@@ -17,6 +17,7 @@ export type MarkName =
   | "cross"
   | "pointer"
   | "pause"
+  | "lock"
 
 const SHAPES: Record<MarkName, React.ReactNode> = {
   ring: <circle cx="6" cy="6" r="3.6" />,
@@ -36,6 +37,7 @@ const SHAPES: Record<MarkName, React.ReactNode> = {
   cross: <path d="M2.6 2.6l6.8 6.8M9.4 2.6 2.6 9.4" />,
   pointer: <path d="M3 1.8 10 6l-7 4.2z" fill="currentColor" stroke="none" />,
   pause: <path d="M4 2.4v7.2M8 2.4v7.2" />,
+  lock: <path d="M3.8 5.4V4a2.2 2.2 0 0 1 4.4 0v1.4M2.4 5.4h7.2v5.2H2.4z" />,
 }
 
 export function Mark({ name, className }: { name: MarkName; className?: string }) {

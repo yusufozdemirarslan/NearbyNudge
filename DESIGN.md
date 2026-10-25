@@ -161,6 +161,7 @@ This takes `--dur-file`. It is the only authored motion in the app.
 - **Checkbox:** a 2px square that fills with ink when checked.
 - **Radio:** a circle.
 - **Switch:** a square track whose knob slides; it is ink-filled when on.
+  - In a settings list each switch ends a white-pages line, "Live updates ······ On [switch]": the word On or Off sits beside it in condensed bold, so the state never rests on fill alone.
 - **Radio cards:** square boxes with a 1px ink border; the chosen one takes a 2px inset ink outline and a filled radio.
 - **Toggle chips** (the industry suggestions): 32px square chips with a hairline border that darkens to ink on hover; a pressed chip inverts to ink with a drawn check. They stay buttons with `aria-pressed`.
 - **Forms:** no card around them. A bold label column (7.5rem on desktop, stacked on phones) sits beside each field, and hints run underneath as italic asides. Sections of a long form are ruled off with a 2px ink rule and a condensed head.
@@ -197,6 +198,9 @@ This takes `--dur-file`. It is the only authored motion in the app.
 - **Empty states:** a condensed head, one sentence about what will fill the space, and the action that fills it. There is no icon tile.
 - **Toasts:** a paper slip with an ink border and `shadow-overlay`, a bold title, a sentence and an Undo button, placed bottom right above the desk's action strip.
   - The kind shows as a drawn mark: a check (done), a dot (for your information), an edge-red asterisk (warning) or an edge-red cross (error); a three-dot leader while something runs.
+- **The footer slip (Onboarding and Settings):** the locked email footer, set at reading size (16/26) in a 2px ink frame with a drawn lock and "Locked" above it. It fills in as you type; empty lines show their placeholders in italic `ink-soft`. It is those pages' one bold element.
+- **Danger zone (Delete all data):** a notice with an edge-red 3px top rule, the confirm field and the edge-red destructive button. No pink wash.
+- **Jump lists** (Settings sections): bold links in a row; the current one is underlined in edge red, like the masthead.
 - **The plan (New campaign):** a notice with a 3px ink top rule.
   - A small boxed "AI" tag, then "Claude's plan:" in bold and the restatement in italic quotes.
   - Categories are white-pages lines, "General dentistry ······ 38".

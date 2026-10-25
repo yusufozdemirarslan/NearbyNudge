@@ -1,10 +1,10 @@
 import * as React from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { CheckIcon, LockIcon } from "lucide-react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { z } from "zod"
 import { CalmError } from "@/components/CalmError"
+import { Mark } from "@/components/Mark"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { NativeSelect, NativeSelectOptGroup, NativeSelectOption } from "@/components/ui/native-select"
@@ -196,7 +196,7 @@ export function SenderProfileForm({
               {...register("sender_address")}
               rows={3}
               autoComplete="street-address"
-              className="min-h-24 text-base md:text-ui"
+              className="min-h-24 text-body md:text-ui"
             />
           )}
         </FormField>
@@ -218,10 +218,10 @@ export function SenderProfileForm({
           name="default_tone"
           render={({ field }) => (
             <fieldset className="flex min-w-0 flex-col gap-1.5">
-              <legend id={toneLegendId} className="mb-1.5 text-ui font-medium text-foreground">
+              <legend id={toneLegendId} className="mb-1.5 text-ui font-bold">
                 Default tone
               </legend>
-              <p id={toneHintId} className="-mt-1 mb-1 text-ui text-ink-secondary">
+              <p id={toneHintId} className="-mt-1 mb-1 aside">
                 New campaigns start with this tone. You can change it for each campaign.
               </p>
               <RadioGroup
@@ -234,12 +234,12 @@ export function SenderProfileForm({
                 {TONES.map((tone) => (
                   <label
                     key={tone.value}
-                    className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-[color-mix(in_srgb,var(--input)_55%,transparent)] bg-card px-3 py-2.5 transition-colors hover:bg-muted has-data-checked:border-primary has-data-checked:bg-accent"
+                    className="flex min-h-11 cursor-pointer items-start gap-2.5 px-3 py-2.5 border border-ink transition-colors duration-(--dur-fast) hover:bg-tint has-data-checked:outline-2 has-data-checked:outline-ink has-data-checked:-outline-offset-2"
                   >
                     <RadioGroupItem value={tone.value} className="mt-0.5" />
                     <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 @xl:flex-col @xl:items-start">
-                      <span className="text-ui font-medium text-foreground">{tone.label}</span>
-                      <span className="text-meta text-ink-secondary">{tone.hint}</span>
+                      <span className="text-ui font-bold">{tone.label}</span>
+                      <span className="aside">{tone.hint}</span>
                     </span>
                   </label>
                 ))}
@@ -257,7 +257,7 @@ export function SenderProfileForm({
             <NativeSelect
               {...control}
               {...register("timezone")}
-              className="w-full @md:max-w-sm [&_select]:h-9 [&_select]:text-base md:[&_select]:text-ui"
+              className="w-full @md:max-w-sm [&_select]:text-body md:[&_select]:text-ui"
             >
               <NativeSelectOptGroup label="United States">
                 {US_TIME_ZONES.map((zone) => (
@@ -295,8 +295,8 @@ export function SenderProfileForm({
           {mutation.isPending ? "Saving…" : submitLabel}
         </Button>
         {justSaved && !dirty && (
-          <span className="inline-flex items-center gap-1.5 text-ui text-success">
-            <CheckIcon aria-hidden="true" className="size-4" />
+          <span className="inline-flex items-center gap-1.5 text-ui font-semibold">
+            <Mark name="check" />
             Saved
           </span>
         )}
@@ -327,25 +327,25 @@ export function FooterPreview({
   const Heading = headingLevel === 2 ? "h2" : "h3"
   return (
     <section aria-labelledby={titleId} className={cn("min-w-0", className)}>
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <Heading id={titleId} className="text-ui font-semibold text-foreground">
+      <div className="mb-2 flex items-baseline justify-between gap-3">
+        <Heading id={titleId} className="text-ui font-bold">
           Your email footer
         </Heading>
-        <span className="inline-flex items-center gap-1 text-meta text-ink-secondary">
-          <LockIcon aria-hidden="true" className="size-3.5" />
+        <span className="inline-flex items-center gap-1.5 aside">
+          <Mark name="lock" />
           Locked
         </span>
       </div>
-      <div className="rounded-xl border bg-muted px-4 py-3.5" data-testid="footer-preview">
+      <div className="border-2 border-ink px-5 py-4 sm:px-6 sm:py-5" data-testid="footer-preview">
         {serverText ? (
-          <p className="text-ui whitespace-pre-line text-foreground [overflow-wrap:anywhere]">{serverText}</p>
+          <p className="text-body whitespace-pre-line [overflow-wrap:anywhere]">{serverText}</p>
         ) : (
-          <p className="text-ui text-foreground [overflow-wrap:anywhere]">
+          <p className="text-body [overflow-wrap:anywhere]">
             {lines.map((line, index) => (
               <React.Fragment key={line.key}>
                 {index > 0 && <br />}
                 {line.text === null ? (
-                  <span className="text-muted-foreground italic">{line.placeholder}</span>
+                  <span className="text-ink-soft italic">{line.placeholder}</span>
                 ) : (
                   line.text
                 )}
@@ -354,7 +354,7 @@ export function FooterPreview({
           </p>
         )}
       </div>
-      <p className="mt-2 text-meta text-ink-secondary">
+      <p className="mt-2 aside">
         {unsaved
           ? "Preview of your changes. Save to use it in new and existing drafts."
           : "NearbyNudge adds this to every email. It can only be changed here."}
