@@ -108,7 +108,7 @@ export function EntryRow({
       )}
     >
       <div className="flex min-w-0 flex-1 gap-2.5">
-        <Mark name="barred" className="mt-[7px] text-edge" />
+        <Mark name="barred" className="mt-1.75 text-edge" />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <p className="text-lead font-bold [overflow-wrap:anywhere]">
             {kind && <span className="sr-only">{kind}: </span>}

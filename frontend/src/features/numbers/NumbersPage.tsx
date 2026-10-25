@@ -197,7 +197,7 @@ function ByCampaign({ stats }: { stats: Stats }) {
                     to="/campaigns/$campaignId"
                     params={{ campaignId: row.campaign_id }}
                     search={{}}
-                    className="font-bold underline-offset-[3px] hover:underline"
+                    className="font-bold underline-offset-3 hover:underline"
                   >
                     {row.name}
                   </Link>

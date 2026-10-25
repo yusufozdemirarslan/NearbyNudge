@@ -85,7 +85,7 @@ export function LeadHeader({ summary, lead, onPrev, onNext, onBack, livePaused, 
                     href={lead.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold underline underline-offset-[3px] hover:text-edge"
+                    className="font-semibold underline underline-offset-3 hover:text-edge"
                   >
                     {displayDomain(lead.website)}
                     <span className="sr-only"> (opens in a new tab)</span>

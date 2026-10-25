@@ -19,8 +19,8 @@ export interface EmailBodyProps {
 const STATE_CLASS: Record<Sentence["state"], string> = {
   supported: "",
   none: "",
-  check: "underline decoration-edge decoration-dotted decoration-2 underline-offset-[5px]",
-  no_source: "underline decoration-edge decoration-wavy decoration-[1.5px] underline-offset-[5px]",
+  check: "underline decoration-edge decoration-dotted decoration-2 underline-offset-5",
+  no_source: "underline decoration-edge decoration-wavy decoration-[1.5px] underline-offset-5",
 }
 
 /**
@@ -152,7 +152,7 @@ export function LockedFooter({ footer }: { footer: string }) {
       <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 aside">
         <Mark name="lock" />
         <span>Footer added to every email.</span>
-        <Link to="/settings" className="font-semibold not-italic underline underline-offset-[3px] hover:text-edge">
+        <Link to="/settings" className="font-semibold not-italic underline underline-offset-3 hover:text-edge">
           Edit in Settings
         </Link>
       </p>

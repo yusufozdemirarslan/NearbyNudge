@@ -56,7 +56,7 @@ export function AiDraftLabel({ provenance, editor, website, className }: AiDraft
                     href={page.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="min-w-0 truncate font-semibold underline decoration-1 underline-offset-[3px] hover:text-edge"
+                    className="min-w-0 truncate font-semibold underline decoration-1 underline-offset-3 hover:text-edge"
                   >
                     {page.label}
                     <span className="sr-only"> (opens in a new tab)</span>

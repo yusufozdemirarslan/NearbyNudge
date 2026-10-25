@@ -49,7 +49,7 @@ export function ViewToggle({
   label: string
 }) {
   const item =
-    "inline-flex h-8 items-center px-0.5 text-ui font-semibold decoration-2 underline-offset-[6px] hover:underline aria-pressed:underline aria-pressed:decoration-edge"
+    "inline-flex h-8 items-center px-0.5 text-ui font-semibold decoration-2 underline-offset-6 hover:underline aria-pressed:underline aria-pressed:decoration-edge"
   return (
     <div role="group" aria-label={`Show ${label} as`} className="inline-flex shrink-0 items-center gap-3">
       <button type="button" aria-pressed={view === "chart"} className={item} onClick={() => onChange("chart")}>

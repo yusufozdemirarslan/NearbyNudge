@@ -115,7 +115,7 @@ function Hunks({
             {added && (
               <ins
                 className={cn(
-                  "decoration-2 underline-offset-[5px]",
+                  "decoration-2 underline-offset-5",
                   isReverted ? "text-ink-soft line-through decoration-ink-soft" : "font-semibold underline decoration-ink"
                 )}
               >

@@ -56,7 +56,7 @@ export function SettingsPage() {
                 <a
                   href={`#${section.id}`}
                   aria-current={hash === section.id ? "location" : undefined}
-                  className="inline-flex min-h-10 items-center text-ui font-bold decoration-2 underline-offset-[6px] hover:underline aria-[current=location]:underline aria-[current=location]:decoration-edge"
+                  className="inline-flex min-h-10 items-center text-ui font-bold decoration-2 underline-offset-6 hover:underline aria-[current=location]:underline aria-[current=location]:decoration-edge"
                 >
                   {section.label}
                 </a>

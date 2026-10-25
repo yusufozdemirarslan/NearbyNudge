@@ -76,7 +76,7 @@ export function SourceTag(props: SourceTagProps) {
   const text = date ? `${label}, ${formatDate(date)}` : label
   const tagClass = cn(
     base,
-    "font-semibold underline decoration-1 underline-offset-[3px] transition-colors duration-(--dur-fast) hover:text-edge data-popup-open:text-edge",
+    "font-semibold underline decoration-1 underline-offset-3 transition-colors duration-(--dur-fast) hover:text-edge data-popup-open:text-edge",
     className
   )
 

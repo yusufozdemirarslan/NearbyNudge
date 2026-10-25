@@ -45,7 +45,7 @@ function VerdictButtons({ item, leadName }: { item: AuditFact; leadName: string 
     },
   })
   const button =
-    "inline-flex h-9 items-center gap-1.5 border-2 border-ink px-3 text-ui font-semibold transition-colors duration-(--dur-fast) hover:underline underline-offset-[5px] aria-disabled:border-dashed aria-disabled:text-ink-soft"
+    "inline-flex h-9 items-center gap-1.5 border-2 border-ink px-3 text-ui font-semibold transition-colors duration-(--dur-fast) hover:underline underline-offset-5 aria-disabled:border-dashed aria-disabled:text-ink-soft"
   return (
     <div className="flex flex-col items-start gap-1.5">
       <div role="group" aria-label={`Verdict for this fact about ${leadName}`} className="flex flex-wrap gap-2">
@@ -97,7 +97,7 @@ function FactSource({ item }: { item: AuditFact }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-meta font-semibold underline underline-offset-[3px] hover:text-edge"
+      className="text-meta font-semibold underline underline-offset-3 hover:text-edge"
     >
       {text}
       <span className="sr-only"> (opens in a new tab)</span>
@@ -113,7 +113,7 @@ function AuditLeadCard({ lead, defaultOpen }: { lead: AuditLead; defaultOpen: bo
         <span className="flex min-w-0 items-start gap-2.5">
           <Mark
             name="pointer"
-            className="mt-[7px] transition-transform duration-(--dur-fast) group-open:rotate-90 group-open:text-edge"
+            className="mt-1.75 transition-transform duration-(--dur-fast) group-open:rotate-90 group-open:text-edge"
           />
           <span className="min-w-0">
             <span className="block text-lead font-bold">{lead.name}</span>
@@ -137,7 +137,7 @@ function AuditLeadCard({ lead, defaultOpen }: { lead: AuditLead; defaultOpen: bo
               href={lead.website}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-semibold underline underline-offset-[3px] hover:text-edge"
+              className="font-semibold underline underline-offset-3 hover:text-edge"
             >
               {displayDomain(lead.website)}
               <span className="sr-only"> (opens in a new tab)</span>

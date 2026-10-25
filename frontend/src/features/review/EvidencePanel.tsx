@@ -166,7 +166,7 @@ function ContactBlock({ contact, phone, onCopyAddress }: { contact: Contact | nu
           href={contact.form_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-ui font-bold underline underline-offset-[3px] hover:text-edge"
+          className="text-ui font-bold underline underline-offset-3 hover:text-edge"
         >
           Contact form
           <span className="sr-only"> (opens in a new tab)</span>

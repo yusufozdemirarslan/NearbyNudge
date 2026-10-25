@@ -102,7 +102,7 @@ export function TextLink({
   return (
     <Link
       {...props}
-      className="font-semibold underline decoration-1 underline-offset-[3px] hover:text-edge"
+      className="font-semibold underline decoration-1 underline-offset-3 hover:text-edge"
     >
       {children}
     </Link>

@@ -39,7 +39,7 @@ function JumpNav() {
             <a
               href={`#${section.id}`}
               onClick={(event) => jump(event, section.id)}
-              className="inline-flex min-h-10 items-center text-ui font-bold decoration-2 underline-offset-[6px] hover:underline"
+              className="inline-flex min-h-10 items-center text-ui font-bold decoration-2 underline-offset-6 hover:underline"
             >
               {section.label}
             </a>

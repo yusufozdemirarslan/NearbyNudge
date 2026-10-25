@@ -582,7 +582,7 @@ function BriefForm({
                   to="/settings"
                   hash="sender-profile"
                   aria-label="Edit sender profile"
-                  className="font-semibold underline underline-offset-[3px] hover:text-edge"
+                  className="font-semibold underline underline-offset-3 hover:text-edge"
                 >
                   (edit)
                 </Link>
@@ -593,7 +593,7 @@ function BriefForm({
                 <Link
                   to="/settings"
                   hash="sender-profile"
-                  className="font-semibold underline underline-offset-[3px] hover:text-edge"
+                  className="font-semibold underline underline-offset-3 hover:text-edge"
                 >
                   Add it in Settings
                 </Link>

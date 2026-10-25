@@ -173,7 +173,7 @@ function BusinessCell({ item }: { item: SentItem }) {
         to="/campaigns/$campaignId"
         params={{ campaignId: item.campaign_id }}
         search={{ lead: item.id, view: viewOfStatus(item.status) }}
-        className="block truncate text-ui font-bold underline-offset-[3px] hover:underline"
+        className="block truncate text-ui font-bold underline-offset-3 hover:underline"
       >
         {item.name}
       </Link>

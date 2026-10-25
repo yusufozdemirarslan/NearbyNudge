@@ -11,7 +11,7 @@ import { qk } from "@/lib/api/queries"
 import { notify } from "@/lib/toast"
 import { FormField, Section, applyServerErrors, inputClass } from "./form-kit"
 
-const linkClass = "font-semibold underline underline-offset-[3px] hover:text-edge"
+const linkClass = "font-semibold underline underline-offset-3 hover:text-edge"
 
 /** The word to type, so a stray click can't wipe everything. */
 const CONFIRM_WORD = "delete"

@@ -301,7 +301,7 @@ function DncConfirm({ name, busy, onConfirm, onCancel }: { name: string; busy: b
         </p>
         <p className="text-ui">
           They go on your do-not-contact list and won't be drafted in any campaign. You can remove them later from{" "}
-          <Link to="/dnc" className="font-semibold underline underline-offset-[3px] hover:text-edge">
+          <Link to="/dnc" className="font-semibold underline underline-offset-3 hover:text-edge">
             Do not contact
           </Link>
           .

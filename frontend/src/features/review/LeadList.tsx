@@ -465,7 +465,7 @@ function CampaignHeader({
                     to="/campaigns/$campaignId"
                     params={{ campaignId: campaign.id }}
                     search={(prev) => ({ ...prev, view: "failed", lead: item.lead_id })}
-                    className="font-semibold underline underline-offset-[3px] hover:text-edge"
+                    className="font-semibold underline underline-offset-3 hover:text-edge"
                   >
                     {item.name}
                   </Link>
