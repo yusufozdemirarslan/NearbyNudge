@@ -23,7 +23,7 @@ export function EmptyState({ title, description, action, size = "page", classNam
       data-slot="empty-state"
       className={cn(
         "flex flex-col items-start gap-2 text-left",
-        size === "page" ? "mx-auto w-full max-w-md px-6 py-16" : "px-4 py-8",
+        size === "page" ? "w-full max-w-md py-14" : "py-8",
         className
       )}
     >

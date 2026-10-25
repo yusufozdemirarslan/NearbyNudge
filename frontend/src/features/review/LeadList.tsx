@@ -328,6 +328,7 @@ export function LeadList(props: LeadListProps) {
             ) : (
               <EmptyState
                 size="inline"
+                className="px-4"
                 {...emptyCopy(view, counts, running)}
                 action={
                   view !== "all" ? (

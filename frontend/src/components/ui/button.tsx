@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
  * rule dashed and the label soft. Every size keeps targets at or above
  * 24 × 24 px (WCAG 2.5.8); phone layouts use `lg` (44px).
  */
-const buttonVariants = cva(
+const buttonClasses = cva(
   "group/button relative inline-flex shrink-0 items-center justify-center gap-2 border-2 border-transparent text-ui font-semibold whitespace-nowrap decoration-2 underline-offset-5 outline-none select-none transition-[color,background-color,border-color,transform] duration-(--dur-fast) ease-out active:[transform:translateY(1px)] disabled:pointer-events-none disabled:border-dashed disabled:text-ink-soft aria-disabled:pointer-events-none aria-disabled:border-dashed aria-disabled:text-ink-soft aria-invalid:border-edge [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[18px]",
   {
     variants: {
@@ -53,7 +53,7 @@ function Button({
   variant = "default",
   size = "default",
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonPrimitive.Props & VariantProps<typeof buttonClasses>) {
   return (
     <ButtonPrimitive
       data-slot="button"
@@ -61,6 +61,14 @@ function Button({
       {...props}
     />
   )
+}
+
+/**
+ * Button classes, conflict-resolved. Links styled as buttons use this too, so a
+ * variant's border colour always beats the base's transparent border.
+ */
+function buttonVariants(props?: Parameters<typeof buttonClasses>[0]): string {
+  return cn(buttonClasses(props))
 }
 
 export { Button, buttonVariants }
