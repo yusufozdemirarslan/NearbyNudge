@@ -18,7 +18,11 @@ const CONTACT: Record<ContactKind, string> = {
 
 /** The decisions a person makes. Reaching one of these files the entry. */
 const FILED: LeadStatus[] = ["approved", "sent", "replied", "skipped", "dnc"]
-const FILE_MS = 380
+/** The filing time, read from the --dur-file token so the strike and the swap agree. */
+function fileMs(): number {
+  const ms = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--dur-file"))
+  return Number.isFinite(ms) && ms > 0 ? ms : 380
+}
 
 /**
  * Filing, the desk's one authored motion: when a decision lands, the old status
@@ -53,7 +57,7 @@ function useFiling(status: LeadStatus, still: boolean) {
       setShown(filingTo)
       setFilingTo(null)
       setFiled(true)
-    }, FILE_MS)
+    }, fileMs())
     return () => window.clearTimeout(timer)
   }, [filingTo])
   return { shown, struck: filingTo !== null, filed }

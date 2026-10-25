@@ -1,5 +1,7 @@
 # Three directions for the redesign
 
+**Decision (Oct 25): Criss-cross was built.** You asked me to decide. I had leaned towards Galley proof, but chose Criss-cross because it serves the main job best: going down a list of nearby businesses and deciding on each one. A directory is that list, and its tabs, dot leaders and footnotes carry the review desk's real structure (statuses, fit, sources) instead of decorating it. Galley proof's best idea, checking each claim against its source, survives as Criss-cross's footnotes. The system as built is in [DESIGN.md](../DESIGN.md).
+
 Open [`directions.html`](directions.html) in a browser to see them. Each one is a mock-up of the review desk in its real colours and typefaces, using the sample campaign's own data.
 
 ## How they were found
@@ -147,7 +149,7 @@ Every line colour clears 4.5:1 on midnight. The light mode uses deeper inks of t
 - It carries progress and status brilliantly but adds little to reading drafts and checking facts.
 - A dark-first look needs a daylight version designed with equal care.
 
-## 3. Galley proof: the fact-checker's desk (my pick)
+## 3. Galley proof: the fact-checker's desk (my first pick, not built)
 
 **Concept.** Every draft is a galley proof on the fact-checker's desk. Each claim is marked against the line of the business's own website it came from, and nothing goes out until it is approved.
 
