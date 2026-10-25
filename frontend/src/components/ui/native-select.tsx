@@ -14,7 +14,7 @@ function NativeSelect({
   return (
     <div
       className={cn(
-        "group/native-select relative w-fit has-[select:disabled]:opacity-50",
+        "group/native-select relative w-fit",
         className
       )}
       data-slot="native-select-wrapper"
@@ -23,10 +23,10 @@ function NativeSelect({
       <select
         data-slot="native-select"
         data-size={size}
-        className="h-8 w-full min-w-0 appearance-none rounded-lg border border-input bg-transparent py-1 pr-8 pl-2.5 text-sm transition-colors outline-none select-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground focus-visible:border-ring disabled:pointer-events-none disabled:cursor-not-allowed aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] data-[size=sm]:py-0.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
+        className="h-10 w-full min-w-0 appearance-none py-1 pr-9 pl-3 text-ui select-none hover:bg-tint data-[size=sm]:h-8 data-[size=sm]:py-0.5 border border-ink bg-paper text-ink transition-[border-color,background-color] duration-(--dur-fast) outline-none placeholder:text-ink-soft disabled:cursor-not-allowed disabled:border-dashed disabled:bg-tint disabled:text-ink-soft aria-invalid:border-edge aria-invalid:outline-edge"
         {...props}
       />
-      <ChevronDownIcon className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-muted-foreground select-none" aria-hidden="true" data-slot="native-select-icon" />
+      <ChevronDownIcon className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 select-none" aria-hidden="true" data-slot="native-select-icon" />
     </div>
   )
 }

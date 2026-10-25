@@ -13,7 +13,8 @@ import { extname, join, relative } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = fileURLToPath(new URL("..", import.meta.url))
-const dist = join(root, "dist")
+// Optional folder argument, for builds made outside dist/ (e.g. a review build).
+const dist = join(root, process.argv[2] ?? "dist")
 const allowlist = JSON.parse(readFileSync(join(root, "scripts", "url-allowlist.json"), "utf8"))
 const TEXT = new Set([".js", ".mjs", ".css", ".html", ".svg", ".json", ".txt", ".xml", ".webmanifest", ".map"])
 // Strings that only exist in the mock adapter (src/lib/api/mock).
@@ -33,7 +34,7 @@ let files
 try {
   files = walk(dist)
 } catch {
-  console.error("check:urls: dist/ not found. Run vite build first.")
+  console.error(`check:urls: ${relative(root, dist)}/ not found. Run vite build first.`)
   process.exit(1)
 }
 

@@ -3,36 +3,33 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 /*
- * NearbyNudge buttons (Direction A): 6px corners, 14/20 labels, Lucide icons
- * at 20px (16px in the small sizes) with a 1.75 stroke. Every size keeps the
- * target at or above 24 × 24 px (WCAG 2.5.8); phone layouts use `lg` (40px+).
- * Destructive buttons use dark text in dark mode (white measures 2.4:1 there).
+ * Buttons, set like a directory: square, 2px ink rules, semibold labels.
+ * Hover underlines the label; pressing nudges it down 1px; disabled turns the
+ * rule dashed and the label soft. Every size keeps targets at or above
+ * 24 × 24 px (WCAG 2.5.8); phone layouts use `lg` (44px).
  */
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-transparent bg-clip-padding text-ui font-medium whitespace-nowrap transition-[background-color,border-color,color,opacity] duration-150 outline-none select-none disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-5",
+  "group/button relative inline-flex shrink-0 items-center justify-center gap-2 border-2 border-transparent text-ui font-semibold whitespace-nowrap decoration-2 underline-offset-[5px] outline-none select-none transition-[color,background-color,border-color,transform] duration-(--dur-fast) ease-out active:translate-y-px disabled:pointer-events-none disabled:border-dashed disabled:text-ink-soft aria-disabled:pointer-events-none aria-disabled:border-dashed aria-disabled:text-ink-soft aria-invalid:border-edge [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[18px]",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--primary),var(--foreground)_14%)]",
-        outline:
-          "border-[color-mix(in_srgb,var(--input)_55%,transparent)] bg-card text-foreground hover:bg-muted aria-expanded:bg-muted",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-accent aria-expanded:bg-accent",
-        ghost:
-          "text-foreground hover:bg-muted aria-expanded:bg-muted dark:hover:bg-accent/60",
+          "border-ink bg-ink text-paper hover:underline disabled:border-ink-soft disabled:bg-paper aria-disabled:border-ink-soft aria-disabled:bg-paper",
+        outline: "border-ink bg-paper text-ink hover:underline aria-expanded:bg-tint disabled:border-ink-soft aria-disabled:border-ink-soft",
+        secondary: "bg-tint text-ink hover:underline aria-expanded:underline",
+        ghost: "text-ink hover:bg-tint aria-expanded:bg-tint",
         destructive:
-          "bg-destructive text-primary-foreground hover:bg-[color-mix(in_srgb,var(--destructive),var(--foreground)_14%)]",
+          "border-edge bg-edge text-edge-ink hover:underline disabled:border-ink-soft disabled:bg-paper aria-disabled:border-ink-soft aria-disabled:bg-paper",
         "destructive-soft":
-          "bg-danger-tint text-destructive hover:bg-[color-mix(in_srgb,var(--danger-tint),var(--destructive)_12%)]",
-        link: "h-auto px-0 text-primary underline-offset-4 hover:underline",
+          "border-dashed border-edge bg-paper text-edge hover:underline disabled:border-ink-soft aria-disabled:border-ink-soft",
+        link: "h-auto border-0 px-0 text-ink underline decoration-1 underline-offset-4 hover:text-edge",
       },
       size: {
-        default: "h-9 px-3.5 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
+        default: "h-10 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
         xs: "h-7 gap-1 px-2 text-meta [&_svg:not([class*='size-'])]:size-4",
-        sm: "h-8 gap-1.5 px-2.5 [&_svg:not([class*='size-'])]:size-4",
-        lg: "h-11 px-4 has-data-[icon=inline-end]:pr-3.5 has-data-[icon=inline-start]:pl-3.5",
-        icon: "size-9",
+        sm: "h-8 gap-1.5 px-3 [&_svg:not([class*='size-'])]:size-4",
+        lg: "h-11 px-5 has-data-[icon=inline-end]:pr-4 has-data-[icon=inline-start]:pl-4",
+        icon: "size-10",
         "icon-xs": "size-7 [&_svg:not([class*='size-'])]:size-4",
         "icon-sm": "size-8 [&_svg:not([class*='size-'])]:size-4",
         "icon-lg": "size-11",

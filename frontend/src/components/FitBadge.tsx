@@ -10,40 +10,62 @@ export interface FitBadgeProps {
   label?: FitLabel | null
   /**
    * "header" shows the word and the number ("Strong fit 92");
-   * "list" shows the number alone ("92") for number columns.
+   * "list" shows the number alone ("92") at the end of a directory line;
+   * "display" is the open entry's number, set large at the end of its leader.
    */
-  variant?: "header" | "list"
+  variant?: "header" | "list" | "display"
   className?: string
 }
 
-const TONE: Record<FitLabel, string> = {
-  Strong: "bg-accent text-accent-foreground",
-  Good: "bg-secondary text-secondary-foreground",
-  Weak: "bg-muted text-ink-secondary",
+/** One weight ramp for fit everywhere: the number's weight says how strong it is. */
+const WEIGHT: Record<FitLabel, string> = {
+  Strong: "font-extrabold",
+  Good: "font-semibold",
+  Weak: "font-normal",
 }
 
 /**
- * Fit as a word plus a number: Strong is 80 or more, Good is 60–79 and Weak
- * is under 60 (brief §3.2). The word carries the meaning; color only echoes it.
+ * Fit as a word plus a condensed number: Strong is 80 or more, Good is 60–79
+ * and Weak is under 60. The word carries the meaning; the weight echoes it.
  */
 export function FitBadge({ score, label, variant = "header", className }: FitBadgeProps) {
   if (score === null) {
+    if (variant === "display") {
+      return (
+        <span className={cn("inline-flex w-14 shrink-0 justify-end", className)}>
+          <PlaceholderBar width={40} />
+          <span className="sr-only">Fit not scored yet</span>
+        </span>
+      )
+    }
     return variant === "list" ? (
-      <span className={cn("inline-flex w-6 justify-end", className)}>
-        <PlaceholderBar width={16} />
+      <span className={cn("inline-flex w-7 justify-end", className)}>
+        <PlaceholderBar width={18} />
         <span className="sr-only">Fit not scored yet</span>
       </span>
     ) : (
-      <span className={cn("inline-flex items-center gap-1.5 text-ui text-muted-foreground", className)}>
-        <PlaceholderBar width={84} />
+      <span className={cn("inline-flex items-center text-ui", className)}>
+        <PlaceholderBar width={72} />
         <span className="sr-only">Fit not scored yet</span>
       </span>
     )
   }
   const word = label ?? labelFor(score)
+  if (variant === "display") {
+    return (
+      <span
+        data-slot="fit-badge"
+        data-fit={word}
+        className={cn("shrink-0 text-display stretch-condensed tabular-nums", WEIGHT[word], className)}
+      >
+        <span className="sr-only">{word} fit </span>
+        {score}
+      </span>
+    )
+  }
   if (variant === "list") {
     return (
-      <span className={cn("inline-block w-6 text-right text-list font-semibold tabular-nums", className)}>
+      <span className={cn("inline-block w-7 text-right text-lead stretch-condensed tabular-nums", WEIGHT[word], className)}>
         <span className="sr-only">{word} fit </span>
         {score}
       </span>
@@ -53,14 +75,10 @@ export function FitBadge({ score, label, variant = "header", className }: FitBad
     <span
       data-slot="fit-badge"
       data-fit={word}
-      className={cn(
-        "inline-flex h-6 items-center gap-1.5 rounded-sm px-2 text-ui whitespace-nowrap",
-        TONE[word],
-        className
-      )}
+      className={cn("inline-flex items-baseline gap-1.5 text-ui whitespace-nowrap", className)}
     >
-      <span className="font-medium">{word} fit</span>
-      <span className="font-semibold tabular-nums">{score}</span>
+      <span>{word} fit</span>
+      <span className={cn("text-lead stretch-condensed tabular-nums", WEIGHT[word])}>{score}</span>
     </span>
   )
 }

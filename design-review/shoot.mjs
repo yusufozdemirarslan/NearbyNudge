@@ -55,9 +55,13 @@ async function openSampleLead(page, size) {
   await shown(page, '[data-slot="email-text"]')
 }
 
-/** Opens a page from the main navigation (the navigation is a slide-out sheet on phones). */
+/** Opens a page from the main navigation (on phones it lives behind the Menu button). */
 async function openFromNav(page, size, name) {
-  if (size.mobile) await page.getByRole("button", { name: "Show or hide navigation" }).click()
+  if (size.mobile) {
+    // The menu button was "Show or hide navigation" before the redesign.
+    const menu = page.getByRole("button", { name: /^(Menu|Show or hide navigation)$/ })
+    await menu.click()
+  }
   await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name, exact: true }).click()
 }
 
@@ -109,7 +113,7 @@ const SCREENS = [
     path: "/",
     ready: (p) => h1(p, "Campaigns"),
     prepare: async (p) => {
-      await p.keyboard.press("Control+K")
+      await p.keyboard.press("Control+k")
       await shown(p, '[role="dialog"]')
     },
     window: true,
@@ -217,6 +221,149 @@ const SCREENS = [
   { name: "terms", path: "/terms", ready: (p) => h1(p) },
   { name: "not-found", path: "/this-page-does-not-exist", ready: (p) => p.getByText("We couldn't find that page").waitFor() },
 ]
+
+// ---------------------------------------------------------------------------
+// Flows: click through a screen's jobs on the sample data and check each step
+// lands. `node design-review/shoot.mjs flows desk` saves every step to after/flows/.
+// ---------------------------------------------------------------------------
+
+const visible = (page, selector) => page.locator(selector).first().waitFor({ state: "visible" })
+const gone = (page, selector) => page.locator(selector).first().waitFor({ state: "hidden" })
+/** Waits until the masthead's "Sent today" meter reads `text` (e.g. "8 of 20"). */
+const sentToday = (page, text) =>
+  page.waitForFunction(
+    (value) => document.querySelector('[data-slot="top-bar"] [role="meter"]')?.getAttribute("aria-valuetext") === value,
+    text,
+    { timeout: 10_000 }
+  )
+const rowStatus = (page, name) =>
+  page.locator("li[data-lead-id]").filter({ hasText: name }).first().locator('[data-slot="status-badge"]').first()
+
+/** Each flow is a list of [step name, action]. An action throws when the step doesn't land. */
+const FLOWS = {
+  desk: [
+    ["open", async (p) => {
+      await p.goto(CAMPAIGN)
+      await visible(p, '[data-slot="email-text"]')
+    }],
+    ["next lead with J", async (p) => {
+      await p.keyboard.press("j")
+      await p.getByRole("heading", { level: 2, name: "Sample Family Dental" }).waitFor()
+    }],
+    ["back with K", async (p) => {
+      await p.keyboard.press("k")
+      await p.getByRole("heading", { level: 2, name: "Sample Dental Studio" }).waitFor()
+    }],
+    ["approve with A", async (p) => {
+      await p.keyboard.press("a")
+      await visible(p, '[data-slot="sending-preview"]')
+    }],
+    ["mark as sent with M (the desk moves to the next lead)", async (p) => {
+      await p.keyboard.press("m")
+      await sentToday(p, "8 of 20")
+    }],
+    ["undo with Z", async (p) => {
+      await p.keyboard.press("z")
+      await sentToday(p, "7 of 20")
+    }],
+    ["approve, then undo the approval", async (p) => {
+      await p.goto(CAMPAIGN)
+      await visible(p, '[data-slot="email-text"]')
+      await p.keyboard.press("a")
+      await p.getByRole("button", { name: "Undo approval" }).click()
+      await rowStatus(p, "Sample Dental Studio").filter({ hasText: "Ready" }).waitFor()
+    }],
+    ["skip reasons with S", async (p) => {
+      await p.keyboard.press("s")
+      await visible(p, '[data-slot="skip-reasons"]')
+    }],
+    ["close skip with Esc", async (p) => {
+      await p.keyboard.press("Escape")
+      await gone(p, '[data-slot="skip-reasons"]')
+    }],
+    ["do not contact asks first (Shift+D)", async (p) => {
+      await p.keyboard.press("Shift+D")
+      await p.getByRole("button", { name: "Never contact Sample Dental Studio" }).waitFor()
+    }],
+    ["cancel do not contact", async (p) => {
+      await p.getByRole("button", { name: "Cancel" }).click()
+      await visible(p, '[data-slot="action-bar"] >> text=Approve')
+    }],
+    ["rewrite shorter with 1", async (p) => {
+      await p.keyboard.press("1")
+      await p.getByRole("button", { name: "Show changes" }).waitFor({ timeout: 15_000 })
+    }],
+    ["show the changes", async (p) => {
+      await p.getByRole("button", { name: "Show changes" }).click()
+      await visible(p, '[data-slot="changes-view"]')
+    }],
+    ["edit with E", async (p) => {
+      await p.getByRole("button", { name: "Hide changes" }).click()
+      await p.keyboard.press("e")
+      await visible(p, '[data-slot="email-editor"]')
+    }],
+    ["cancel the edit with Esc", async (p) => {
+      await p.keyboard.press("Escape")
+      await visible(p, '[data-slot="email-text"]')
+    }],
+    ["command menu goes to Sent", async (p) => {
+      await p.keyboard.press("Control+k")
+      await p.getByRole("dialog", { name: "Command menu" }).waitFor()
+      // The full name: on the desk, a bare "Sent" fuzzy-matches "Never contact Sample Dental Studio" first.
+      await p.keyboard.type("Go to Sent")
+      await p.keyboard.press("Enter")
+      await p.getByRole("heading", { level: 1, name: "Sent" }).waitFor()
+    }],
+  ],
+}
+
+async function runFlow(browser, name, outDir) {
+  const context = await browser.newContext({
+    baseURL: BASE,
+    viewport: { width: 1440, height: 900 },
+    reducedMotion: "no-preference",
+  })
+  await context.addInitScript(() => {
+    try {
+      window.localStorage.setItem("nn-mock-speed", "0")
+    } catch {
+      // the mock falls back to its defaults
+    }
+  })
+  const page = await context.newPage()
+  const problems = []
+  page.on("pageerror", (error) => problems.push(error.message))
+  let step = 0
+  try {
+    for (const [label, action] of FLOWS[name]) {
+      step += 1
+      await action(page)
+      // Let the step's motion finish; "disabled" would cancel animations the page waits on.
+      await page.waitForTimeout(450)
+      const file = path.join(outDir, `${name}-${String(step).padStart(2, "0")}-${label.replace(/[^a-z0-9]+/giu, "-").toLowerCase()}.png`)
+      await page.screenshot({ path: file, caret: "hide" })
+      console.log(`  ok    ${name}: ${label}`)
+    }
+    if (problems.length) throw new Error(`page errors: ${problems.join(" | ")}`)
+  } catch (error) {
+    // Keep a picture of the moment it failed, next to the steps that passed, and say what was open.
+    await page.screenshot({ path: path.join(outDir, `${name}-FAILED-step-${step}.png`) }).catch(() => {})
+    const open = await page
+      .evaluate(() => ({
+        focus: `${document.activeElement?.tagName} ${(document.activeElement?.textContent ?? "").slice(0, 40)}`,
+        dialogs: [...document.querySelectorAll('[role="dialog"]')].map((d) => {
+          const id = d.getAttribute("aria-labelledby")
+          return (id && document.getElementById(id)?.textContent) || d.getAttribute("aria-label") || "(no name)"
+        }),
+        panels: [...document.querySelectorAll('[data-slot="dnc-confirm"],[data-slot="skip-reasons"]')].map((e) => e.getAttribute("data-slot")),
+      }))
+      .catch(() => null)
+    if (open) console.log(`        open at failure: ${JSON.stringify(open)}`)
+    throw new Error(`${name}, step ${step}: ${String(error?.message ?? error).split("\n")[0]}`)
+  } finally {
+    await context.close()
+  }
+}
 
 // ---------------------------------------------------------------------------
 // The sample-data dashboard
@@ -327,10 +474,38 @@ async function main() {
   const [phase, ...names] = process.argv.slice(2)
   if (phase === "list") {
     for (const screen of SCREENS) console.log(screen.name)
+    console.log(`flows: ${Object.keys(FLOWS).join(", ")}`)
+    return
+  }
+  if (phase === "flows") {
+    const chosen = names.length ? names : Object.keys(FLOWS)
+    const unknownFlows = chosen.filter((name) => !FLOWS[name])
+    if (unknownFlows.length) throw new Error(`Unknown flow: ${unknownFlows.join(", ")}`)
+    const outDir = path.join(HERE, "after", "flows")
+    await mkdir(outDir, { recursive: true })
+    console.log(`Starting the sample-data dashboard on ${BASE} ...`)
+    const server = await startDashboard()
+    const browser = await chromium.launch()
+    const failures = []
+    try {
+      for (const name of chosen) {
+        try {
+          await runFlow(browser, name, outDir)
+        } catch (error) {
+          failures.push(name)
+          console.log(`  FAIL  ${String(error?.message ?? error)}`)
+        }
+      }
+    } finally {
+      await browser.close()
+      if (server.exitCode === null) server.kill()
+    }
+    console.log(failures.length ? `\nFlows failed: ${failures.join(", ")}` : `\nAll flows passed (${chosen.join(", ")}).`)
+    if (failures.length) process.exitCode = 1
     return
   }
   if (phase !== "before" && phase !== "after") {
-    console.log("Usage: node design-review/shoot.mjs <before|after> [screen ...]   (or: list)")
+    console.log("Usage: node design-review/shoot.mjs <before|after> [screen ...]   (or: list, flows [flow ...])")
     process.exitCode = 2
     return
   }

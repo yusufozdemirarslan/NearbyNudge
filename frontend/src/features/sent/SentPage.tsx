@@ -43,7 +43,6 @@ import { formatDate, formatTime, plural } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { viewOfStatus } from "@/features/review/search"
 import { useLeadActions } from "@/features/review/use-lead-actions"
-import { InboxIcon } from "lucide-react"
 
 export type SentStatusFilter = "approved" | "sent" | "replied" | "all"
 
@@ -488,7 +487,6 @@ export function SentPage() {
       ) : visible.length === 0 ? (
         <div className="rounded-xl border bg-card">
           <EmptyState
-            icon={InboxIcon}
             {...EMPTY[filter]}
             action={
               <Link to="/" className={buttonVariants({ variant: "outline" })}>

@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { ArrowDownIcon, ArrowUpIcon, ChartColumnIcon, DownloadIcon, MinusIcon, PlusIcon } from "lucide-react"
+import { ArrowDownIcon, ArrowUpIcon, DownloadIcon, MinusIcon, PlusIcon } from "lucide-react"
 import { CalmError } from "@/components/CalmError"
 import { EmptyState } from "@/components/EmptyState"
 import { Meter } from "@/components/Meter"
@@ -378,7 +378,6 @@ export function NumbersPage() {
           {!hasCampaigns ? (
             <div className="rounded-xl border bg-card">
               <EmptyState
-                icon={ChartColumnIcon}
                 title="No numbers yet"
                 description="Numbers appear once your first campaign has drafts. Found counts businesses with a finished draft; approved, sent and replies count what you do on the review desk."
                 action={

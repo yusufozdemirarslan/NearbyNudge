@@ -18,8 +18,9 @@ __pycache__/
 # node
 node_modules/
 frontend/dist/
+frontend/dist-redesign/
 frontend/test-results*/
-frontend/playwright-report/
+frontend/playwright-report*/
 frontend/blob-report/
 
 # live-run reports contain real business contact details

@@ -35,8 +35,8 @@ export interface KeyHintProps {
 }
 
 /**
- * Renders a shortcut as small key caps that inherit the surrounding text
- * color, so they read on any button. Decorative (aria-hidden): put the
+ * Renders a shortcut as small outlined key squares in the surrounding text
+ * colour, so they read on any button, black or white. Decorative (aria-hidden): put the
  * shortcut on the control with `aria-keyshortcuts` instead.
  */
 export function KeyHint({ keys, always, className }: KeyHintProps) {
@@ -48,7 +48,7 @@ export function KeyHint({ keys, always, className }: KeyHintProps) {
       {keyParts(keys).map((part, i) => (
         <kbd
           key={`${part}-${i}`}
-          className="inline-flex h-5 min-w-5 items-center justify-center rounded-sm bg-[color-mix(in_srgb,currentColor_13%,transparent)] px-1 font-sans text-meta leading-none font-semibold tracking-normal text-current tabular-nums"
+          className="inline-flex h-5 min-w-5 items-center justify-center border border-current px-1 font-sans text-micro leading-none font-extrabold text-current not-italic tabular-nums"
         >
           {part}
         </kbd>

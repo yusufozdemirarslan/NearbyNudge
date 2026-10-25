@@ -1,10 +1,9 @@
-import { CircleAlertIcon, RotateCwIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { isApiError } from "@/lib/api/client"
 import { cn } from "@/lib/utils"
 
 export interface CalmErrorProps {
-  /** Plain title, e.g. "We couldn't load this campaign". */
+  /** Plain head, e.g. "We couldn't load this campaign". */
   title?: string
   /** The error (its ApiError message is shown) or your own sentence. */
   error?: unknown
@@ -20,9 +19,9 @@ export interface CalmErrorProps {
 }
 
 /**
- * A calm error with a way forward. No red screens: it uses the page's own
- * colors, says what happened in plain words and offers what to do next.
- * Errors that block the user are announced (role="alert").
+ * An error set as a boxed notice: a red rule across the top (it needs you), a
+ * condensed head, what happened in plain words and the way forward. Errors
+ * that block the user are announced (role="alert").
  */
 export function CalmError({
   title = "We couldn't load this",
@@ -42,27 +41,23 @@ export function CalmError({
       role="alert"
       data-slot="calm-error"
       className={cn(
-        "flex gap-3 rounded-xl border bg-card text-left",
-        size === "panel" ? "mx-auto my-10 max-w-md p-5" : "p-4",
+        "border border-t-(length:--rule-heavy) border-ink border-t-edge bg-paper text-left",
+        size === "panel" ? "mx-auto my-10 max-w-md p-6" : "p-4",
         className
       )}
     >
-      <CircleAlertIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-ink-secondary" />
-      <div className="min-w-0 space-y-2">
-        <p className="text-ui font-semibold text-foreground">{title}</p>
-        <p className="text-ui text-ink-secondary">{text}</p>
-        {(onRetry || action) && (
-          <div className="flex flex-wrap gap-2 pt-1">
-            {onRetry && (
-              <Button variant="outline" size="sm" onClick={onRetry}>
-                <RotateCwIcon aria-hidden="true" />
-                {retryLabel}
-              </Button>
-            )}
-            {action}
-          </div>
-        )}
-      </div>
+      <p className={size === "panel" ? "section-head" : "text-ui font-bold"}>{title}</p>
+      <p className="mt-2 text-ui">{text}</p>
+      {(onRetry || action) && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {onRetry && (
+            <Button variant="outline" size="sm" onClick={onRetry}>
+              {retryLabel}
+            </Button>
+          )}
+          {action}
+        </div>
+      )}
     </div>
   )
 }

@@ -8,7 +8,6 @@ import {
   CircleMinusIcon,
   CopyIcon,
   DownloadIcon,
-  InboxIcon,
   MailIcon,
   MessageSquareIcon,
   PauseIcon,
@@ -22,7 +21,6 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { CalmError } from "@/components/CalmError"
 import { EmptyState } from "@/components/EmptyState"
-import { useTopBarSlot } from "@/components/shell/AppShell"
 import { useAccount, usePreferences, useUpdatePreferences } from "@/hooks/use-account"
 import { useAnnounce } from "@/hooks/use-announce"
 import { useRegisterCommands, type Command } from "@/hooks/use-commands"
@@ -553,27 +551,6 @@ function Desk({ campaignId }: { campaignId: string }) {
 
   // ---------------------------------------------------------------- chrome
   useDocumentTitle(campaign?.name ?? "Review desk")
-  const crumbs = React.useMemo(
-    () => (
-      <nav aria-label="Breadcrumb" className="min-w-0">
-        <ol className="flex min-w-0 items-center gap-1.5 text-ui">
-          <li>
-            <Link to="/" className="text-ink-secondary hover:text-foreground hover:underline">
-              Campaigns
-            </Link>
-          </li>
-          <li aria-hidden="true" className="text-muted-foreground">
-            /
-          </li>
-          <li className="min-w-0 truncate font-medium text-foreground" aria-current="page">
-            {campaign?.name ?? "Campaign"}
-          </li>
-        </ol>
-      </nav>
-    ),
-    [campaign?.name]
-  )
-  useTopBarSlot(crumbs)
 
 
   const firstReady = React.useMemo(
@@ -631,7 +608,8 @@ function Desk({ campaignId }: { campaignId: string }) {
       onExportSelected={() => void exportSelected()}
       onBulkSkip={(reason) => void bulkSkip(reason)}
       bulkBusy={bulkBusy}
-      className={layout === "one" ? "h-full" : "min-h-0 border-r"}
+      orientation={layout === "one" ? "horizontal" : "vertical"}
+      className={layout === "one" ? "h-full" : "min-h-0 border-r border-ink"}
     />
   )
 
@@ -694,7 +672,7 @@ function Desk({ campaignId }: { campaignId: string }) {
     <div
       className={cn(
         "grid h-full min-h-0",
-        layout === "three" ? "grid-cols-[340px_minmax(0,1fr)]" : "grid-cols-[minmax(280px,320px)_minmax(0,1fr)]"
+        layout === "three" ? "grid-cols-[24rem_minmax(0,1fr)]" : "grid-cols-[22rem_minmax(0,1fr)]"
       )}
     >
       {list}
@@ -717,7 +695,6 @@ function NoSelection({
   return (
     <div className="flex h-full items-center justify-center">
       <EmptyState
-        icon={InboxIcon}
         title={reviewFirst ? "A draft is ready" : running ? "Drafts are on the way" : hasLeads ? "Pick a lead to review" : "No leads yet"}
         description={
           reviewFirst
@@ -846,17 +823,17 @@ function LeadDetail(props: LeadDetailProps) {
       <div className="flex h-full min-h-0 flex-col" role="region" aria-label={summary.name}>
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
           {header}
-          <div className="space-y-5 px-4 py-4">
+          <div className="space-y-6 px-4 py-5">
             {email}
             {evidence && (
-              <Collapsible className="rounded-xl border bg-card">
-                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-ui font-semibold">
-                  Evidence
-                  <span className="text-meta font-normal text-muted-foreground">
+              <Collapsible className="border-t-2 border-ink">
+                <CollapsibleTrigger className="flex min-h-12 w-full items-baseline justify-between gap-3 py-3 text-left">
+                  <span className="text-lead font-extrabold stretch-condensed">Evidence</span>
+                  <span className="aside">
                     Contact, {plural(lead?.facts.filter((f) => f.used).length ?? 0, "fact")} used, site check
                   </span>
                 </CollapsibleTrigger>
-                <CollapsibleContent className="border-t px-4 py-4">{evidence}</CollapsibleContent>
+                <CollapsibleContent className="pb-4">{evidence}</CollapsibleContent>
               </Collapsible>
             )}
           </div>
@@ -870,15 +847,17 @@ function LeadDetail(props: LeadDetailProps) {
     <>
       {header}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto" data-slot="desk-scroll">
-        <div
-          className={cn(
-            "px-4 py-5 sm:px-6",
-            layout === "three" ? "grid grid-cols-[minmax(0,1fr)_300px] items-start gap-8" : "mx-auto max-w-[46rem] space-y-8"
-          )}
-        >
-          {email}
-          {evidence}
-        </div>
+        {layout === "three" ? (
+          <div className="grid min-h-full grid-cols-[minmax(0,1fr)_19rem]">
+            <div className="min-w-0 px-8 py-6">{email}</div>
+            {evidence && <div className="border-l border-ink px-6 py-6">{evidence}</div>}
+          </div>
+        ) : (
+          <div className="mx-auto max-w-[46rem] space-y-10 px-6 py-6">
+            {email}
+            {evidence}
+          </div>
+        )}
       </div>
       {bar}
     </>

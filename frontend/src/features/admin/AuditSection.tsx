@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ArrowUpRightIcon, CheckIcon, ChevronRightIcon, ClipboardCheckIcon, DatabaseIcon, RotateCwIcon, XIcon } from "lucide-react"
+import { ArrowUpRightIcon, CheckIcon, ChevronRightIcon, DatabaseIcon, RotateCwIcon, XIcon } from "lucide-react"
 import { CalmError } from "@/components/CalmError"
 import { EmptyState } from "@/components/EmptyState"
 import { PlaceholderBar } from "@/components/PlaceholderBar"
@@ -228,7 +228,6 @@ export function AuditSection() {
       ) : leads.length === 0 ? (
         <EmptyState
           size="inline"
-          icon={ClipboardCheckIcon}
           title="Nothing to audit yet"
           description="Leads with finished research from the last 30 days appear here."
         />

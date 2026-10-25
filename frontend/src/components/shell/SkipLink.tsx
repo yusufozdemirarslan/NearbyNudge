@@ -13,7 +13,7 @@ export function SkipLink({ target = "main-content" }: { target?: string }) {
         main.focus()
         main.scrollIntoView({ block: "start" })
       }}
-      className="fixed top-2 left-2 z-[100] -translate-y-20 rounded-lg bg-primary px-4 py-2 text-ui font-medium text-primary-foreground transition-transform focus:translate-y-0"
+      className="fixed top-2 left-2 z-100 -translate-y-20 bg-ink px-4 py-2 text-ui font-semibold text-paper transition-transform duration-(--dur-fast) focus:translate-y-0"
     >
       Skip to main content
     </a>

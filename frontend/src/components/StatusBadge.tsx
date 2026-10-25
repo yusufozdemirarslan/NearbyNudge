@@ -1,16 +1,7 @@
-import {
-  BanIcon,
-  CircleAlertIcon,
-  CircleCheckIcon,
-  CircleMinusIcon,
-  MessageSquareIcon,
-  SendIcon,
-  TriangleAlertIcon,
-  type LucideIcon,
-} from "lucide-react"
 import type { LeadStatus, ReplyOutcome } from "@/lib/api/types"
 import { formatDate } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { Mark, type MarkName } from "./Mark"
 
 /** Lead statuses that mean research is still running. */
 export const IN_PROGRESS_STATUSES: LeadStatus[] = ["queued", "reading", "choosing", "writing", "checking"]
@@ -35,32 +26,34 @@ const REPLY_WORD: Record<ReplyOutcome, string> = {
 
 interface Meta {
   word: string
-  icon: LucideIcon | "dot" | "ring"
-  iconClass: string
-  textClass: string
+  mark: MarkName
+  /** Edge red for "needs you"; everything else is ink. */
+  urgent?: boolean
+  /** Set in bold: the statuses that want a decision. */
+  strong?: boolean
 }
 
 const META: Record<LeadStatus, Meta> = {
-  queued: { word: "Queued", icon: "ring", iconClass: "text-muted-foreground", textClass: "text-muted-foreground" },
-  reading: { word: "Reading site", icon: "dot", iconClass: "bg-muted-foreground", textClass: "text-muted-foreground" },
-  choosing: { word: "Choosing hook", icon: "dot", iconClass: "bg-muted-foreground", textClass: "text-muted-foreground" },
-  writing: { word: "Writing", icon: "dot", iconClass: "bg-muted-foreground", textClass: "text-muted-foreground" },
-  checking: { word: "Checking", icon: "dot", iconClass: "bg-muted-foreground", textClass: "text-muted-foreground" },
-  ready: { word: "Ready", icon: "dot", iconClass: "bg-primary", textClass: "text-foreground" },
-  needs_review: { word: "Needs review", icon: TriangleAlertIcon, iconClass: "text-warning", textClass: "text-warning" },
-  approved: { word: "Approved", icon: CircleCheckIcon, iconClass: "text-success", textClass: "text-success" },
-  sent: { word: "Sent", icon: SendIcon, iconClass: "text-foreground", textClass: "text-foreground" },
-  replied: { word: "Replied", icon: MessageSquareIcon, iconClass: "text-info", textClass: "text-info" },
-  skipped: { word: "Skipped", icon: BanIcon, iconClass: "text-muted-foreground", textClass: "text-muted-foreground" },
-  dnc: { word: "Do not contact", icon: CircleMinusIcon, iconClass: "text-destructive", textClass: "text-destructive" },
-  failed: { word: "Couldn't finish", icon: CircleAlertIcon, iconClass: "text-muted-foreground", textClass: "text-muted-foreground" },
+  queued: { word: "Queued", mark: "ring" },
+  reading: { word: "Reading site", mark: "dot" },
+  choosing: { word: "Choosing hook", mark: "dot" },
+  writing: { word: "Writing", mark: "dot" },
+  checking: { word: "Checking", mark: "dot" },
+  ready: { word: "Ready", mark: "square", strong: true },
+  needs_review: { word: "Needs review", mark: "asterisk", urgent: true, strong: true },
+  approved: { word: "Approved", mark: "check" },
+  sent: { word: "Sent", mark: "envelope" },
+  replied: { word: "Replied", mark: "reply" },
+  skipped: { word: "Skipped", mark: "slash" },
+  dnc: { word: "Do not contact", mark: "barred", urgent: true },
+  failed: { word: "Couldn't finish", mark: "cross" },
 }
 
 export interface StatusBadgeProps {
   status: LeadStatus
   /** Backend stage label ("Reading site"); falls back to the standard word. */
   stageLabel?: string | null
-  /** Research step 1–4 while in progress; shown as "2 of 4". */
+  /** Research step 1–4 while in progress; shown as "step 2 of 4". */
   step?: number | null
   /** For sent: the sent date ("Sent Oct 24"). */
   date?: string | null
@@ -68,14 +61,14 @@ export interface StatusBadgeProps {
   reason?: string | null
   /** For replied: the logged outcome. */
   replyOutcome?: ReplyOutcome | null
-  /** "sm" in lists (12px), "md" in headers (14px). */
+  /** "sm" in lists (13px), "md" in headers (14px). */
   size?: "sm" | "md"
   /**
    * Let the active stage's dot pulse. Pass false when live updates are
    * paused; reduced-motion settings stop it regardless.
    */
   animate?: boolean
-  /** Hide the step count ("2 of 4"). */
+  /** Hide the step count. */
   hideStep?: boolean
   className?: string
 }
@@ -100,9 +93,9 @@ export function statusText({
 }
 
 /**
- * One status vocabulary (brief §3.3): every status pairs an icon with a word,
- * so color is never the only signal. In-progress statuses show the stage and
- * a step count; only active stages (not Queued) get a moving dot.
+ * One status vocabulary: a drawn mark and a word, always both, so colour is
+ * never the only signal. Needs review and Do not contact are edge red; the
+ * working stages carry their step in italic, and only they pulse.
  */
 export function StatusBadge({
   status,
@@ -120,15 +113,13 @@ export function StatusBadge({
   const inProgress = isInProgress(status)
   const word = inProgress ? (stageLabel ?? STAGE_WORD[status] ?? meta.word) : meta.word
   const s = step ?? STEP[status]
-  const iconSize = "size-4"
   const active = inProgress && status !== "queued"
   let detail: string | null = null
-  if (inProgress && s && !hideStep) detail = `${s} of 4`
+  if (inProgress && s && !hideStep) detail = `step ${s} of 4`
   else if (status === "sent" && date) detail = formatDate(date)
   else if (status === "replied" && replyOutcome) detail = REPLY_WORD[replyOutcome]
   else if ((status === "skipped" || status === "failed") && reason) detail = reason
 
-  const Icon = meta.icon
   return (
     <span
       data-slot="status-badge"
@@ -136,31 +127,20 @@ export function StatusBadge({
       className={cn(
         "inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap",
         size === "sm" ? "text-meta" : "text-ui",
-        meta.textClass,
+        meta.urgent && "text-edge",
         className
       )}
     >
-      <span aria-hidden="true" className={cn("flex shrink-0 items-center justify-center", iconSize)}>
-        {Icon === "dot" ? (
-          <span
-            className={cn(
-              "block size-2 rounded-full",
-              meta.iconClass,
-              active && animate && "animate-working motion-reduce:animate-none"
-            )}
-          />
-        ) : Icon === "ring" ? (
-          <span className="block size-2 rounded-full border-[1.5px] border-current" />
-        ) : (
-          <Icon className={cn(iconSize, meta.iconClass)} />
-        )}
-      </span>
-      <span className={cn("truncate", (status === "ready" || status === "needs_review") && "font-medium")}>
+      <Mark
+        name={meta.mark}
+        className={cn(active && animate && "animate-working motion-reduce:animate-none")}
+      />
+      <span className={cn("truncate", meta.strong && "font-semibold")}>
         {word}
         {detail && (
           <>
-            {status === "sent" ? " " : inProgress ? <span className="text-muted-foreground"> · </span> : ": "}
-            <span className={cn(inProgress && "tabular-nums")}>{detail}</span>
+            {status === "sent" ? " " : inProgress ? ", " : ": "}
+            <span className={cn(inProgress && "italic tabular-nums")}>{detail}</span>
           </>
         )}
       </span>

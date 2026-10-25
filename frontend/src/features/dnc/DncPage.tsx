@@ -6,10 +6,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query"
 import {
-  CircleMinusIcon,
   DownloadIcon,
   SearchIcon,
-  SearchXIcon,
   XIcon,
 } from "lucide-react"
 import { CalmError } from "@/components/CalmError"
@@ -265,7 +263,6 @@ export function DncPage() {
     body = searching ? (
       <EmptyState
         size="inline"
-        icon={SearchXIcon}
         title={`Nothing matches “${q}”`}
         description="Search looks at business names, websites and email addresses."
         action={
@@ -277,7 +274,6 @@ export function DncPage() {
     ) : (
       <EmptyState
         size="inline"
-        icon={CircleMinusIcon}
         title="Your list is empty"
         description="When you mark a business Do not contact on the review desk, or log a “no thanks” reply, it appears here. You can also add one above."
       />

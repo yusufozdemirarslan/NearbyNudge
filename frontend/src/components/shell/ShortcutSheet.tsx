@@ -53,13 +53,13 @@ function ShortcutSheetDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[min(40rem,calc(100vh-4rem))] gap-0 overflow-hidden p-0 sm:max-w-lg">
-        <DialogHeader className="border-b px-5 pt-5 pb-4">
-          <DialogTitle className="text-pane-title font-semibold">Keyboard shortcuts</DialogTitle>
-          <DialogDescription className="text-ui text-ink-secondary">
+        <DialogHeader className="border-b-(length:--rule-heavy) border-ink px-6 pt-6 pb-4">
+          <DialogTitle>Keyboard shortcuts</DialogTitle>
+          <DialogDescription>
             Single-key shortcuts work outside text boxes. Ctrl or ⌘ shortcuts work everywhere.
           </DialogDescription>
-          <div className="mt-3 flex items-center justify-between gap-4 rounded-lg bg-muted px-3 py-2.5">
-            <label htmlFor={switchId} className="text-ui font-medium">
+          <div className="mt-3 flex items-center justify-between gap-4 border border-ink px-3 py-2.5">
+            <label htmlFor={switchId} className="text-ui font-semibold">
               Single-key shortcuts
             </label>
             <Switch
@@ -69,19 +69,20 @@ function ShortcutSheetDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             />
           </div>
         </DialogHeader>
-        <div className="overflow-y-auto px-5 py-4">
-          {groups.length === 0 && <p className="text-ui text-ink-secondary">No shortcuts on this screen.</p>}
+        <div className="overflow-y-auto px-6 py-4">
+          {groups.length === 0 && <p className="aside">No shortcuts on this screen.</p>}
           <div className="space-y-5">
             {groups.map((group, index) => (
               <section key={group.group} aria-labelledby={`${switchId}-g${index}`}>
-                <h3 id={`${switchId}-g${index}`} className="mb-1.5 text-meta font-semibold text-muted-foreground">
+                <h3 id={`${switchId}-g${index}`} className="mb-1 aside">
                   {group.group}
                 </h3>
-                <dl className="divide-y divide-border">
+                <dl>
                   {group.items.map((item) => (
-                    <div key={item.keys + item.description} className="flex items-center justify-between gap-4 py-1.5">
-                      <dt className="text-ui text-foreground">{item.description}</dt>
-                      <dd className="text-ink-secondary">
+                    <div key={item.keys + item.description} className="flex items-baseline gap-2 py-1">
+                      <dt className="text-ui">{item.description}</dt>
+                      <span aria-hidden="true" className="leader" />
+                      <dd>
                         <KeyHint keys={item.keys} always />
                         <span className="sr-only">{item.keys}</span>
                       </dd>

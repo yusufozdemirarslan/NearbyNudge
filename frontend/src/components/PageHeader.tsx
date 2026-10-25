@@ -1,28 +1,29 @@
 import { cn } from "@/lib/utils"
 
 export interface PageHeaderProps {
-  /** Page title (22/28, weight 650). Rendered as the page's h1. */
+  /** The page's running head. Rendered as the page's h1, set in condensed caps. */
   title: React.ReactNode
-  /** One plain sentence under the title. */
+  /** One plain sentence under the rule. */
   description?: React.ReactNode
-  /** Buttons on the right (wraps under the title on small screens). */
+  /** Buttons or one key fact on the right of the running head. */
   actions?: React.ReactNode
   /** Extra content under the description (meters, filters). */
   children?: React.ReactNode
   className?: string
 }
 
-/** The standard page heading. Every page has exactly one. */
+/**
+ * The running head every page opens with: the h1 in condensed black caps over
+ * a heavy ink rule, its actions on the right, one sentence beneath.
+ */
 export function PageHeader({ title, description, actions, children, className }: PageHeaderProps) {
   return (
-    <header data-slot="page-header" className={cn("flex flex-col gap-3 pb-6", className)}>
-      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-        <div className="min-w-0 space-y-1">
-          <h1 className="text-page-title font-[650] tracking-[-0.01em] text-foreground">{title}</h1>
-          {description && <p className="max-w-[68ch] text-ui text-ink-secondary">{description}</p>}
-        </div>
-        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    <header data-slot="page-header" className={cn("flex flex-col gap-3 pb-8", className)}>
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b-(length:--rule-heavy) border-ink pb-2">
+        <h1 className="running-head min-w-0">{title}</h1>
+        {actions && <div className="flex flex-wrap items-center gap-2 pb-1">{actions}</div>}
       </div>
+      {description && <p className="max-w-measure text-ui">{description}</p>}
       {children}
     </header>
   )

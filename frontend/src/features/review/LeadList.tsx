@@ -1,20 +1,13 @@
 import * as React from "react"
 import { Link } from "@tanstack/react-router"
-import {
-  ArrowUpIcon,
-  CircleCheckIcon,
-  DownloadIcon,
-  InfoIcon,
-  RefreshCwIcon,
-  SearchXIcon,
-  XIcon,
-} from "lucide-react"
+import { DownloadIcon, XIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { EmptyState } from "@/components/EmptyState"
+import { Mark } from "@/components/Mark"
 import { Meter } from "@/components/Meter"
 import { PlaceholderBar } from "@/components/PlaceholderBar"
 import { isInProgress } from "@/components/StatusBadge"
@@ -122,10 +115,26 @@ export interface LeadListProps {
   onExportSelected: () => void
   onBulkSkip: (reason: string) => void
   bulkBusy: boolean
+  /** "vertical": the thumb index is cut into the list's side edge; "horizontal": along its top. */
+  orientation?: "vertical" | "horizontal"
   className?: string
 }
 
-/** The review desk's lead list column. */
+/** The view counts on the thumb tabs: a count that changes ticks once (the end of a filing). */
+function TabCount({ value }: { value: number }) {
+  const previous = React.useRef<number | null>(null)
+  const changed = previous.current !== null && previous.current !== value
+  React.useEffect(() => {
+    previous.current = value
+  }, [value])
+  return (
+    <span key={value} className={cn("numeral text-ui tabular-nums", changed && "animate-tick")}>
+      {value}
+    </span>
+  )
+}
+
+/** The review desk's lead list column: the campaign's running head, the thumb index and the entries. */
 export function LeadList(props: LeadListProps) {
   const {
     campaign,
@@ -145,8 +154,10 @@ export function LeadList(props: LeadListProps) {
     onSortChange,
     onOpenLead,
     onReviewFirst,
+    orientation = "vertical",
     className,
   } = props
+  const vertical = orientation === "vertical"
   const listRef = React.useRef<HTMLUListElement>(null)
   const counts = countLeads(leads, campaign?.lead_target ?? 10)
   const running = campaign ? campaign.status === "finding" || campaign.status === "researching" : false
@@ -185,144 +196,147 @@ export function LeadList(props: LeadListProps) {
   const allChecked = rows.length > 0 && rows.every((r) => checked.has(r.id))
   const someChecked = rows.some((r) => checked.has(r.id))
 
-  return (
-    <section
-      aria-labelledby="desk-campaign-title"
-      className={cn("flex min-h-0 flex-col bg-card", className)}
+  const tabs = (
+    <TabsList
+      aria-label="Lead status"
+      className={cn(
+        vertical
+          ? "w-11 shrink-0 flex-col flex-nowrap items-end gap-2.5 overflow-y-auto border-r-2 border-ink pt-5 pb-4"
+          : "w-full flex-nowrap gap-1 overflow-x-auto border-b-2 border-ink px-4 pt-2"
+      )}
     >
-      <CampaignHeader
-        campaign={campaign}
-        counts={counts}
-        running={running}
-        livePaused={livePaused}
-        liveWaiting={liveWaiting}
-        onLivePausedChange={onLivePausedChange}
-        onReviewFirst={onReviewFirst}
-        onExportAll={props.onExportAll}
-      />
+      {visibleViews.map((v) => (
+        <TabsTrigger key={v} value={v} className={cn("shrink-0", vertical ? "text-meta" : "text-meta sm:text-ui")}>
+          {VIEW_LABEL[v]}
+          <TabCount value={counts.byView[v]} />
+        </TabsTrigger>
+      ))}
+    </TabsList>
+  )
 
+  return (
+    <section aria-labelledby="desk-campaign-title" className={cn("flex min-h-0 bg-paper", className)}>
       <Tabs
         value={view}
+        orientation={orientation}
         onValueChange={(value) => onViewChange(value as DeskView)}
-        className="min-h-0 flex-1 gap-0"
+        className={cn("min-h-0 min-w-0 flex-1 gap-0", vertical ? "flex-row" : "flex-col")}
       >
-        <TabsList
-          aria-label="Lead status"
-          className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-none border-b bg-transparent px-3 pt-1 pb-2 group-data-horizontal/tabs:h-auto"
-        >
-          {visibleViews.map((v) => (
-            <TabsTrigger
-              key={v}
-              value={v}
-              className="h-7 flex-none gap-1.5 rounded-md border border-transparent px-2 text-meta font-medium text-ink-secondary hover:bg-muted hover:text-foreground data-active:border-[color-mix(in_srgb,var(--primary)_40%,transparent)] data-active:bg-accent data-active:font-semibold data-active:text-foreground data-active:shadow-none dark:data-active:bg-accent"
-            >
-              {VIEW_LABEL[v]}
-              <span className="tabular-nums text-muted-foreground">{counts.byView[v]}</span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-      <div className="flex min-h-10 items-center gap-2 border-b px-3 py-1.5">
-        {someChecked ? (
-          <BulkBar
-            count={rows.filter((r) => checked.has(r.id)).length}
-            busy={props.bulkBusy}
-            onSkip={props.onBulkSkip}
-            onExport={props.onExportSelected}
-            onClear={() => onCheckedChange(new Set())}
+        {vertical && tabs}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <CampaignHeader
+            campaign={campaign}
+            counts={counts}
+            running={running}
+            livePaused={livePaused}
+            liveWaiting={liveWaiting}
+            onLivePausedChange={onLivePausedChange}
+            onReviewFirst={onReviewFirst}
+            onExportAll={props.onExportAll}
           />
-        ) : (
-          <>
-            <Checkbox
-              checked={allChecked}
-              indeterminate={someChecked && !allChecked}
-              onCheckedChange={(value) => onCheckedChange(value ? new Set(rows.map((r) => r.id)) : new Set())}
-              aria-label="Select all leads in this view"
-              disabled={rows.length === 0}
-              className="ml-[7px]"
-            />
-            <span className="text-meta text-muted-foreground">
-              {rows.length > 0 ? plural(rows.length, "lead") : ""}
-            </span>
-            <label className="ml-auto flex items-center gap-1.5 text-meta text-muted-foreground">
-              Sort
-              <NativeSelect
-                size="sm"
-                value={sort}
-                onChange={(event) => onSortChange(event.target.value as DeskSort)}
-                className="w-auto"
-              >
-                <NativeSelectOption value="fit">Best fit</NativeSelectOption>
-                <NativeSelectOption value="distance">Nearest</NativeSelectOption>
-                <NativeSelectOption value="name">Name</NativeSelectOption>
-              </NativeSelect>
-            </label>
-          </>
-        )}
-      </div>
+          {!vertical && tabs}
 
-      <TabsContent
-        value={view}
-        className={cn("relative min-h-0 flex-1 overflow-y-auto", livePaused && "motion-paused")}
-      >
-        {order.held.length > 0 && (
-          <div className="sticky top-0 z-10 flex justify-center bg-gradient-to-b from-card via-card/95 to-transparent px-3 pt-2 pb-3">
-            <Button size="sm" variant="secondary" onClick={order.showHeld} className="shadow-popover">
-              <ArrowUpIcon aria-hidden="true" />
-              {order.held.length === 1 ? "1 new lead above" : `${order.held.length} new leads above`}
-            </Button>
+          <div className="flex min-h-11 items-center gap-2 border-b border-ink pr-4">
+            {someChecked ? (
+              <div className="w-full pl-4">
+                <BulkBar
+                  count={rows.filter((r) => checked.has(r.id)).length}
+                  busy={props.bulkBusy}
+                  onSkip={props.onBulkSkip}
+                  onExport={props.onExportSelected}
+                  onClear={() => onCheckedChange(new Set())}
+                />
+              </div>
+            ) : (
+              <>
+                <span className="flex w-9 shrink-0 justify-center">
+                  <Checkbox
+                    checked={allChecked}
+                    indeterminate={someChecked && !allChecked}
+                    onCheckedChange={(value) => onCheckedChange(value ? new Set(rows.map((r) => r.id)) : new Set())}
+                    aria-label="Select all leads in this view"
+                    disabled={rows.length === 0}
+                  />
+                </span>
+                <span className="aside">{rows.length > 0 ? plural(rows.length, "lead") : ""}</span>
+                <label className="ml-auto flex items-center gap-2 aside">
+                  Sort
+                  <NativeSelect
+                    size="sm"
+                    value={sort}
+                    onChange={(event) => onSortChange(event.target.value as DeskSort)}
+                    className="w-auto not-italic"
+                  >
+                    <NativeSelectOption value="fit">Best fit</NativeSelectOption>
+                    <NativeSelectOption value="distance">Nearest</NativeSelectOption>
+                    <NativeSelectOption value="name">Name</NativeSelectOption>
+                  </NativeSelect>
+                </label>
+              </>
+            )}
           </div>
-        )}
-        {loading && !leads ? (
-          <PlaceholderRows count={6} compact={compact} />
-        ) : rows.length > 0 ? (
-          <div className="pb-6">
-          <ul ref={listRef}>
-            {rows.map((lead) => (
-              <LeadRow
-                key={lead.id}
-                lead={lead}
-                selected={lead.id === selectedId}
-                checked={checked.has(lead.id)}
-                tabIndex={lead.id === focusTarget ? 0 : -1}
-                compact={compact}
-                fresh={order.fresh.has(lead.id)}
-                still={livePaused}
-                onToggleChecked={(value) => {
-                  const next = new Set(checked)
-                  if (value) next.add(lead.id)
-                  else next.delete(lead.id)
-                  onCheckedChange(next)
-                }}
-                onOpen={() => onOpenLead(lead.id)}
-                onKeyDown={onRowKeyDown(lead)}
-              />
-            ))}
-          </ul>
-          {finding && <PlaceholderRows count={Math.max(0, (campaign?.lead_target ?? 6) - rows.length)} compact={compact} />}
-          </div>
-        ) : finding ? (
-          <div>
-            <p className="px-4 pt-4 pb-2 text-ui text-ink-secondary">
-              {campaign?.status_detail ?? `Finding businesses near ${campaign?.location_label ?? "you"}…`}
-            </p>
-            <PlaceholderRows count={campaign?.lead_target ?? 6} compact={compact} />
-          </div>
-        ) : (
-          <EmptyState
-            size="inline"
-            icon={view === "failed" ? CircleCheckIcon : SearchXIcon}
-            {...emptyCopy(view, counts, running)}
-            action={
-              view !== "all" ? (
-                <Button variant="outline" size="sm" onClick={() => onViewChange("all")}>
-                  Show all leads
+
+          <TabsContent
+            value={view}
+            className={cn("relative min-h-0 flex-1 overflow-y-auto", livePaused && "motion-paused")}
+          >
+            {order.held.length > 0 && (
+              <div className="sticky top-0 z-10 flex justify-center border-b border-ink bg-paper px-4 py-2">
+                <Button size="sm" variant="outline" onClick={order.showHeld}>
+                  {order.held.length === 1 ? "1 new lead above" : `${order.held.length} new leads above`}
                 </Button>
-              ) : undefined
-            }
-          />
-        )}
-      </TabsContent>
+              </div>
+            )}
+            {loading && !leads ? (
+              <PlaceholderRows count={6} compact={compact} />
+            ) : rows.length > 0 ? (
+              <div className="pb-6">
+                <ul ref={listRef}>
+                  {rows.map((lead) => (
+                    <LeadRow
+                      key={lead.id}
+                      lead={lead}
+                      selected={lead.id === selectedId}
+                      checked={checked.has(lead.id)}
+                      tabIndex={lead.id === focusTarget ? 0 : -1}
+                      compact={compact}
+                      fresh={order.fresh.has(lead.id)}
+                      still={livePaused}
+                      onToggleChecked={(value) => {
+                        const next = new Set(checked)
+                        if (value) next.add(lead.id)
+                        else next.delete(lead.id)
+                        onCheckedChange(next)
+                      }}
+                      onOpen={() => onOpenLead(lead.id)}
+                      onKeyDown={onRowKeyDown(lead)}
+                    />
+                  ))}
+                </ul>
+                {finding && <PlaceholderRows count={Math.max(0, (campaign?.lead_target ?? 6) - rows.length)} compact={compact} />}
+              </div>
+            ) : finding ? (
+              <div>
+                <p className="px-4 pt-4 pb-2 aside">
+                  {campaign?.status_detail ?? `Finding businesses near ${campaign?.location_label ?? "you"}…`}
+                </p>
+                <PlaceholderRows count={campaign?.lead_target ?? 6} compact={compact} />
+              </div>
+            ) : (
+              <EmptyState
+                size="inline"
+                {...emptyCopy(view, counts, running)}
+                action={
+                  view !== "all" ? (
+                    <Button variant="outline" size="sm" onClick={() => onViewChange("all")}>
+                      Show all leads
+                    </Button>
+                  ) : undefined
+                }
+              />
+            )}
+          </TabsContent>
+        </div>
       </Tabs>
     </section>
   )
@@ -332,14 +346,9 @@ function PlaceholderRows({ count, compact }: { count: number; compact: boolean }
   return (
     <div aria-hidden="true">
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className={cn("flex items-center gap-2.5 border-b border-border/70 pr-3 pl-8", compact ? "h-8" : "h-10")}>
-          <span className="flex w-6 justify-end">
-            <PlaceholderBar width={16} />
-          </span>
-          <span className="flex flex-1 flex-col gap-1.5">
-            <PlaceholderBar width={`${55 + ((i * 17) % 30)}%`} height={9} />
-            {!compact && <PlaceholderBar width={`${30 + ((i * 11) % 20)}%`} height={7} />}
-          </span>
+        <div key={i} className={cn("flex flex-col justify-center gap-2 border-b border-hairline pr-4 pl-13", compact ? "h-9" : "h-14")}>
+          <PlaceholderBar width={`${55 + ((i * 17) % 30)}%`} className="block" />
+          {!compact && <PlaceholderBar width={`${30 + ((i * 11) % 20)}%`} className="block" />}
         </div>
       ))}
     </div>
@@ -370,9 +379,9 @@ function CampaignHeader({
   const eta = running ? formatEta(campaign?.eta_seconds) : null
   const summary = campaign?.status === "done" && campaign.finish_summary && !dismissed ? campaign.finish_summary : null
   return (
-    <div className="space-y-3 border-b px-4 pt-4 pb-3">
-      <div className="flex items-start justify-between gap-2">
-        <h1 id="desk-campaign-title" className="text-pane-title font-semibold text-foreground">
+    <div className="space-y-3 px-4 pt-5 pb-4">
+      <div className="flex items-start justify-between gap-2 border-b-(length:--rule-heavy) border-ink pb-2">
+        <h1 id="desk-campaign-title" className="min-w-0 text-head uppercase stretch-condensed">
           {campaign ? campaign.name : <PlaceholderBar width="80%" />}
         </h1>
         <Button
@@ -380,13 +389,13 @@ function CampaignHeader({
           size="icon-sm"
           onClick={onExportAll}
           aria-label="Export all leads as a spreadsheet (CSV)"
-          className="-mt-1 -mr-2 text-ink-secondary"
+          className="-mr-2 shrink-0"
         >
           <DownloadIcon aria-hidden="true" />
         </Button>
       </div>
       {campaign && (
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Meter
             kind="progress"
             label="Ready"
@@ -396,18 +405,18 @@ function CampaignHeader({
             valueText={`${counts.drafted} of ${counts.denominator} ready`}
             size="sm"
           />
-          <p className="text-meta text-muted-foreground" aria-live="off">
+          <p className="aside" aria-live="off">
             {campaign.status === "finding"
               ? (campaign.status_detail ?? "Finding businesses…")
               : running
                 ? eta
-                  ? `Researching · ${eta}`
-                  : "Researching"
+                  ? `Researching, ${eta}.`
+                  : "Researching."
                 : campaign.status === "paused"
                   ? "Research paused. It resumes automatically."
                   : campaign.status === "failed"
                     ? "This campaign stopped early."
-                    : "Research finished"}
+                    : "Research finished."}
           </p>
         </div>
       )}
@@ -419,13 +428,11 @@ function CampaignHeader({
             onCheckedChange={(value) => onLivePausedChange(Boolean(value))}
             size="sm"
           />
-          <label htmlFor={switchId} className="text-meta text-ink-secondary">
+          <label htmlFor={switchId} className="text-meta">
             Pause live updates
           </label>
           {livePaused && liveWaiting > 0 && (
-            <span className="ml-auto text-meta text-muted-foreground">
-              {plural(liveWaiting, "change")} waiting
-            </span>
+            <span className="ml-auto text-meta font-semibold">{plural(liveWaiting, "change")} waiting</span>
           )}
         </div>
       )}
@@ -435,31 +442,31 @@ function CampaignHeader({
         </Button>
       )}
       {summary && campaign ? (
-        <div className="rounded-lg border bg-background p-3 text-meta">
+        <div className="border border-ink p-3 text-meta">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-semibold text-foreground">Research finished in {formatDuration(summary.seconds)}</p>
+            <p className="font-bold">Research finished in {formatDuration(summary.seconds)}</p>
             <Button variant="ghost" size="icon-xs" onClick={dismiss} aria-label="Dismiss the summary" className="-mt-1 -mr-1">
               <XIcon aria-hidden="true" />
             </Button>
           </div>
-          <p className="mt-1 text-ink-secondary">
-            Found {summary.found} · {summary.ready} ready · {summary.needs_review} need review
-            {summary.failed.length > 0 ? ` · ${summary.failed.length} couldn't finish` : ""}
-            {summary.replaced.length > 0 ? ` · ${summary.replaced.length} replaced` : ""}
+          <p className="mt-1">
+            Found {summary.found}. {summary.ready} ready, {summary.needs_review} need review
+            {summary.failed.length > 0 ? `, ${summary.failed.length} couldn't finish` : ""}
+            {summary.replaced.length > 0 ? `, ${summary.replaced.length} replaced` : ""}.
           </p>
           {summary.failed.length > 0 && (
             <ul className="mt-2 space-y-1">
               {summary.failed.map((item) => (
-                <li key={item.lead_id} className="text-ink-secondary">
+                <li key={item.lead_id}>
                   <Link
                     to="/campaigns/$campaignId"
                     params={{ campaignId: campaign.id }}
                     search={(prev) => ({ ...prev, view: "failed", lead: item.lead_id })}
-                    className="font-medium text-primary hover:underline"
+                    className="font-semibold underline underline-offset-[3px] hover:text-edge"
                   >
                     {item.name}
                   </Link>
-                  : {item.reason}
+                  : <span className="italic">{item.reason}</span>
                 </li>
               ))}
             </ul>
@@ -467,8 +474,8 @@ function CampaignHeader({
           {summary.replaced.length > 0 && (
             <ul className="mt-2 space-y-1">
               {summary.replaced.map((item) => (
-                <li key={item.name} className="text-ink-secondary">
-                  <span className="font-medium text-foreground">Replaced {item.name}</span>: {item.reason}
+                <li key={item.name}>
+                  <span className="font-semibold">Replaced {item.name}</span>: <span className="italic">{item.reason}</span>
                 </li>
               ))}
             </ul>
@@ -479,12 +486,8 @@ function CampaignHeader({
         campaign.notices.length > 0 && (
           <ul className="space-y-1.5">
             {campaign.notices.map((notice) => (
-              <li key={notice} className="flex gap-2 text-meta text-ink-secondary">
-                {notice.startsWith("Replaced") ? (
-                  <RefreshCwIcon aria-hidden="true" className="mt-px size-3.5 shrink-0 text-info" />
-                ) : (
-                  <InfoIcon aria-hidden="true" className="mt-px size-3.5 shrink-0 text-info" />
-                )}
+              <li key={notice} className="flex gap-2 aside">
+                <Mark name="dot" className="mt-1 size-2" />
                 <span>{notice}</span>
               </li>
             ))}
@@ -524,13 +527,12 @@ function BulkBar({
     )
   }
   return (
-    <div className="flex w-full flex-wrap items-center gap-1.5">
-      <span className="mr-auto text-meta font-medium text-foreground">{count} selected</span>
+    <div className="flex w-full flex-wrap items-center gap-1.5 py-1">
+      <span className="mr-auto text-ui font-bold">{count} selected</span>
       <Button size="xs" variant="outline" onClick={() => setChoosing(true)} disabled={busy}>
         Skip…
       </Button>
       <Button size="xs" variant="outline" onClick={onExport} disabled={busy}>
-        <DownloadIcon aria-hidden="true" />
         Export CSV
       </Button>
       <Button size="xs" variant="ghost" onClick={onClear}>

@@ -12,22 +12,22 @@ export interface PlaceholderBarProps {
 }
 
 /**
- * A still gray bar sized like the content that will replace it, so nothing
- * shifts when the text arrives. No shimmer: research can take minutes and a
+ * A still dotted leader sized like the content that will replace it, like an
+ * unfilled line in a directory, so nothing shifts when the text arrives. No shimmer: research can take minutes and a
  * moving placeholder would be distracting (brief §3.4, WCAG 2.2.2).
  * Hidden from assistive technology; say what is loading in text elsewhere.
  */
 export function PlaceholderBar({ width = "100%", height = "text", className }: PlaceholderBarProps) {
   const style: React.CSSProperties = {
     width: typeof width === "number" ? `${width}px` : width,
-    height: typeof height === "number" ? `${height}px` : height === "text" ? "0.75em" : "100%",
+    height: typeof height === "number" ? `${height}px` : height === "text" ? "0.7em" : "100%",
   }
   return (
     <span
       aria-hidden="true"
       data-slot="placeholder-bar"
       className={cn(
-        "inline-block max-w-full shrink-0 rounded-sm bg-[color-mix(in_srgb,var(--foreground)_9%,transparent)] align-middle",
+        "inline-block max-w-full shrink-0 border-b-2 border-dotted border-leader align-baseline",
         className
       )}
       style={style}

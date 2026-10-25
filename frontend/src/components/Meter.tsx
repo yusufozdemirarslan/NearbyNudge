@@ -26,9 +26,10 @@ export interface MeterProps {
 }
 
 /**
- * A labelled bar with its value in words ("Sent today 7 of 20"). Exposed as
- * role="meter" (or "progressbar" for research progress) with aria-valuetext,
- * so it never relies on the bar's color or length alone.
+ * A labelled gauge with its value in words ("Sent today 7 of 20"): a dotted
+ * leader track that fills with solid ink, edge red at the limit. Exposed as
+ * role="meter" (or "progressbar") with aria-valuetext, so it never relies on
+ * the bar alone.
  */
 export function Meter({
   value,
@@ -46,6 +47,7 @@ export function Meter({
   const safeMax = Math.max(1, max)
   const clamped = Math.max(0, Math.min(value, safeMax))
   const text = valueText ?? `${value} of ${max}`
+  const warn = tone === "warning"
   return (
     <div
       role={kind === "progress" ? "progressbar" : "meter"}
@@ -55,30 +57,28 @@ export function Meter({
       aria-valuenow={clamped}
       aria-valuetext={text}
       data-slot="meter"
-      className={cn("flex min-w-0 items-center gap-2", size === "sm" ? "text-meta" : "text-ui", className)}
+      className={cn("flex min-w-0 items-center gap-2.5", size === "sm" ? "text-meta" : "text-ui", className)}
     >
-      <span id={`${id}-label`} className={cn("shrink-0 text-muted-foreground", !showLabel && "sr-only")}>
+      <span id={`${id}-label`} className={cn("shrink-0", !showLabel && "sr-only")}>
         {label}
       </span>
-      <span
-        aria-hidden="true"
-        className={cn(
-          "relative block min-w-12 flex-1 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--foreground)_12%,transparent)]",
-          size === "sm" ? "h-1.5" : "h-2",
-          barClassName
-        )}
-      >
+      <span aria-hidden="true" className={cn("relative block h-2 min-w-12 flex-1", barClassName)}>
+        <span className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-b-2 border-dotted border-leader" />
         <span
           className={cn(
-            "absolute inset-y-0 left-0 rounded-full transition-[width] duration-200",
-            tone === "warning" ? "bg-warning" : "bg-primary"
+            "absolute inset-y-0 left-0 transition-[width] duration-(--dur-state) ease-out",
+            warn ? "bg-edge" : "bg-ink"
           )}
           style={{ width: `${(clamped / safeMax) * 100}%` }}
         />
       </span>
       <span
         aria-hidden="true"
-        className={cn("shrink-0 font-medium tabular-nums", tone === "warning" ? "text-warning" : "text-foreground")}
+        className={cn(
+          "shrink-0 numeral",
+          size === "sm" ? "text-ui" : "text-lead",
+          warn && "text-edge"
+        )}
       >
         {text}
       </span>

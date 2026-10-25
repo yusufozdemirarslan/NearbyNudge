@@ -23,7 +23,6 @@ import { usePreferences } from "@/hooks/use-account"
 import { CommandsProvider } from "@/hooks/use-commands"
 import { ShortcutsProvider } from "@/hooks/use-shortcuts"
 import { meQuery } from "@/lib/api/queries"
-import { MapPinOffIcon } from "lucide-react"
 import { queryClient } from "./query-client"
 
 export interface RouterContext {
@@ -72,7 +71,6 @@ function RootError({ error }: { error: unknown }) {
 function NotFound() {
   return (
     <EmptyState
-      icon={MapPinOffIcon}
       title="We couldn't find that page"
       description="The link may be old, or the item was deleted."
       action={
