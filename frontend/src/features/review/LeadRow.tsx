@@ -5,6 +5,7 @@ import { FitBadge } from "@/components/FitBadge"
 import { Mark } from "@/components/Mark"
 import { PlaceholderBar } from "@/components/PlaceholderBar"
 import { StatusBadge, isInProgress } from "@/components/StatusBadge"
+import { useReducedMotion } from "@/hooks/use-media-query"
 import type { ContactKind, LeadStatus, LeadSummary } from "@/lib/api/types"
 import { formatDistance } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -26,33 +27,36 @@ const FILE_MS = 380
  * motion or while live updates are paused.
  */
 function useFiling(status: LeadStatus, still: boolean) {
+  const reducedMotion = useReducedMotion()
   const [shown, setShown] = React.useState(status)
-  const [struck, setStruck] = React.useState(false)
+  // The status being filed while its strike is drawn, or null.
+  const [filingTo, setFilingTo] = React.useState<LeadStatus | null>(null)
   const [filed, setFiled] = React.useState(false)
-  React.useEffect(() => {
+  // A new status is handled during render (React's pattern for state that follows a prop).
+  const [seen, setSeen] = React.useState(status)
+  if (status !== seen) {
+    setSeen(status)
     if (status === shown) {
       // Undone before the filing finished: drop the half-drawn strike.
-      setStruck(false)
-      return
-    }
-    const reduce = still || window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    if (!FILED.includes(status) || reduce) {
+      setFilingTo(null)
+    } else if (!FILED.includes(status) || still || reducedMotion) {
       setShown(status)
-      setStruck(false)
+      setFilingTo(null)
       setFiled(false)
-      return
+    } else {
+      setFilingTo(status)
     }
-    setStruck(true)
+  }
+  React.useEffect(() => {
+    if (filingTo === null) return
     const timer = window.setTimeout(() => {
-      setShown(status)
-      setStruck(false)
+      setShown(filingTo)
+      setFilingTo(null)
       setFiled(true)
     }, FILE_MS)
     return () => window.clearTimeout(timer)
-    // only a new status starts a filing
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status])
-  return { shown, struck, filed }
+  }, [filingTo])
+  return { shown, struck: filingTo !== null, filed }
 }
 
 export interface LeadRowProps {

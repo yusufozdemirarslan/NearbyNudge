@@ -122,13 +122,16 @@ export interface LeadListProps {
 
 /** The view counts on the thumb tabs: a count that changes ticks once (the end of a filing). */
 function TabCount({ value }: { value: number }) {
-  const previous = React.useRef<number | null>(null)
-  const changed = previous.current !== null && previous.current !== value
-  React.useEffect(() => {
-    previous.current = value
-  }, [value])
+  // Counted during render (React's pattern for state that follows a prop); each change
+  // remounts the number so its tick plays once.
+  const [seen, setSeen] = React.useState(value)
+  const [changes, setChanges] = React.useState(0)
+  if (value !== seen) {
+    setSeen(value)
+    setChanges((n) => n + 1)
+  }
   return (
-    <span key={value} className={cn("numeral text-ui tabular-nums", changed && "animate-tick")}>
+    <span key={changes} className={cn("numeral text-ui tabular-nums", changes > 0 && "animate-tick")}>
       {value}
     </span>
   )

@@ -164,33 +164,6 @@
   --animate-dots: nn-dots 1.2s steps(4, end) infinite;
 }
 
-/* -------- Transition aliases: old names still used by screens not yet redesigned.
-   Delete each one when nothing uses it. -------- */
-@theme inline {
-  --color-ink-secondary: var(--ink);
-  --color-success: var(--ink);
-  --color-success-tint: var(--paper);
-  --color-warning: var(--edge);
-  --color-warning-tint: var(--paper);
-  --color-info: var(--ink);
-  --color-info-tint: var(--tint);
-  --color-danger-tint: var(--paper);
-  --text-page-title: 36px;
-  --text-page-title--line-height: 34px;
-  --text-page-title--font-weight: 800;
-  --text-pane-title: 18px;
-  --text-pane-title--line-height: 26px;
-  --text-pane-title--font-weight: 600;
-  --text-email: 16px;
-  --text-email--line-height: 26px;
-  --text-list: 13px;
-  --text-list--line-height: 18px;
-  --text-headline: 24px;
-  --text-headline--line-height: 26px;
-  --text-headline--font-weight: 800;
-  --shadow-popover: var(--shadow-overlay);
-}
-
 /* -------- Directory devices -------- */
 
 /* Extra-condensed, the directory's running-head width. */

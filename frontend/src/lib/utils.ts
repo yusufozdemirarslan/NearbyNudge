@@ -3,9 +3,9 @@ import { createCn } from "cn/config"
 /**
  * Class-name join + Tailwind conflict resolution.
  *
- * Configured with NearbyNudge's custom type scale so `text-list`,
- * `text-email` and friends are treated as font sizes (not text colors) and
- * never cancel out `text-muted-foreground` and similar color utilities.
+ * Configured with NearbyNudge's type scale (index.css `@theme`) so `text-lead`,
+ * `text-head` and friends are treated as font sizes, not text colours. Without
+ * this, `cn("text-lead", "text-edge")` would drop the size.
  */
 export const cn = createCn({
   extend: {
@@ -13,13 +13,14 @@ export const cn = createCn({
       "font-size": [
         {
           text: [
-            "page-title",
-            "pane-title",
-            "email",
-            "ui",
-            "list",
+            "micro",
             "meta",
-            "headline",
+            "ui",
+            "body",
+            "lead",
+            "head",
+            "title",
+            "display",
           ],
         },
       ],
