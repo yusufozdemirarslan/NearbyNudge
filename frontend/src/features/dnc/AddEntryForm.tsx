@@ -153,7 +153,7 @@ export function AddEntryForm({
   return (
     <Section
       title="Add to the list"
-      description="A business name, a website or an email address is enough. NearbyNudge never drafts an email to anything that matches."
+      description="A business name, a website or an email address is enough."
     >
       <form
         noValidate

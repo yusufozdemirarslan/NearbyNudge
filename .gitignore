@@ -36,3 +36,6 @@ docs/live-ui/
 docs/e2e-real/
 docs/e2e-mock/
 docs/*.log
+
+# Impeccable review captures (screenshots of sample data)
+.impeccable/review/

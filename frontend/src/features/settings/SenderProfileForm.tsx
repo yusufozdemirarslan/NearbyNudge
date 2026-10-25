@@ -327,15 +327,10 @@ export function FooterPreview({
   const Heading = headingLevel === 2 ? "h2" : "h3"
   return (
     <section aria-labelledby={titleId} className={cn("min-w-0", className)}>
-      <div className="mb-2 flex items-baseline justify-between gap-3">
-        <Heading id={titleId} className="text-ui font-bold">
-          Your email footer
-        </Heading>
-        <span className="inline-flex items-center gap-1.5 aside">
-          <Mark name="lock" />
-          Locked
-        </span>
-      </div>
+      <Heading id={titleId} className="mb-2 flex items-center gap-1.5 text-ui font-bold">
+        <Mark name="lock" />
+        Your email footer
+      </Heading>
       <div className="border-2 border-ink px-5 py-4 sm:px-6 sm:py-5" data-testid="footer-preview">
         {serverText ? (
           <p className="text-body whitespace-pre-line [overflow-wrap:anywhere]">{serverText}</p>

@@ -615,11 +615,6 @@ function BriefForm({
                 ? "Review plan again"
                 : "Review plan"}
           </Button>
-          {!planned && !planMutation.isPending && (
-            <p className="aside">
-              Nothing starts until you've seen the plan.
-            </p>
-          )}
         </div>
       </form>
 

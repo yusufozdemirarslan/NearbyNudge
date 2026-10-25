@@ -16,7 +16,6 @@ import { CalmError } from "@/components/CalmError"
 import { EmailAddress } from "@/components/EmailAddress"
 import { EmptyState } from "@/components/EmptyState"
 import { Mark } from "@/components/Mark"
-import { Meter } from "@/components/Meter"
 import { PageContainer } from "@/components/PageContainer"
 import { PageHeader } from "@/components/PageHeader"
 import { PlaceholderBar } from "@/components/PlaceholderBar"
@@ -423,17 +422,6 @@ export function SentPage() {
       <PageHeader
         title="Sent"
         description="Every approved email across your campaigns. NearbyNudge doesn't send: send each one from your own email account, then mark it here."
-        actions={
-          sending && (
-            <Meter
-              label="Sent today"
-              value={sending.sent_today}
-              max={sending.daily_cap}
-              tone={atCap ? "warning" : "default"}
-              barClassName="w-32 flex-none"
-            />
-          )
-        }
       />
 
       {atCap && sending && (

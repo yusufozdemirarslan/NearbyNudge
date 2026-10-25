@@ -133,11 +133,6 @@ export function ActionBar({ summary, lead, sending, controller, compact, align =
             {!compact && <KeyHint keys="S" />}
           </Button>
           <MoreMenu lead={lead} controller={c} compact={compact} />
-          {!compact && (
-            <p className="ml-auto hidden aside xl:block">
-              Approving opens the sending preview. Nothing is sent for you.
-            </p>
-          )}
         </div>
       </div>
     )

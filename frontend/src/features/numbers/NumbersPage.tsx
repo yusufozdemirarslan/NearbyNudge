@@ -3,7 +3,6 @@ import { Link } from "@tanstack/react-router"
 import { PlusIcon } from "lucide-react"
 import { CalmError } from "@/components/CalmError"
 import { EmptyState } from "@/components/EmptyState"
-import { Mark } from "@/components/Mark"
 import { Meter } from "@/components/Meter"
 import { PageContainer } from "@/components/PageContainer"
 import { PageHeader } from "@/components/PageHeader"
@@ -15,7 +14,6 @@ import { api } from "@/lib/api"
 import { statsQuery } from "@/lib/api/queries"
 import type { Funnel as FunnelData, Stats } from "@/lib/api/types"
 import { formatDate, formatNumber, formatPercent } from "@/lib/format"
-import { cn } from "@/lib/utils"
 import { downloadBlob } from "@/features/settings/form-kit"
 import {
   ChartCard,
@@ -43,19 +41,13 @@ const MEASURES: { key: Measure; label: string; hint: string }[] = [
   { key: "replied", label: "Replies", hint: "Replies you logged" },
 ]
 
-/** A small drawn triangle beside the words: up or down. Never the only signal. */
-function Direction({ up }: { up: boolean }) {
-  return <Mark name="pointer" className={cn("size-2.5", up ? "-rotate-90" : "rotate-90")} />
-}
-
-/** Calm, neutral comparison with last week: a drawn triangle plus words, never color alone. */
+/** Calm, neutral comparison with last week, in words. */
 function CountDelta({ now, before }: { now: number; before: number }) {
   const diff = now - before
   if (diff === 0) return <span>Same as last week</span>
   const amount = Math.abs(diff)
   return (
-    <span className="inline-flex items-baseline gap-1.5">
-      <Direction up={diff > 0} />
+    <span>
       {formatNumber(amount)} {diff > 0 ? "more" : "fewer"} than last week ({formatNumber(before)})
     </span>
   )
@@ -72,8 +64,7 @@ function RateDelta({ now, before }: { now: number | null; before: number | null 
   const points = Math.round((now - before) * 100)
   if (points === 0) return <span>Same as last week</span>
   return (
-    <span className="inline-flex items-baseline gap-1.5">
-      <Direction up={points > 0} />
+    <span>
       {Math.abs(points)} {Math.abs(points) === 1 ? "point" : "points"} {points > 0 ? "higher" : "lower"} than last week
     </span>
   )

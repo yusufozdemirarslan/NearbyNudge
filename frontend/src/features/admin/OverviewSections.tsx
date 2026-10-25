@@ -146,7 +146,6 @@ export function SpendSection({ overview }: { overview: AdminOverview }) {
 
         <ChartCard
           title="Daily cost, last 30 days"
-          description={`Today so far: ${formatMoney(spend.today)}.`}
           chart={
             <ColumnChart
               data={daily}

@@ -83,7 +83,6 @@ export function BotPage() {
           id="opt-out"
           title="Keep NearbyNudgeBot away from your site"
         >
-          <p>There are two ways, and you can use both.</p>
           <div className="flex flex-col gap-3">
             <h3 className="text-lead font-bold">Add two lines to robots.txt</h3>
             <p>

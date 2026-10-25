@@ -127,11 +127,6 @@ export function CampaignsPage() {
     <PageContainer>
       <PageHeader
         title="Campaigns"
-        description={
-          empty
-            ? undefined
-            : "Each campaign finds nearby businesses and drafts an email for each one. Open a campaign to review its drafts."
-        }
         actions={
           !empty && campaigns.isSuccess ? (
             <Link to="/campaigns/new" className={buttonVariants()}>
