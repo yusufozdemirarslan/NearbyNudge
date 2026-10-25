@@ -9,23 +9,13 @@ import {
   tableFeatures,
   useTable,
 } from "@tanstack/react-table"
-import {
-  ArrowDownIcon,
-  ArrowUpDownIcon,
-  ArrowUpIcon,
-  CheckIcon,
-  CopyIcon,
-  LockIcon,
-  MailIcon,
-  SendIcon,
-  TriangleAlertIcon,
-} from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CalmError } from "@/components/CalmError"
 import { EmailAddress } from "@/components/EmailAddress"
 import { EmptyState } from "@/components/EmptyState"
+import { Mark } from "@/components/Mark"
 import { Meter } from "@/components/Meter"
 import { PageContainer } from "@/components/PageContainer"
 import { PageHeader } from "@/components/PageHeader"
@@ -115,54 +105,60 @@ function useSentActions() {
   return value
 }
 
-function RowActions({ item }: { item: SentItem }) {
+/** `roomy` gives phones 44px buttons; the table keeps them compact. */
+function RowActions({ item, roomy = false }: { item: SentItem; roomy?: boolean }) {
   const actions = useSentActions()
   const state = actions.state[item.id]
   const busy = state?.busy ?? null
+  const size = roomy ? "lg" : "sm"
   return (
     <div className="space-y-1.5">
       <div className="flex flex-wrap items-center gap-1.5">
         {item.status === "approved" && (
           <>
             {item.contact_email && (
-              <Button size="xs" variant="outline" onClick={() => actions.open(item)} disabled={busy !== null || actions.atCap}>
-                <MailIcon aria-hidden="true" />
+              <Button size={size} variant="outline" onClick={() => actions.open(item)} disabled={busy !== null || actions.atCap}>
                 Open in email app
               </Button>
             )}
-            <Button size="xs" variant="outline" onClick={() => actions.copy(item)} disabled={busy !== null || actions.atCap}>
-              {state?.copied ? <CheckIcon aria-hidden="true" /> : <CopyIcon aria-hidden="true" />}
+            <Button size={size} variant="outline" onClick={() => actions.copy(item)} disabled={busy !== null || actions.atCap}>
+              {state?.copied && <Mark name="check" />}
               {state?.copied ? "Copied" : "Copy"}
             </Button>
-            <Button size="xs" onClick={() => actions.markSent(item)} disabled={busy !== null || actions.atCap}>
-              <SendIcon aria-hidden="true" />
+            <Button size={size} onClick={() => actions.markSent(item)} disabled={busy !== null || actions.atCap}>
               {busy === "sent" ? "Marking…" : "Mark as sent"}
             </Button>
           </>
         )}
         {item.status === "sent" && (
-          <div role="group" aria-label={`Log a reply from ${item.name}`} className="flex flex-wrap items-center gap-1.5">
-            <span className="text-meta text-muted-foreground">Replied?</span>
-            <Button size="xs" variant="outline" onClick={() => actions.replied(item, "interested")} disabled={busy !== null}>
-              Interested
-            </Button>
-            <Button size="xs" variant="outline" onClick={() => actions.replied(item, "no_thanks")} disabled={busy !== null}>
-              No thanks
-            </Button>
-            <Button size="xs" variant="ghost" onClick={() => actions.replied(item, "other")} disabled={busy !== null}>
-              Other
-            </Button>
+          <div
+            role="group"
+            aria-label={`Log a reply from ${item.name}`}
+            className={cn("flex flex-wrap gap-x-1", roomy ? "items-center" : "flex-col items-start")}
+          >
+            <span className="mr-1 aside">Replied?</span>
+            <span className={cn("flex flex-wrap items-center gap-x-1", !roomy && "-ml-1.5")}>
+              <Button size={size} variant="link" className="px-1.5" onClick={() => actions.replied(item, "interested")} disabled={busy !== null}>
+                Interested
+              </Button>
+              <Button size={size} variant="link" className="px-1.5" onClick={() => actions.replied(item, "no_thanks")} disabled={busy !== null}>
+                No thanks
+              </Button>
+              <Button size={size} variant="link" className="px-1.5" onClick={() => actions.replied(item, "other")} disabled={busy !== null}>
+                Other
+              </Button>
+            </span>
           </div>
         )}
         {item.status === "replied" && (
-          <span className="text-meta text-muted-foreground">
+          <span className="aside">
             {item.reply_outcome === "no_thanks" ? "On your do-not-contact list" : "Reply logged"}
           </span>
         )}
       </div>
       {state?.message && (
-        <p role="alert" className="flex items-start gap-1.5 text-meta text-warning">
-          <TriangleAlertIcon aria-hidden="true" className="mt-px size-3.5 shrink-0" />
+        <p role="alert" className="flex items-start gap-1.5 text-meta font-semibold text-edge">
+          <Mark name="asterisk" className="mt-0.5" />
           {state.message}
         </p>
       )}
@@ -177,11 +173,11 @@ function BusinessCell({ item }: { item: SentItem }) {
         to="/campaigns/$campaignId"
         params={{ campaignId: item.campaign_id }}
         search={{ lead: item.id, view: viewOfStatus(item.status) }}
-        className="block truncate text-ui font-medium text-foreground hover:text-primary hover:underline"
+        className="block truncate text-ui font-bold underline-offset-[3px] hover:underline"
       >
         {item.name}
       </Link>
-      <p className="truncate text-meta text-muted-foreground">{item.campaign_name}</p>
+      <p className="truncate aside">{item.campaign_name}</p>
     </div>
   )
 }
@@ -190,7 +186,7 @@ function StatusCell({ item }: { item: SentItem }) {
   return (
     <div className="space-y-0.5">
       <StatusBadge status={item.status} date={item.sent_at} replyOutcome={item.reply_outcome} hideStep />
-      <p className="text-meta text-muted-foreground tabular-nums">
+      <p className="aside tabular-nums">
         {item.status === "approved" && item.approved_at
           ? `Approved ${formatDate(item.approved_at)}`
           : item.status === "replied" && item.replied_at
@@ -226,16 +222,16 @@ const columns = helper.columns([
     enableSorting: false,
     cell: (info) =>
       info.row.original.contact_email ? (
-        <EmailAddress email={info.row.original.contact_email} className="text-ui text-foreground" />
+        <EmailAddress email={info.row.original.contact_email} className="text-ui" />
       ) : (
-        <span className="text-meta text-muted-foreground">No email address</span>
+        <span className="aside">No email address</span>
       ),
   }),
   helper.accessor((row) => row.email_subject ?? "", {
     id: "subject",
     header: "Subject",
     enableSorting: false,
-    cell: (info) => <span className="line-clamp-2 text-ui text-ink-secondary">{info.row.original.email_subject}</span>,
+    cell: (info) => <span className="line-clamp-2 text-ui">{info.row.original.email_subject}</span>,
   }),
   helper.accessor((row) => new Date(when(row)).getTime(), {
     id: "date",
@@ -250,11 +246,11 @@ const columns = helper.columns([
 ])
 
 const WIDTHS: Record<string, string> = {
-  business: "w-[24%]",
-  to: "w-[20%]",
-  subject: "w-[24%]",
-  date: "w-[12%]",
-  actions: "w-[20%]",
+  business: "w-[22%]",
+  to: "w-[19%]",
+  subject: "w-[20%]",
+  date: "w-[15%]",
+  actions: "w-[24%]",
 }
 
 function SentTable({ items, filter }: { items: SentItem[]; filter: SentStatusFilter }) {
@@ -267,7 +263,7 @@ function SentTable({ items, filter }: { items: SentItem[]; filter: SentStatusFil
     enableSortingRemoval: false,
   })
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
+    <div>
       <Table className="table-fixed">
         <caption className="sr-only">
           {FILTERS.find((f) => f.value === filter)?.label} emails, newest first
@@ -282,21 +278,17 @@ function SentTable({ items, filter }: { items: SentItem[]; filter: SentStatusFil
                   <TableHead
                     key={header.id}
                     aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
-                    className={cn("h-10 bg-muted/60 text-meta font-semibold text-ink-secondary", WIDTHS[header.column.id])}
+                    className={cn("h-12", WIDTHS[header.column.id])}
                   >
                     {header.isPlaceholder ? null : canSort ? (
                       <button
                         type="button"
                         onClick={header.column.getToggleSortingHandler()}
-                        className="inline-flex items-center gap-1 rounded-sm hover:text-foreground"
+                        className="inline-flex items-center gap-1.5 underline-offset-4 hover:underline"
                       >
                         <table.FlexRender header={header} />
-                        {sorted === "asc" ? (
-                          <ArrowUpIcon aria-hidden="true" className="size-3.5" />
-                        ) : sorted === "desc" ? (
-                          <ArrowDownIcon aria-hidden="true" className="size-3.5" />
-                        ) : (
-                          <ArrowUpDownIcon aria-hidden="true" className="size-3.5 opacity-60" />
+                        {sorted && (
+                          <Mark name="pointer" className={cn("size-2.5", sorted === "asc" ? "-rotate-90" : "rotate-90")} />
                         )}
                       </button>
                     ) : (
@@ -312,7 +304,7 @@ function SentTable({ items, filter }: { items: SentItem[]; filter: SentStatusFil
           {table.getRowModel().rows.map((row) => (
             <TableRow key={row.id} data-sent-id={row.id} className="align-top">
               {row.getAllCells().map((cell) => (
-                <TableCell key={cell.id} className="py-3 align-top whitespace-normal">
+                <TableCell key={cell.id} className="py-4 align-top whitespace-normal">
                   <table.FlexRender cell={cell} />
                 </TableCell>
               ))}
@@ -326,18 +318,18 @@ function SentTable({ items, filter }: { items: SentItem[]; filter: SentStatusFil
 
 function SentCards({ items }: { items: SentItem[] }) {
   return (
-    <ul className="space-y-3">
+    <ul>
       {items.map((item) => (
-        <li key={item.id} data-sent-id={item.id} className="space-y-2.5 rounded-xl border bg-card p-4">
+        <li key={item.id} data-sent-id={item.id} className="space-y-2.5 border-b border-hairline py-4">
           <div className="flex items-start justify-between gap-3">
             <BusinessCell item={item} />
             <StatusCell item={item} />
           </div>
-          {item.email_subject && <p className="text-ui text-ink-secondary">{item.email_subject}</p>}
-          <p className="text-meta text-muted-foreground">
+          {item.email_subject && <p className="text-ui">{item.email_subject}</p>}
+          <p className="aside">
             To {item.contact_email ? <EmailAddress email={item.contact_email} /> : "no published email address"}
           </p>
-          <RowActions item={item} />
+          <RowActions item={item} roomy />
         </li>
       ))}
     </ul>
@@ -445,27 +437,28 @@ export function SentPage() {
       />
 
       {atCap && sending && (
-        <p role="status" className="mb-4 flex items-start gap-2 rounded-lg bg-warning-tint px-3 py-2.5 text-ui text-foreground">
-          <LockIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" />
-          You've marked {sending.daily_cap} emails as sent today, the daily limit. Sending unlocks at midnight (
-          {formatTime(sending.resets_at)}).
+        <p
+          role="status"
+          className="mb-6 flex items-start gap-2.5 border border-ink border-t-(length:--rule-heavy) border-t-edge px-4 py-3 text-ui font-semibold"
+        >
+          <Mark name="lock" className="mt-1 text-edge" />
+          <span>
+            You've marked {sending.daily_cap} emails as sent today, the daily limit. Sending unlocks at midnight (
+            {formatTime(sending.resets_at)}).
+          </span>
         </p>
       )}
 
       <Tabs
         value={filter}
         onValueChange={(value) => void navigate({ search: { status: value as SentStatusFilter } })}
-        className="mb-4"
+        className="gap-0"
       >
-        <TabsList aria-label="Filter by status" className="h-auto flex-wrap gap-1 bg-transparent p-0 group-data-horizontal/tabs:h-auto">
+        <TabsList aria-label="Filter by status" className="w-full flex-nowrap gap-1 overflow-x-auto border-b-2 border-ink">
           {FILTERS.map((item) => (
-            <TabsTrigger
-              key={item.value}
-              value={item.value}
-              className="h-8 flex-none gap-1.5 rounded-md border border-transparent px-3 text-ui font-medium text-ink-secondary hover:bg-muted hover:text-foreground data-active:border-[color-mix(in_srgb,var(--primary)_40%,transparent)] data-active:bg-accent data-active:font-semibold data-active:text-foreground data-active:shadow-none dark:data-active:bg-accent"
-            >
+            <TabsTrigger key={item.value} value={item.value} className="h-11 shrink-0 gap-2 px-2.5 sm:gap-2.5 sm:px-4">
               {item.label}
-              <span className="tabular-nums text-muted-foreground">{items ? counts[item.value] : ""}</span>
+              <span className="numeral text-lead leading-none sm:text-head">{items ? counts[item.value] : ""}</span>
             </TabsTrigger>
           ))}
         </TabsList>
@@ -474,18 +467,19 @@ export function SentPage() {
       {query.isError && !items ? (
         <CalmError title="We couldn't load your emails" error={query.error} onRetry={() => void query.refetch()} />
       ) : !items ? (
-        <div className="space-y-3 rounded-xl border bg-card p-4" aria-busy="true" aria-label="Loading">
+        <div className="space-y-6 pt-6" aria-busy="true">
+          <span className="sr-only">Loading your emails</span>
           {Array.from({ length: 5 }, (_, i) => (
             <div key={i} className="flex items-center gap-6" aria-hidden="true">
-              <PlaceholderBar width="22%" height={12} />
-              <PlaceholderBar width="18%" height={12} />
-              <PlaceholderBar width="26%" height={12} />
-              <PlaceholderBar width="10%" height={12} />
+              <PlaceholderBar width="22%" />
+              <PlaceholderBar width="18%" />
+              <PlaceholderBar width="26%" />
+              <PlaceholderBar width="10%" />
             </div>
           ))}
         </div>
       ) : visible.length === 0 ? (
-        <div className="rounded-xl border bg-card">
+        <div>
           <EmptyState
             {...EMPTY[filter]}
             action={

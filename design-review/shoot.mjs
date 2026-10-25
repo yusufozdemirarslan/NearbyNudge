@@ -361,6 +361,46 @@ const FLOWS = {
       await p.getByRole("heading", { level: 1, name: "New campaign" }).waitFor()
     }],
   ],
+  sent: [
+    ["open on Approved", async (p) => {
+      await p.goto("/sent")
+      await p.getByRole("tab", { name: /Approved/, selected: true }).waitFor()
+      await visible(p, "[data-sent-id]")
+      if ((await p.locator("[data-sent-id]").count()) !== 2) throw new Error("expected 2 approved emails")
+    }],
+    ["mark as sent fills the meter", async (p) => {
+      await p.locator("[data-sent-id]").filter({ hasText: "Sample Duct Masters" }).getByRole("button", { name: "Mark as sent" }).click()
+      await sentToday(p, "8 of 20")
+      await gone(p, '[data-sent-id]:has-text("Sample Duct Masters")')
+    }],
+    ["undo puts it back", async (p) => {
+      await p.getByRole("button", { name: "Undo" }).click()
+      await sentToday(p, "7 of 20")
+      await visible(p, '[data-sent-id]:has-text("Sample Duct Masters")')
+    }],
+    ["the Sent tab filters through the address", async (p) => {
+      await p.getByRole("tab", { name: /^Sent/ }).click()
+      await p.waitForURL(/status=sent/)
+      await visible(p, '[data-sent-id]:has-text("Sample Bright Dental")')
+    }],
+    ["No thanks logs the reply and adds do not contact", async (p) => {
+      await p.locator("[data-sent-id]").filter({ hasText: "Sample Bright Dental" }).getByRole("button", { name: "No thanks" }).click()
+      await p.getByText("Sample Bright Dental: No thanks. Added to your do-not-contact list.").waitFor()
+    }],
+    ["the reply shows under Replied", async (p) => {
+      await p.getByRole("tab", { name: /Replied/ }).click()
+      await p.locator("[data-sent-id]").filter({ hasText: "Sample Bright Dental" }).filter({ hasText: "No thanks" }).waitFor()
+    }],
+    ["sort by business", async (p) => {
+      await p.getByRole("tab", { name: /All/ }).click()
+      await p.getByRole("button", { name: "Business" }).click()
+      await p.locator('th[aria-sort="ascending"]', { hasText: "Business" }).waitFor()
+    }],
+    ["a business opens on its review desk", async (p) => {
+      await p.getByRole("link", { name: "Sample Bright Dental" }).click()
+      await p.locator('[data-slot="lead-header"] h2', { hasText: "Sample Bright Dental" }).waitFor()
+    }],
+  ],
   desk: [
     ["open", async (p) => {
       await p.goto(CAMPAIGN)

@@ -152,6 +152,7 @@ This takes `--dur-file`. It is the only authored motion in the app.
 - Rules: buttons and toggles use 2px ink; fields, overlays and notices use 1px (1.5px renders unevenly at 1x).
 - **Do not contact** stays out of the main row: it lives in the desk's More menu (or Shift+D) and always asks first, with the confirm set in edge red.
 - Sizes: sm 32px, default 40px, lg 44px. Every touch target is at least 44px on phones.
+- The press nudge is `transform: translateY(1px)`, never the `translate` property, so a button placed with `-translate-y-1/2` doesn't jump out from under the pointer.
 
 ### Form controls
 
@@ -200,6 +201,7 @@ This takes `--dur-file`. It is the only authored motion in the app.
   - The kind shows as a drawn mark: a check (done), a dot (for your information), an edge-red asterisk (warning) or an edge-red cross (error); a three-dot leader while something runs.
 - **The footer slip (Onboarding and Settings):** the locked email footer, set at reading size (16/26) in a 2px ink frame with a drawn lock and "Locked" above it. It fills in as you type; empty lines show their placeholders in italic `ink-soft`. It is those pages' one bold element.
 - **Danger zone (Delete all data):** a notice with an edge-red 3px top rule, the confirm field and the edge-red destructive button. No pink wash.
+- **The ledger (Sent):** the status filters are a horizontal thumb index along the top of the table, each tab carrying its count in condensed numerals (24px on desktop, 18px on phones); the open filter is edge red. The table has no box. Logging a reply is a choice of underlined words, "Replied? Interested  No thanks  Other", not three more boxed buttons per row; only the approved rows carry real buttons. On phones each email is a white-pages entry with 44px buttons.
 - **Jump lists** (Settings sections): bold links in a row; the current one is underlined in edge red, like the masthead.
 - **The plan (New campaign):** a notice with a 3px ink top rule.
   - A small boxed "AI" tag, then "Claude's plan:" in bold and the restatement in italic quotes.

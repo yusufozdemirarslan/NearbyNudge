@@ -410,13 +410,13 @@ function CampaignHeader({
               ? (campaign.status_detail ?? "Finding businesses…")
               : running
                 ? eta
-                  ? `Researching, ${eta}.`
-                  : "Researching."
+                  ? `Researching, ${eta}`
+                  : "Researching"
                 : campaign.status === "paused"
                   ? "Research paused. It resumes automatically."
                   : campaign.status === "failed"
                     ? "This campaign stopped early."
-                    : "Research finished."}
+                    : "Research finished"}
           </p>
         </div>
       )}

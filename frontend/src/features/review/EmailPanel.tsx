@@ -468,7 +468,8 @@ function CouldntFinish({ lead, className }: { lead: Lead; className?: string }) 
 
 function LoadingEmail({ className }: { className?: string }) {
   return (
-    <div className={cn("space-y-5", className)} aria-busy="true" aria-label="Loading the lead">
+    <div className={cn("space-y-5", className)} aria-busy="true">
+      <span className="sr-only">Loading the lead</span>
       <div className="flex gap-3" aria-hidden="true">
         <PlaceholderBar width={72} />
         <PlaceholderBar width={190} />

@@ -4,12 +4,13 @@ import { cn } from "@/lib/utils"
 
 /*
  * Buttons, set like a directory: square, 2px ink rules, semibold labels.
- * Hover underlines the label; pressing nudges it down 1px; disabled turns the
+ * Hover underlines the label; pressing nudges it down 1px (with `transform`, so it
+ * adds to any `translate` used for placement); disabled turns the
  * rule dashed and the label soft. Every size keeps targets at or above
  * 24 × 24 px (WCAG 2.5.8); phone layouts use `lg` (44px).
  */
 const buttonVariants = cva(
-  "group/button relative inline-flex shrink-0 items-center justify-center gap-2 border-2 border-transparent text-ui font-semibold whitespace-nowrap decoration-2 underline-offset-[5px] outline-none select-none transition-[color,background-color,border-color,transform] duration-(--dur-fast) ease-out active:translate-y-px disabled:pointer-events-none disabled:border-dashed disabled:text-ink-soft aria-disabled:pointer-events-none aria-disabled:border-dashed aria-disabled:text-ink-soft aria-invalid:border-edge [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[18px]",
+  "group/button relative inline-flex shrink-0 items-center justify-center gap-2 border-2 border-transparent text-ui font-semibold whitespace-nowrap decoration-2 underline-offset-[5px] outline-none select-none transition-[color,background-color,border-color,transform] duration-(--dur-fast) ease-out active:[transform:translateY(1px)] disabled:pointer-events-none disabled:border-dashed disabled:text-ink-soft aria-disabled:pointer-events-none aria-disabled:border-dashed aria-disabled:text-ink-soft aria-invalid:border-edge [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[18px]",
   {
     variants: {
       variant: {
