@@ -1,20 +1,6 @@
 import * as React from "react"
 import { Link } from "@tanstack/react-router"
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  CircleMinusIcon,
-  CopyIcon,
-  ExternalLinkIcon,
-  LockIcon,
-  MailIcon,
-  MessageSquareIcon,
-  MoreHorizontalIcon,
-  RotateCwIcon,
-  SendIcon,
-  TriangleAlertIcon,
-  Undo2Icon,
-} from "lucide-react"
+import { ChevronDownIcon } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -25,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { EmailAddress } from "@/components/EmailAddress"
 import { KeyHint, keyLabel } from "@/components/KeyHint"
+import { Mark } from "@/components/Mark"
 import { Meter } from "@/components/Meter"
 import { SourceTag } from "@/components/SourceTag"
 import { isInProgress } from "@/components/StatusBadge"
@@ -97,7 +84,6 @@ export function ActionBar({ summary, lead, sending, controller, compact, align =
   const lastAction = lead?.last_action
   const undoButton = lastAction ? (
     <Button variant="ghost" size={compact ? "lg" : "sm"} onClick={c.undoLast} disabled={c.busy !== null}>
-      <Undo2Icon aria-hidden="true" />
       {LAST_ACTION_LABEL[lastAction.action] ?? "Undo"}
     </Button>
   ) : null
@@ -132,7 +118,6 @@ export function ActionBar({ summary, lead, sending, controller, compact, align =
             aria-keyshortcuts="A"
             className={cn(compact && "flex-1")}
           >
-            <CheckIcon aria-hidden="true" />
             {c.busy === "approve" ? "Approving…" : "Approve"}
             {!compact && <KeyHint keys="A" />}
           </Button>
@@ -145,11 +130,11 @@ export function ActionBar({ summary, lead, sending, controller, compact, align =
             className={cn(compact && "flex-1")}
           >
             Skip
-            {!compact && <KeyHint keys="S" className="text-muted-foreground" />}
+            {!compact && <KeyHint keys="S" />}
           </Button>
           <MoreMenu lead={lead} controller={c} compact={compact} />
           {!compact && (
-            <p className="ml-auto hidden text-meta text-muted-foreground xl:block">
+            <p className="ml-auto hidden aside xl:block">
               Approving opens the sending preview. Nothing is sent for you.
             </p>
           )}
@@ -159,25 +144,20 @@ export function ActionBar({ summary, lead, sending, controller, compact, align =
   } else if (status === "sent" || status === "replied") {
     body = (
       <div className="flex flex-wrap items-center gap-2">
-        <p className="mr-auto flex items-center gap-2 text-ui text-foreground">
-          {status === "sent" ? (
-            <SendIcon aria-hidden="true" className="size-4 text-foreground" />
-          ) : (
-            <MessageSquareIcon aria-hidden="true" className="size-4 text-info" />
-          )}
+        <p className="mr-auto flex items-center gap-2 text-ui font-semibold">
+          <Mark name={status === "sent" ? "envelope" : "reply"} className="size-3.5" />
           {status === "sent"
             ? `Sent ${lead?.sent_at ? formatDate(lead.sent_at) : ""}. Did they reply?`
             : `Replied: ${lead?.reply_outcome === "interested" ? "Interested" : lead?.reply_outcome === "no_thanks" ? "No thanks (now on do not contact)" : "Other reply"}`}
         </p>
         {status === "sent" && (
           <Button size={large} variant="outline" onClick={() => c.setPanel("replied")} disabled={c.busy !== null} aria-keyshortcuts="R">
-            <MessageSquareIcon aria-hidden="true" />
             Log a reply
-            {!compact && <KeyHint keys="R" className="text-muted-foreground" />}
+            {!compact && <KeyHint keys="R" />}
           </Button>
         )}
         <Button size={large} variant="ghost" onClick={c.copyEmail} disabled={!lead?.copy_text} aria-keyshortcuts="C">
-          {c.copied ? <CheckIcon aria-hidden="true" /> : <CopyIcon aria-hidden="true" />}
+          {c.copied && <Mark name="check" />}
           {c.copied ? "Copied" : "Copy email"}
         </Button>
         {undoButton}
@@ -186,7 +166,7 @@ export function ActionBar({ summary, lead, sending, controller, compact, align =
   } else if (status === "skipped" || status === "dnc") {
     body = (
       <div className="flex flex-wrap items-center gap-2">
-        <p className="mr-auto text-ui text-ink-secondary">
+        <p className="mr-auto text-ui">
           {status === "skipped"
             ? `Skipped${lead?.skip_reason ? `: ${lead.skip_reason}` : ""}. It won't be sent.`
             : "On your do-not-contact list. It won't be drafted again."}
@@ -198,12 +178,12 @@ export function ActionBar({ summary, lead, sending, controller, compact, align =
     // In progress or couldn't finish: only skipping or blocking makes sense.
     body = (
       <div className="flex flex-wrap items-center gap-2">
-        <p className="mr-auto text-ui text-ink-secondary">
+        <p className="mr-auto aside">
           {isInProgress(status) ? "Still being researched. You can skip it now if you know it isn't a fit." : "Retry the research above, or skip this business."}
         </p>
         <Button size={large} variant="outline" onClick={() => c.setPanel("skip")} disabled={c.busy !== null} aria-keyshortcuts="S">
           Skip
-          {!compact && <KeyHint keys="S" className="text-muted-foreground" />}
+          {!compact && <KeyHint keys="S" />}
         </Button>
         <MoreMenu lead={lead} controller={c} compact={compact} />
       </div>
@@ -214,15 +194,15 @@ export function ActionBar({ summary, lead, sending, controller, compact, align =
     <div
       data-slot="action-bar"
       className={cn(
-        "border-t bg-card",
-        compact ? "px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]" : "px-4 py-3 sm:px-6",
+        "border-t-2 border-ink bg-paper",
+        compact ? "px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]" : "px-4 py-3.5 sm:px-6 xl:px-8",
         className
       )}
     >
       <div className={cn("w-full space-y-2.5", align === "center" ? "mx-auto max-w-[46rem]" : "max-w-[48rem]")}>
         {c.error && (
-          <p role="alert" className="flex items-start gap-2 rounded-lg bg-warning-tint px-3 py-2 text-ui text-foreground">
-            <TriangleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" />
+          <p role="alert" className="flex items-start gap-2 text-ui font-semibold text-edge">
+            <Mark name="asterisk" className="mt-1" />
             {c.error}
           </p>
         )}
@@ -245,26 +225,18 @@ function MoreMenu({ lead, controller, compact }: { lead: Lead | undefined; contr
           />
         }
       >
-        <MoreHorizontalIcon aria-hidden="true" />
         More
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="top" className="w-60">
         <DropdownMenuItem variant="destructive" onClick={() => controller.setPanel("dnc")}>
-          <CircleMinusIcon aria-hidden="true" />
           Do not contact…
           <DropdownMenuShortcut>{keyLabel("shift+D")}</DropdownMenuShortcut>
         </DropdownMenuItem>
         {lead?.contact?.email && (
-          <DropdownMenuItem onClick={controller.copyAddress}>
-            <CopyIcon aria-hidden="true" />
-            Copy address
-          </DropdownMenuItem>
+          <DropdownMenuItem onClick={controller.copyAddress}>Copy address</DropdownMenuItem>
         )}
         {lead && (lead.status === "needs_review" || lead.status === "failed") && (
-          <DropdownMenuItem onClick={controller.retryResearch}>
-            <RotateCwIcon aria-hidden="true" />
-            Retry research
-          </DropdownMenuItem>
+          <DropdownMenuItem onClick={controller.retryResearch}>Retry research</DropdownMenuItem>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
@@ -293,18 +265,18 @@ function ApproveWarnings({
       role="group"
       aria-labelledby={titleId}
       data-slot="approve-warnings"
-      className="rounded-lg border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-warning-tint px-3 py-2.5"
+      className="border border-t-(length:--rule-heavy) border-ink border-t-edge px-4 py-3"
     >
-      <p id={titleId} className="flex items-center gap-2 text-ui font-semibold text-warning">
-        <TriangleAlertIcon aria-hidden="true" className="size-4" />
+      <p id={titleId} className="flex items-center gap-2 text-ui font-bold text-edge">
+        <Mark name="asterisk" />
         Before you approve
       </p>
-      <ul className="mt-1 list-disc space-y-0.5 pl-6 text-ui text-foreground">
+      <ul className="mt-1 list-disc space-y-0.5 pl-6 text-ui">
         {warnings.map((warning) => (
           <li key={warning}>{warning}</li>
         ))}
       </ul>
-      <div className="mt-2.5 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
         <Button size="sm" onClick={onApprove} disabled={busy}>
           {busy ? "Approving…" : "Approve anyway"}
         </Button>
@@ -324,12 +296,12 @@ function DncConfirm({ name, busy, onConfirm, onCancel }: { name: string; busy: b
   return (
     <div role="group" aria-labelledby={titleId} data-slot="dnc-confirm" className="space-y-2.5">
       <div>
-        <p id={titleId} className="text-ui font-semibold text-foreground">
+        <p id={titleId} className="text-ui font-bold text-edge">
           Never contact {name}?
         </p>
-        <p className="text-ui text-ink-secondary">
+        <p className="text-ui">
           They go on your do-not-contact list and won't be drafted in any campaign. You can remove them later from{" "}
-          <Link to="/dnc" className="font-medium text-primary hover:underline">
+          <Link to="/dnc" className="font-semibold underline underline-offset-[3px] hover:text-edge">
             Do not contact
           </Link>
           .
@@ -337,7 +309,6 @@ function DncConfirm({ name, busy, onConfirm, onCancel }: { name: string; busy: b
       </div>
       <div className="flex flex-wrap gap-2">
         <Button ref={buttonRef} variant="destructive" onClick={onConfirm} disabled={busy}>
-          <CircleMinusIcon aria-hidden="true" />
           {busy ? "Adding…" : `Never contact ${name}`}
         </Button>
         <Button variant="ghost" onClick={onCancel} disabled={busy}>
@@ -363,7 +334,7 @@ function ReplyChooser({ busy, onChoose, onCancel }: { busy: boolean; onChoose: (
   )
   return (
     <div role="group" aria-labelledby={titleId} className="flex flex-wrap items-center gap-1.5" data-slot="reply-chooser">
-      <span id={titleId} className="mr-1 text-ui font-medium text-foreground">
+      <span id={titleId} className="mr-1 text-ui font-bold">
         How did they reply?
       </span>
       <Button ref={firstRef} size="sm" variant="outline" onClick={() => onChoose("interested")} disabled={busy} aria-keyshortcuts="1">
@@ -381,7 +352,7 @@ function ReplyChooser({ busy, onChoose, onCancel }: { busy: boolean; onChoose: (
       <Button size="sm" variant="ghost" onClick={onCancel} disabled={busy}>
         Cancel
       </Button>
-      <p className="w-full text-meta text-muted-foreground">"No thanks" also adds them to your do-not-contact list.</p>
+      <p className="w-full aside">"No thanks" also adds them to your do-not-contact list.</p>
     </div>
   )
 }
@@ -412,9 +383,8 @@ function SendingPreview({
 
   const openLabel = (
     <>
-      <MailIcon aria-hidden="true" />
       Open in my email app
-      {!compact && <KeyHint keys="O" className={c.webmail ? "text-muted-foreground" : undefined} />}
+      {!compact && <KeyHint keys="O" />}
     </>
   )
   // A real link (mailto:) so it reads as one; at the daily cap it becomes a disabled button.
@@ -444,7 +414,6 @@ function SendingPreview({
       onClick={c.noteOpened}
       className={cn(buttonVariants({ variant: "outline", size }), compact && "flex-1")}
     >
-      <ExternalLinkIcon aria-hidden="true" />
       Open contact form
       <span className="sr-only"> (opens in a new tab)</span>
     </a>
@@ -458,11 +427,11 @@ function SendingPreview({
         onClick={c.copyEmail}
         disabled={atCap || !lead.copy_text}
         aria-keyshortcuts="C"
-        className={cn("rounded-r-none", compact && "flex-1")}
+        className={cn(compact && "flex-1")}
       >
-        {c.copied ? <CheckIcon aria-hidden="true" /> : <CopyIcon aria-hidden="true" />}
+        {c.copied && <Mark name="check" />}
         {c.copied ? "Copied" : "Copy email"}
-        {!compact && <KeyHint keys="C" className={c.webmail || !lead.mailto_url ? undefined : "text-muted-foreground"} />}
+        {!compact && <KeyHint keys="C" />}
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -472,17 +441,14 @@ function SendingPreview({
               variant={c.webmail || !lead.mailto_url ? "default" : "outline"}
               aria-label="More copy options"
               disabled={atCap || !contact?.email}
-              className="rounded-l-none border-l-[color-mix(in_srgb,currentColor_25%,transparent)]"
+              className="-ml-0.5"
             />
           }
         >
           <ChevronDownIcon aria-hidden="true" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem onClick={c.copyAddress}>
-            <CopyIcon aria-hidden="true" />
-            Copy only the address
-          </DropdownMenuItem>
+          <DropdownMenuItem onClick={c.copyAddress}>Copy only the address</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -498,9 +464,8 @@ function SendingPreview({
       aria-keyshortcuts="M"
       className={cn(compact && "flex-1")}
     >
-      <SendIcon aria-hidden="true" />
       {c.busy === "sent" ? "Marking…" : "Mark as sent"}
-      {!compact && <KeyHint keys="M" className={c.sentPrompt ? undefined : "text-muted-foreground"} />}
+      {!compact && <KeyHint keys="M" />}
     </Button>
   )
 
@@ -508,18 +473,17 @@ function SendingPreview({
 
   return (
     <section aria-labelledby="sending-preview-title" data-slot="sending-preview" className="space-y-3">
-      <p id="sending-preview-title" className="flex items-start gap-2 text-ui text-foreground">
-        <CheckIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-success" />
+      <p id="sending-preview-title" className="flex items-start gap-2 text-ui">
+        <Mark name="check" className="mt-1 size-3.5" />
         <span>
-          <span className="font-semibold text-success">Approved.</span> NearbyNudge doesn't send; use your own email
-          account.
+          <span className="font-bold">Approved.</span> NearbyNudge doesn't send; use your own email account.
         </span>
       </p>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-ui">
-        <span className="w-6 text-muted-foreground">To</span>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1.5 text-ui">
+        <span className="w-6 aside">To</span>
         {contact?.kind === "email" && contact.email ? (
           <>
-            <span className="font-medium text-foreground" data-slot="send-to">
+            <span className="font-bold" data-slot="send-to">
               <EmailAddress email={contact.email} />
             </span>
             {contact.source_kind === "listing" ? (
@@ -529,24 +493,24 @@ function SendingPreview({
             ) : null}
           </>
         ) : formOnly ? (
-          <span className="text-ink-secondary">Their contact form. Paste the email there.</span>
+          <span>Their contact form. Paste the email there.</span>
         ) : (
-          <span className="text-ink-secondary">No published address. Copy the email if you reach them another way.</span>
+          <span>No published address. Copy the email if you reach them another way.</span>
         )}
       </div>
       {c.sentPrompt && !atCap && (
-        <p role="status" className="rounded-lg bg-accent px-3 py-2 text-ui font-medium text-foreground">
+        <p role="status" className="border border-ink px-3 py-2 text-ui font-bold">
           Sent it? Mark as sent <KeyHint keys="M" className="ml-0.5" />
         </p>
       )}
       {atCap && sending && (
-        <p role="status" className="flex items-start gap-2 rounded-lg bg-warning-tint px-3 py-2 text-ui text-foreground">
-          <LockIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" />
+        <p role="status" className="flex items-start gap-2 border border-t-(length:--rule-heavy) border-ink border-t-edge px-3 py-2 text-ui">
+          <Mark name="barred" className="mt-1 text-edge" />
           You've marked {sending.daily_cap} emails as sent today, the daily limit. Sending unlocks at midnight (
           {formatTime(sending.resets_at)}).
         </p>
       )}
-      <div className={cn("flex flex-wrap items-center gap-2", compact && "flex-nowrap")}>{buttons}</div>
+      <div className={cn(compact ? "grid grid-cols-2 gap-2 [&>*:first-child]:col-span-2" : "flex flex-wrap items-center gap-2")}>{buttons}</div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {sending && (
           <Meter
@@ -559,13 +523,12 @@ function SendingPreview({
           />
         )}
         {!noContact && (
-          <Button variant="link" size="xs" className="h-auto px-0 text-meta" onClick={c.toggleWebmail}>
+          <Button variant="link" size="xs" className="h-auto px-0 text-meta font-normal" onClick={c.toggleWebmail}>
             {c.webmail ? "Use an email app? Make Open the main button" : "Use Gmail or Outlook in the browser? Make Copy the main button"}
           </Button>
         )}
         {lead.last_action?.action === "approve" && (
           <Button variant="ghost" size="sm" className="ml-auto" onClick={c.undoLast} disabled={c.busy !== null}>
-            <Undo2Icon aria-hidden="true" />
             Undo approval
           </Button>
         )}

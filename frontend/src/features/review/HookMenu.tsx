@@ -19,12 +19,12 @@ export interface HookMenuProps {
 
 function Evidence({ hook, facts }: { hook: Hook; facts: Fact[] }) {
   const cited = hook.fact_ids.map((id) => facts.find((fact) => fact.id === id)).filter((f): f is Fact => Boolean(f))
-  if (cited.length === 0) return <p className="text-meta text-muted-foreground">No saved evidence for this hook.</p>
+  if (cited.length === 0) return <p className="aside">No saved evidence for this hook.</p>
   return (
     <ul className="space-y-1.5">
       {cited.map((fact) => (
         <li key={fact.id} className="space-y-1">
-          <p className="text-ui text-foreground">{fact.text}</p>
+          <p className="text-ui">{fact.text}</p>
           {fact.source_kind === "listing" ? (
             <SourceTag kind="listing" label={fact.source_label} />
           ) : (
@@ -54,28 +54,28 @@ export function HookMenu({ hook, alternatives, facts, onUse, lockedReason, class
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         render={
-          <Button variant="outline" size="xs" className={cn("max-w-full gap-1.5 font-normal", className)} />
+          <Button variant="outline" size="xs" className={cn("h-7 max-w-full gap-1.5 font-normal", className)} />
         }
       >
-        <span className="text-muted-foreground">Hook:</span>
-        <span className="truncate font-medium text-foreground">{hook.title}</span>
-        {alternatives.length > 0 && <span className="text-muted-foreground">(+{alternatives.length} more)</span>}
+        <span className="italic">Hook:</span>
+        <span className="truncate font-bold">{hook.title}</span>
+        {alternatives.length > 0 && <span className="italic">(+{alternatives.length} more)</span>}
         <ChevronDownIcon aria-hidden="true" />
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[24rem] max-w-[calc(100vw-2rem)] gap-0 p-0">
-        <div className="space-y-2 border-b p-4">
-          <PopoverTitle className="text-meta font-medium text-muted-foreground">Chosen hook</PopoverTitle>
-          <p className="text-ui font-semibold text-foreground">{hook.title}</p>
-          <p className="text-ui text-ink-secondary">{hook.reason}</p>
+      <PopoverContent align="start" className="w-96 max-w-[calc(100vw-2rem)] gap-0 p-0">
+        <div className="space-y-2 border-b-2 border-ink p-4">
+          <PopoverTitle className="aside font-normal">Chosen hook</PopoverTitle>
+          <p className="text-lead font-extrabold stretch-condensed">{hook.title}</p>
+          <p className="text-ui">{hook.reason}</p>
           <Evidence hook={hook} facts={facts} />
         </div>
         {alternatives.length > 0 && (
-          <div className="max-h-[22rem] space-y-0 overflow-y-auto">
-            <p className="px-4 pt-3 text-meta font-medium text-muted-foreground">Other hooks</p>
+          <div className="max-h-88 space-y-0 overflow-y-auto">
+            <p className="px-4 pt-3 aside">Other hooks</p>
             {alternatives.map((alt) => (
-              <div key={alt.id} className="space-y-2 border-b px-4 py-3 last:border-b-0">
+              <div key={alt.id} className="space-y-2 border-b border-hairline px-4 py-3 last:border-b-0">
                 <div className="flex items-start justify-between gap-3">
-                  <p className="text-ui font-semibold text-foreground">{alt.title}</p>
+                  <p className="text-ui font-bold">{alt.title}</p>
                   <Button
                     size="xs"
                     variant="outline"
@@ -88,13 +88,13 @@ export function HookMenu({ hook, alternatives, facts, onUse, lockedReason, class
                     Use this hook
                   </Button>
                 </div>
-                <p className="text-ui text-ink-secondary">{alt.reason}</p>
+                <p className="text-ui">{alt.reason}</p>
                 <Evidence hook={alt} facts={facts} />
               </div>
             ))}
           </div>
         )}
-        {lockedReason && <p className="border-t px-4 py-2.5 text-meta text-muted-foreground">{lockedReason}</p>}
+        {lockedReason && <p className="border-t border-hairline px-4 py-2.5 aside">{lockedReason}</p>}
       </PopoverContent>
     </Popover>
   )

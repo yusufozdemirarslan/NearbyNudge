@@ -55,7 +55,7 @@ export function SkipReasons({ title = "Why skip?", onChoose, onCancel, busy, com
     >
       <span
         id={titleId}
-        className={cn("font-medium text-foreground", compact ? "mr-1 text-meta" : "w-full pb-0.5 text-ui")}
+        className={cn("font-bold", compact ? "mr-1 text-meta" : "w-full pb-0.5 text-ui")}
       >
         {title}
       </span>
@@ -74,7 +74,7 @@ export function SkipReasons({ title = "Why skip?", onChoose, onCancel, busy, com
             placeholder="Reason"
             aria-label="Other reason for skipping"
             maxLength={120}
-            className={cn("min-w-0 flex-1", compact ? "h-7" : "h-8")}
+            className={cn("min-w-0 flex-1", compact ? "h-7" : "h-9")}
           />
           <Button type="submit" size={size} disabled={!text.trim() || busy}>
             Skip

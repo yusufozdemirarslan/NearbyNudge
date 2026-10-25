@@ -40,19 +40,19 @@ export function ChangesView({ snapshot, onApply, busy }: ChangesViewProps) {
   }
 
   return (
-    <div className="rounded-xl border bg-card" data-slot="changes-view" aria-busy={busy}>
-      <p className="border-b px-5 py-3 text-meta text-ink-secondary sm:px-6">
+    <div className="border-t-(length:--rule-heavy) border-ink" data-slot="changes-view" aria-busy={busy}>
+      <p className="border-b border-hairline py-3 aside">
         {total === 0
           ? "The rewrite didn't change any words."
           : `${total} ${total === 1 ? "change" : "changes"}. Removed words are struck through, new words are underlined. Select a change to revert it; select it again to keep the new words.`}
       </p>
-      <div className="flex items-baseline gap-3 border-b px-5 py-3.5 sm:px-6">
-        <span className="shrink-0 text-meta font-medium text-muted-foreground">Subject</span>
-        <span className="min-w-0 text-email font-semibold whitespace-pre-wrap">
+      <div className="flex items-baseline gap-3 border-b border-hairline py-3.5">
+        <span className="shrink-0 aside">Subject</span>
+        <span className="min-w-0 text-lead font-bold whitespace-pre-wrap">
           <Hunks hunks={subjectHunks} prefix="subject" reverted={reverted} onToggle={toggle} busy={busy} />
         </span>
       </div>
-      <div className="max-w-[68ch] px-5 py-5 text-email whitespace-pre-wrap sm:px-6">
+      <div className="max-w-measure py-5 text-body whitespace-pre-wrap">
         <Hunks hunks={bodyHunks} prefix="body" reverted={reverted} onToggle={toggle} busy={busy} />
       </div>
       <LockedFooter footer={snapshot.after.footer} />
@@ -97,17 +97,15 @@ function Hunks({
             onClick={() => onToggle(key)}
             data-change={number}
             className={cn(
-              "group/change mx-px inline rounded-sm px-0.5 text-left align-baseline transition-colors duration-150 [box-decoration-break:clone] hover:bg-muted disabled:opacity-60",
-              isReverted && "bg-muted"
+              "group/change mx-px inline px-0.5 text-left align-baseline transition-colors duration-(--dur-fast) [box-decoration-break:clone] hover:bg-tint disabled:text-ink-soft",
+              isReverted && "bg-tint"
             )}
           >
             {removed && (
               <del
                 className={cn(
                   "decoration-[1.5px]",
-                  isReverted
-                    ? "text-foreground no-underline"
-                    : "bg-danger-tint text-ink-secondary line-through decoration-destructive"
+                  isReverted ? "no-underline" : "line-through decoration-edge"
                 )}
               >
                 {removed}
@@ -118,9 +116,7 @@ function Hunks({
               <ins
                 className={cn(
                   "decoration-2 underline-offset-[5px]",
-                  isReverted
-                    ? "text-muted-foreground line-through decoration-muted-foreground"
-                    : "bg-success-tint text-foreground underline decoration-success"
+                  isReverted ? "text-ink-soft line-through decoration-ink-soft" : "font-semibold underline decoration-ink"
                 )}
               >
                 {added}
@@ -128,7 +124,7 @@ function Hunks({
             )}
             <span
               aria-hidden="true"
-              className="relative -top-px ml-1 inline-flex size-5 items-center justify-center rounded-sm border bg-card align-middle text-ink-secondary group-hover/change:border-primary group-hover/change:text-primary"
+              className="relative -top-px ml-1 inline-flex size-5 items-center justify-center border border-ink bg-paper align-middle group-hover/change:bg-ink group-hover/change:text-paper"
             >
               {isReverted ? <CheckIcon className="size-3.5" /> : <Undo2Icon className="size-3.5" />}
             </span>

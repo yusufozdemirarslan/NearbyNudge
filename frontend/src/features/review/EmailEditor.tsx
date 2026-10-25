@@ -54,28 +54,28 @@ export function EmailEditor({ email, draft, onDraftChange, onSave, onCancel, bus
 
   return (
     <form
-      className="rounded-xl border bg-card"
+      className="border-t-(length:--rule-heavy) border-ink"
       data-slot="email-editor"
       onSubmit={(event) => {
         event.preventDefault()
         save()
       }}
     >
-      <div className="space-y-1.5 border-b px-5 py-4 sm:px-6">
-        <label htmlFor={subjectId} className="text-meta font-medium text-muted-foreground">
+      <div className="space-y-1.5 border-b border-hairline py-4">
+        <label htmlFor={subjectId} className="aside">
           Subject
         </label>
         <Input
           id={subjectId}
           value={subject}
           onChange={(event) => setSubject(event.target.value)}
-          className="h-10 text-email font-semibold"
+          className="h-11 text-lead font-bold"
           aria-describedby={`${subjectId}-count`}
         />
         <SubjectCounter id={`${subjectId}-count`} words={countWords(subject)} />
       </div>
-      <div className="space-y-1.5 px-5 py-4 sm:px-6">
-        <label htmlFor={bodyId} className="text-meta font-medium text-muted-foreground">
+      <div className="space-y-1.5 py-4">
+        <label htmlFor={bodyId} className="aside">
           Email
         </label>
         <Textarea
@@ -83,11 +83,11 @@ export function EmailEditor({ email, draft, onDraftChange, onSave, onCancel, bus
           ref={bodyRef}
           value={body}
           onChange={(event) => setBody(event.target.value)}
-          className="min-h-[22rem] max-w-[68ch] text-email leading-[25px]"
+          className="min-h-88 max-w-measure text-body"
           aria-describedby={`${bodyId}-help ${bodyId}-count`}
           spellCheck
         />
-        <p id={`${bodyId}-help`} className="text-meta text-muted-foreground">
+        <p id={`${bodyId}-help`} className="aside">
           Greeting, a blank line, your paragraphs separated by blank lines, a blank line, then the signoff. Sentences
           you change are checked again.
         </p>
@@ -95,11 +95,11 @@ export function EmailEditor({ email, draft, onDraftChange, onSave, onCancel, bus
       </div>
       <LockedFooter footer={email.footer} />
       {error && (
-        <p role="alert" className="mx-5 mb-3 rounded-lg bg-warning-tint px-3 py-2 text-ui text-foreground sm:mx-6">
+        <p role="alert" className="mb-3 text-ui font-semibold text-edge">
           {error}
         </p>
       )}
-      <div className="flex flex-wrap items-center gap-2 border-t px-5 py-3 sm:px-6">
+      <div className="flex flex-wrap items-center gap-2 border-t border-hairline py-3">
         <Button type="submit" disabled={busy || !subject.trim() || !body.trim()} aria-keyshortcuts="Control+Enter Meta+Enter">
           {busy ? "Saving…" : "Save"}
           <KeyHint keys="mod+Enter" />

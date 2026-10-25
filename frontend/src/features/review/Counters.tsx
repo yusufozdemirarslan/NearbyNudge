@@ -1,4 +1,4 @@
-import { TriangleAlertIcon } from "lucide-react"
+import { Mark } from "@/components/Mark"
 import { BODY_MAX_WORDS, BODY_MIN_WORDS, SUBJECT_MAX_WORDS } from "@/lib/email"
 import { cn } from "@/lib/utils"
 
@@ -8,8 +8,8 @@ const base = "inline-flex items-center gap-1.5 text-meta tabular-nums"
 export function SubjectCounter({ words, id, className }: { words: number; id?: string; className?: string }) {
   const over = words - SUBJECT_MAX_WORDS
   return (
-    <span id={id} data-slot="subject-counter" className={cn(base, over > 0 ? "font-medium text-warning" : "text-muted-foreground", className)}>
-      {over > 0 && <TriangleAlertIcon aria-hidden="true" className="size-3.5" />}
+    <span id={id} data-slot="subject-counter" className={cn(base, over > 0 ? "font-bold text-edge" : "italic", className)}>
+      {over > 0 && <Mark name="asterisk" />}
       {over > 0
         ? `Subject: ${words} words, ${over} over (max ${SUBJECT_MAX_WORDS})`
         : `Subject: ${words} ${words === 1 ? "word" : "words"} (max ${SUBJECT_MAX_WORDS})`}
@@ -24,8 +24,8 @@ export function BodyCounter({ words, id, className }: { words: number; id?: stri
   const off = over > 0 || under > 0
   const range = `aim for ${BODY_MIN_WORDS}–${BODY_MAX_WORDS}`
   return (
-    <span id={id} data-slot="body-counter" className={cn(base, off ? "font-medium text-warning" : "text-muted-foreground", className)}>
-      {off && <TriangleAlertIcon aria-hidden="true" className="size-3.5" />}
+    <span id={id} data-slot="body-counter" className={cn(base, off ? "font-bold text-edge" : "italic", className)}>
+      {off && <Mark name="asterisk" />}
       {over > 0 ? `${words} words, ${over} over (${range})` : under > 0 ? `${words} words, ${under} under (${range})` : `${words} words, ${range}`}
     </span>
   )

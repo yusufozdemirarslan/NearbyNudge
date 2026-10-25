@@ -1,18 +1,11 @@
 import * as React from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import {
-  CheckIcon,
-  CircleAlertIcon,
-  CircleDashedIcon,
-  PencilLineIcon,
-  RotateCwIcon,
-  TriangleAlertIcon,
-} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { AiDraftLabel } from "@/components/AiDraftLabel"
 import { CalmError } from "@/components/CalmError"
 import { KeyHint } from "@/components/KeyHint"
+import { Mark } from "@/components/Mark"
 import { PlaceholderBar } from "@/components/PlaceholderBar"
 import { isInProgress } from "@/components/StatusBadge"
 import { api } from "@/lib/api"
@@ -152,7 +145,7 @@ export function EmailPanel({
   }
 
   return (
-    <div className={cn("space-y-4", className)} data-slot="email-panel">
+    <div className={cn("space-y-5", className)} data-slot="email-panel">
       {lead.status === "needs_review" && (
         <NeedsReviewBanner
           lead={lead}
@@ -190,16 +183,13 @@ export function EmailPanel({
       </div>
 
       {pending && (
-        <div role="status" className="flex items-center gap-2.5 rounded-lg border border-[color-mix(in_srgb,var(--primary)_35%,transparent)] bg-accent px-3 py-2 text-ui">
-          <Spinner className="size-4 text-primary motion-reduce:animate-none" aria-hidden="true" />
+        <div role="status" className="flex items-center gap-3 border border-ink px-3 py-2 text-ui">
+          <Spinner aria-hidden="true" />
           <span>
-            Rewriting: <span className="font-medium">{pending.label}</span>
-          </span>
-          <span aria-hidden="true" className="text-muted-foreground">
-            ·
+            Rewriting: <span className="font-bold">{pending.label}</span>
           </span>
           {pending.controller && (
-            <Button variant="link" size="xs" className="h-auto" onClick={() => actions.cancel(lead.id)}>
+            <Button variant="link" size="xs" className="ml-auto h-auto" onClick={() => actions.cancel(lead.id)}>
               Cancel
             </Button>
           )}
@@ -207,8 +197,8 @@ export function EmailPanel({
       )}
 
       {error && (
-        <div role="alert" className="flex items-start gap-2 rounded-lg bg-warning-tint px-3 py-2 text-ui text-foreground">
-          <TriangleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" />
+        <div role="alert" className="flex items-start gap-2 border border-t-(length:--rule-heavy) border-ink border-t-edge px-3 py-2 text-ui">
+          <Mark name="asterisk" className="mt-1 text-edge" />
           <span>{error}</span>
         </div>
       )}
@@ -242,7 +232,7 @@ export function EmailPanel({
           }
         />
       ) : (
-        <EmailBody email={email} facts={lead.facts} numbers={numbers} className={cn(pending && "opacity-90")} />
+        <EmailBody email={email} facts={lead.facts} numbers={numbers} className={cn(pending && "opacity-70")} />
       )}
 
       {mode !== "edit" && (
@@ -254,7 +244,7 @@ export function EmailPanel({
 
       {mode !== "edit" && (
         <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Rewrite the email">
-          <span className="mr-1 text-meta font-medium text-muted-foreground">Rewrite</span>
+          <span className="mr-1 aside">Rewrite</span>
           {REWRITE_KEYS.map((item) => (
             <Button
               key={item.mode}
@@ -265,7 +255,7 @@ export function EmailPanel({
               onClick={() => void doRewrite(item.mode)}
             >
               {item.label}
-              <KeyHint keys={item.key} className="text-muted-foreground" />
+              <KeyHint keys={item.key} />
             </Button>
           ))}
           <Button
@@ -275,11 +265,10 @@ export function EmailPanel({
             aria-keyshortcuts="E"
             onClick={() => onModeChange("edit")}
           >
-            <PencilLineIcon aria-hidden="true" />
             Edit
-            <KeyHint keys="E" className="text-muted-foreground" />
+            <KeyHint keys="E" />
           </Button>
-          {lockedReason && <p className="w-full pt-1 text-meta text-muted-foreground">{lockedReason}</p>}
+          {lockedReason && <p className="w-full pt-1 aside">{lockedReason}</p>}
         </div>
       )}
 
@@ -311,9 +300,9 @@ function VersionLine({
       ? `another hook${detail.includes(":") ? ` (${detail.split(":")[1].trim()})` : ""}`
       : (REWRITE_LABEL[detail as RewriteMode] ?? detail)
     return (
-      <div className="ml-auto flex flex-wrap items-center gap-1.5 text-meta text-ink-secondary">
-        <span>
-          Rewritten: <span className="font-medium text-foreground">{label}</span>
+      <div className="ml-auto flex flex-wrap items-center gap-1.5 text-meta">
+        <span className="italic">
+          Rewritten: <span className="font-bold not-italic">{label}</span>
         </span>
         <Button variant="outline" size="xs" aria-pressed={showingChanges} onClick={onToggleChanges} disabled={busy}>
           {showingChanges ? "Hide changes" : "Show changes"}
@@ -327,9 +316,9 @@ function VersionLine({
     )
   }
   if (email.origin === "edit")
-    return <span className="ml-auto text-meta text-muted-foreground">Edited by you</span>
+    return <span className="ml-auto aside">Edited by you</span>
   if (email.origin === "restore")
-    return <span className="ml-auto text-meta text-muted-foreground">Restored an earlier version</span>
+    return <span className="ml-auto aside">Restored an earlier version</span>
   return null
 }
 
@@ -345,27 +334,24 @@ function NeedsReviewBanner({
   const failed = lead.editor?.checks.filter((check) => !check.passed) ?? []
   const message = lead.editor?.notes ?? lead.warnings[0] ?? "A check didn't pass. Look over the flagged sentences before approving."
   return (
-    <div
-      data-slot="needs-review"
-      className="rounded-xl border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-warning-tint px-4 py-3"
-    >
-      <p className="flex items-center gap-2 text-ui font-semibold text-warning">
-        <TriangleAlertIcon aria-hidden="true" className="size-4" />
+    <div data-slot="needs-review" className="border border-t-(length:--rule-heavy) border-ink border-t-edge px-4 py-3">
+      <p className="flex items-center gap-2 text-ui font-bold text-edge">
+        <Mark name="asterisk" />
         Needs review{failed.length > 0 ? `: ${failed.map((check) => check.label.toLowerCase()).join(", ")}` : ""}
       </p>
-      <p className="mt-1 text-ui text-foreground">{message}</p>
+      <p className="mt-1 text-ui">{message}</p>
       {(onEdit || onAnotherHook) && (
-        <div className="mt-2.5 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           {onEdit && (
             <Button size="sm" variant="outline" onClick={onEdit} aria-keyshortcuts="E">
               Edit the email
-              <KeyHint keys="E" className="text-muted-foreground" />
+              <KeyHint keys="E" />
             </Button>
           )}
           {onAnotherHook && (
             <Button size="sm" variant="outline" onClick={onAnotherHook} aria-keyshortcuts="4">
               Try another hook
-              <KeyHint keys="4" className="text-muted-foreground" />
+              <KeyHint keys="4" />
             </Button>
           )}
         </div>
@@ -384,12 +370,12 @@ const STEPS = [
 function ResearchProgress({ lead, className }: { lead: Lead; className?: string }) {
   const current = STEPS.findIndex((step) => step.status === lead.status)
   return (
-    <div className={cn("space-y-4", className)}>
-      <div className="rounded-xl border bg-card p-5">
-        <p className="text-ui font-semibold text-foreground">
+    <div className={cn("space-y-6", className)}>
+      <div className="border border-ink p-5">
+        <p className="text-lead font-extrabold stretch-condensed">
           {lead.status === "queued" ? "Waiting for a research slot" : `Researching ${lead.name}`}
         </p>
-        <p className="mt-1 text-ui text-ink-secondary">
+        <p className="mt-1 text-ui">
           {lead.status === "queued"
             ? "It starts as soon as one of the leads ahead of it finishes. You can review other leads meanwhile."
             : "A draft usually takes about two minutes. You can review other leads meanwhile."}
@@ -400,34 +386,34 @@ function ResearchProgress({ lead, className }: { lead: Lead; className?: string 
             const active = current === index
             return (
               <li key={step.status} className="flex items-center gap-2.5 text-ui">
-                {done ? (
-                  <CheckIcon aria-hidden="true" className="size-4 text-success" />
-                ) : active ? (
-                  <span aria-hidden="true" className="flex size-4 items-center justify-center">
-                    <span className="size-2 rounded-full bg-primary" />
-                  </span>
-                ) : (
-                  <CircleDashedIcon aria-hidden="true" className="size-4 text-muted-foreground" />
-                )}
-                <span className={cn(done ? "text-ink-secondary" : active ? "font-medium text-foreground" : "text-muted-foreground")}>
-                  {step.label}
-                </span>
+                <Mark
+                  name={done ? "check" : active ? "dot" : "ring"}
+                  className={cn("size-3.5", active && "animate-working motion-reduce:animate-none")}
+                />
+                <span className={cn(done ? "line-through decoration-1" : active ? "font-bold" : "italic")}>{step.label}</span>
                 <span className="sr-only">{done ? "(done)" : active ? "(in progress)" : "(not started)"}</span>
               </li>
             )
           })}
         </ol>
       </div>
-      <div aria-hidden="true" className="rounded-xl border bg-card">
-        <div className="flex items-center gap-3 border-b px-6 py-4">
-          <PlaceholderBar width={52} height={10} />
-          <PlaceholderBar width="45%" height={14} />
-        </div>
-        <div className="space-y-3 px-6 py-5">
-          {[38, 92, 88, 64, 0, 95, 80, 0, 72, 30].map((width, i) =>
-            width === 0 ? <div key={i} className="h-2" /> : <PlaceholderBar key={i} width={`${width}%`} height={12} className="block" />
-          )}
-        </div>
+      <UnfilledLetter widths={[38, 92, 88, 64, 0, 95, 80, 0, 72, 30]} />
+    </div>
+  )
+}
+
+/** The letter's lines before it is written: dotted leaders, like an unfilled directory entry. */
+function UnfilledLetter({ widths }: { widths: number[] }) {
+  return (
+    <div aria-hidden="true" className="border-t-(length:--rule-heavy) border-ink">
+      <div className="flex items-center gap-3 border-b border-hairline py-4">
+        <PlaceholderBar width={52} />
+        <PlaceholderBar width="45%" />
+      </div>
+      <div className="max-w-measure space-y-4 pt-5">
+        {widths.map((width, i) =>
+          width === 0 ? <div key={i} className="h-2" /> : <PlaceholderBar key={i} width={`${width}%`} className="block" />
+        )}
       </div>
     </div>
   )
@@ -449,32 +435,31 @@ function CouldntFinish({ lead, className }: { lead: Lead; className?: string }) 
     }
   }
   return (
-    <div className={cn("rounded-xl border bg-card p-5", className)} data-slot="couldnt-finish">
-      <p className="flex items-center gap-2 text-ui font-semibold text-foreground">
-        <CircleAlertIcon aria-hidden="true" className="size-4 text-ink-secondary" />
+    <div className={cn("border border-t-(length:--rule-heavy) border-ink border-t-edge p-5", className)} data-slot="couldnt-finish">
+      <p className="flex items-center gap-2 text-lead font-extrabold stretch-condensed">
+        <Mark name="cross" className="size-3.5" />
         Couldn't finish: {lead.error ?? "research stopped"}
       </p>
-      <p className="mt-1.5 text-ui text-ink-secondary">
+      <p className="mt-1.5 text-ui">
         {/site/iu.test(lead.error ?? "")
           ? "The site didn't respond, blocked our reader, or had no readable text."
           : "Research stopped before a draft was ready."}{" "}
         This lead doesn't count toward your monthly leads.
       </p>
       {error && (
-        <p role="alert" className="mt-3 rounded-lg bg-warning-tint px-3 py-2 text-ui">
+        <p role="alert" className="mt-3 text-ui font-semibold text-edge">
           {error}
         </p>
       )}
       <div className="mt-4 flex flex-wrap gap-2">
         <Button size="sm" onClick={() => void retry("retry")} disabled={busy !== null || !lead.can_retry}>
-          <RotateCwIcon aria-hidden="true" />
           {busy === "retry" ? "Retrying…" : "Retry"}
         </Button>
         <Button size="sm" variant="outline" onClick={() => void retry("without_site")} disabled={busy !== null}>
           {busy === "without_site" ? "Starting…" : "Review without site facts"}
         </Button>
       </div>
-      <p className="mt-2 text-meta text-muted-foreground">
+      <p className="mt-3 aside">
         Without site facts, the draft uses only the business listing, so it will say less.
       </p>
     </div>
@@ -483,22 +468,12 @@ function CouldntFinish({ lead, className }: { lead: Lead; className?: string }) 
 
 function LoadingEmail({ className }: { className?: string }) {
   return (
-    <div className={cn("space-y-4", className)} aria-busy="true" aria-label="Loading the lead">
-      <div className="flex gap-2" aria-hidden="true">
-        <PlaceholderBar width={72} height={24} />
-        <PlaceholderBar width={190} height={24} />
+    <div className={cn("space-y-5", className)} aria-busy="true" aria-label="Loading the lead">
+      <div className="flex gap-3" aria-hidden="true">
+        <PlaceholderBar width={72} />
+        <PlaceholderBar width={190} />
       </div>
-      <div aria-hidden="true" className="rounded-xl border bg-card">
-        <div className="flex items-center gap-3 border-b px-6 py-4">
-          <PlaceholderBar width={52} height={10} />
-          <PlaceholderBar width="45%" height={14} />
-        </div>
-        <div className="space-y-3 px-6 py-5">
-          {[30, 94, 90, 60, 0, 96, 84, 0, 70].map((width, i) =>
-            width === 0 ? <div key={i} className="h-2" /> : <PlaceholderBar key={i} width={`${width}%`} height={12} className="block" />
-          )}
-        </div>
-      </div>
+      <UnfilledLetter widths={[30, 94, 90, 60, 0, 96, 84, 0, 70]} />
     </div>
   )
 }

@@ -1,18 +1,58 @@
 import * as React from "react"
 import { Link } from "@tanstack/react-router"
-import { FileInputIcon, MailIcon, PhoneOffIcon } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { FitBadge } from "@/components/FitBadge"
+import { Mark } from "@/components/Mark"
 import { PlaceholderBar } from "@/components/PlaceholderBar"
 import { StatusBadge, isInProgress } from "@/components/StatusBadge"
-import type { ContactKind, LeadSummary } from "@/lib/api/types"
+import type { ContactKind, LeadStatus, LeadSummary } from "@/lib/api/types"
 import { formatDistance } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
-const CONTACT: Record<ContactKind, { label: string; icon: typeof MailIcon }> = {
-  email: { label: "Email", icon: MailIcon },
-  form: { label: "Form", icon: FileInputIcon },
-  none: { label: "No contact", icon: PhoneOffIcon },
+const CONTACT: Record<ContactKind, string> = {
+  email: "email on file",
+  form: "contact form",
+  none: "no contact",
+}
+
+/** The decisions a person makes. Reaching one of these files the entry. */
+const FILED: LeadStatus[] = ["approved", "sent", "replied", "skipped", "dnc"]
+const FILE_MS = 380
+
+/**
+ * Filing, the desk's one authored motion: when a decision lands, the old status
+ * is struck through with a red rule, then the new status is set in its place.
+ * Research updates and undos swap at once; so does everything under reduced
+ * motion or while live updates are paused.
+ */
+function useFiling(status: LeadStatus, still: boolean) {
+  const [shown, setShown] = React.useState(status)
+  const [struck, setStruck] = React.useState(false)
+  const [filed, setFiled] = React.useState(false)
+  React.useEffect(() => {
+    if (status === shown) {
+      // Undone before the filing finished: drop the half-drawn strike.
+      setStruck(false)
+      return
+    }
+    const reduce = still || window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    if (!FILED.includes(status) || reduce) {
+      setShown(status)
+      setStruck(false)
+      setFiled(false)
+      return
+    }
+    setStruck(true)
+    const timer = window.setTimeout(() => {
+      setShown(status)
+      setStruck(false)
+      setFiled(true)
+    }, FILE_MS)
+    return () => window.clearTimeout(timer)
+    // only a new status starts a filing
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status])
+  return { shown, struck, filed }
 }
 
 export interface LeadRowProps {
@@ -22,16 +62,20 @@ export interface LeadRowProps {
   /** 0 for the row that takes Tab focus (roving tabindex), -1 otherwise. */
   tabIndex: 0 | -1
   compact: boolean
-  /** Arrived after the list was shown: soft teal tint fading over ~1 s. */
+  /** Arrived after the list was shown: a faint red wash that fades. */
   fresh: boolean
-  /** Live updates paused: the working dot stops. */
+  /** Live updates paused: nothing moves. */
   still: boolean
   onToggleChecked: (checked: boolean) => void
   onOpen: () => void
   onKeyDown: (event: React.KeyboardEvent<HTMLAnchorElement>) => void
 }
 
-/** One lead in the review desk's list. The whole row is one link. */
+/**
+ * One lead, set as a white-pages line: the name, a dot leader, the fit; then an
+ * italic aside with the distance, the contact and the status. The open entry is
+ * set in red with a pointer in the gutter. The whole line is one link.
+ */
 export const LeadRow = React.memo(function LeadRow({
   lead,
   selected,
@@ -45,40 +89,50 @@ export const LeadRow = React.memo(function LeadRow({
   onKeyDown,
 }: LeadRowProps) {
   const [flash] = React.useState(fresh)
-  const contact = lead.contact_kind ? CONTACT[lead.contact_kind] : null
   const working = isInProgress(lead.status)
+  const filing = useFiling(lead.status, still)
   const status = (
-    <StatusBadge
-      status={lead.status}
-      stageLabel={lead.stage_label}
-      step={lead.step}
-      animate={!still}
-      className="min-w-0"
-    />
+    <span className="relative inline-flex min-w-0">
+      <StatusBadge
+        key={filing.shown}
+        status={filing.shown}
+        stageLabel={lead.stage_label}
+        step={lead.step}
+        animate={!still}
+        className={cn("min-w-0", filing.filed && "animate-tick")}
+      />
+      {filing.struck && (
+        <span aria-hidden="true" className="absolute inset-x-0 top-1/2 h-0.5 origin-left animate-strike bg-edge" />
+      )}
+    </span>
+  )
+  const name = (
+    <span
+      className={cn(
+        "truncate text-ui font-bold underline-offset-4 group-hover/row:underline",
+        working && "font-semibold",
+        selected && "text-edge"
+      )}
+    >
+      {lead.name}
+    </span>
   )
   return (
     <li
       data-lead-id={lead.id}
       data-selected={selected || undefined}
       className={cn(
-        "group/row relative flex items-stretch border-b border-border/70 transition-colors duration-150",
-        compact ? "h-8" : "h-10",
-        selected ? "bg-accent" : "hover:bg-muted/70",
+        "group/row relative flex items-stretch border-b border-hairline transition-colors duration-(--dur-fast)",
+        !selected && "hover:bg-tint",
         flash && !selected && "animate-row-new motion-reduce:animate-none"
       )}
     >
-      {/* Selected row: a 3px teal edge (the tint alone measures 1.1:1). */}
-      <span
-        aria-hidden="true"
-        className={cn("absolute inset-y-0 left-0 w-[3px]", selected ? "bg-primary" : "bg-transparent")}
-      />
-      <div className="flex w-8 shrink-0 items-center justify-center pl-1">
+      <div className={cn("flex w-9 shrink-0 justify-center", compact ? "items-center" : "items-start pt-3")}>
         <Checkbox
           checked={checked}
           onCheckedChange={(value) => onToggleChecked(Boolean(value))}
           tabIndex={-1}
           aria-label={`Select ${lead.name}`}
-          className="size-4"
         />
       </div>
       <Link
@@ -91,47 +145,33 @@ export const LeadRow = React.memo(function LeadRow({
         onKeyDown={onKeyDown}
         data-row-link
         className={cn(
-          "focus-inset flex min-w-0 flex-1 items-center gap-2.5 pr-3 outline-none",
-          compact ? "py-0" : "py-[3px]"
+          "focus-inset flex min-w-0 flex-1 flex-col justify-center pr-4 outline-none",
+          compact ? "h-9" : "gap-0.5 py-2.5"
         )}
       >
-        <span className="flex w-6 shrink-0 justify-end">
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <Mark name="pointer" className={cn("size-2.5 shrink-0 self-center text-edge", !selected && "invisible")} />
+          {name}
+          <span aria-hidden="true" className="leader" />
+          {compact && <span className="shrink-0">{status}</span>}
           <FitBadge score={lead.fit_score} label={lead.fit_label} variant="list" />
         </span>
-        {compact ? (
-          <span className="flex min-w-0 flex-1 items-center gap-2">
-            <span className={cn("truncate text-list font-medium", working && "text-ink-secondary")}>{lead.name}</span>
-            <span className="ml-auto shrink-0">{status}</span>
-          </span>
-        ) : (
-          <span className="flex min-w-0 flex-1 flex-col justify-center">
-            <span className={cn("truncate text-list font-medium", working && "text-ink-secondary")}>{lead.name}</span>
-            <span className="flex min-w-0 items-center gap-2 text-meta text-muted-foreground">
-              <span className="shrink-0 tabular-nums">{formatDistance(lead.distance_mi)}</span>
+        {!compact && (
+          <span className="flex min-w-0 items-baseline gap-3 pl-4">
+            <span className="flex min-w-0 items-baseline aside">
+              <span className="shrink-0 tabular-nums not-italic">{formatDistance(lead.distance_mi)}</span>
               {/* The contact appears once research finds it; a lead whose research ended without it shows none. */}
-              {(contact || working) && (
+              {lead.contact_kind ? (
+                <span className="truncate">, {CONTACT[lead.contact_kind]}</span>
+              ) : working ? (
                 <>
-                  <span aria-hidden="true" className="text-muted-foreground">
-                    ·
-                  </span>
-                  {contact ? (
-                    <span className="flex shrink-0 items-center gap-1">
-                      <contact.icon aria-hidden="true" className="size-3.5" />
-                      <span>{contact.label}</span>
-                    </span>
-                  ) : (
-                    <span className="flex shrink-0 items-center">
-                      <PlaceholderBar width={34} />
-                      <span className="sr-only">Contact not found yet</span>
-                    </span>
-                  )}
+                  <span className="mr-1">,</span>
+                  <PlaceholderBar width={40} />
+                  <span className="sr-only">Contact not found yet</span>
                 </>
-              )}
-              <span aria-hidden="true" className="text-muted-foreground">
-                ·
-              </span>
-              {status}
+              ) : null}
             </span>
+            <span className="ml-auto shrink-0">{status}</span>
           </span>
         )}
       </Link>

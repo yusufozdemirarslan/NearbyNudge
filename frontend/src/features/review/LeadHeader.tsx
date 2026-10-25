@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, GlobeIcon, MapPinIcon, PhoneIcon } from "lucide-react"
+import { ChevronDownIcon, ChevronLeftIcon, ChevronUpIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { FitBadge } from "@/components/FitBadge"
@@ -7,7 +7,7 @@ import { PlaceholderBar } from "@/components/PlaceholderBar"
 import { SourceTag } from "@/components/SourceTag"
 import { StatusBadge } from "@/components/StatusBadge"
 import type { Lead, LeadSummary } from "@/lib/api/types"
-import { displayDomain, formatDistance } from "@/lib/format"
+import { displayDomain, fitLabel, formatDistance } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 export interface LeadHeaderProps {
@@ -21,23 +21,35 @@ export interface LeadHeaderProps {
   className?: string
 }
 
-/** The business: name, fit with its reason, distance, website, phone, address. */
+/**
+ * The open entry, set like a directory listing: the name in condensed caps
+ * with a leader to its fit, then the listing in short sentences (status, fit,
+ * category, distance; address, phone, website) and why it's worth writing to.
+ */
 export function LeadHeader({ summary, lead, onPrev, onNext, onBack, livePaused, className }: LeadHeaderProps) {
   const reason = lead?.fit_reason
+  const fitWord = summary.fit_score === null ? null : (summary.fit_label ?? fitLabel(summary.fit_score))
   return (
-    <header data-slot="lead-header" className={cn("border-b bg-background px-4 pt-3 pb-3 sm:px-6", className)}>
+    <header data-slot="lead-header" className={cn("border-b border-ink px-4 pt-5 pb-4 sm:px-6 xl:px-8", className)}>
       {onBack && (
-        <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 mb-1 text-ink-secondary">
-          <ArrowLeftIcon aria-hidden="true" />
+        <Button variant="ghost" size="sm" onClick={onBack} className="-ml-3 mb-2">
+          <ChevronLeftIcon aria-hidden="true" />
           All leads
         </Button>
       )}
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <h2 className="text-pane-title font-semibold text-foreground">{summary.name}</h2>
-            <FitBadge score={summary.fit_score} label={summary.fit_label} variant="header" />
-            <span className="text-ui text-ink-secondary tabular-nums">{formatDistance(summary.distance_mi)}</span>
+      <div className="flex items-start gap-4">
+        <div className="min-w-0 flex-1 space-y-2.5">
+          <div className="flex items-baseline gap-3">
+            <h2 className="min-w-0 text-title uppercase stretch-condensed xl:text-display">{summary.name}</h2>
+            <span aria-hidden="true" className="leader max-sm:hidden" />
+            <FitBadge
+              score={summary.fit_score}
+              label={summary.fit_label}
+              variant="display"
+              className="text-title xl:text-display"
+            />
+          </div>
+          <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-ui">
             <StatusBadge
               status={summary.status}
               stageLabel={summary.stage_label}
@@ -47,58 +59,59 @@ export function LeadHeader({ summary, lead, onPrev, onNext, onBack, livePaused, 
               size="md"
               animate={!livePaused}
             />
-          </div>
-          <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-ui text-ink-secondary">
-            <li>{summary.category_label}</li>
-            {lead ? (
-              <>
-                {lead.website && (
-                  <li>
-                    <a
-                      href={lead.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-primary hover:underline"
-                    >
-                      <GlobeIcon aria-hidden="true" className="size-4" />
-                      {displayDomain(lead.website)}
-                      <span className="sr-only"> (opens in a new tab)</span>
-                    </a>
-                  </li>
-                )}
-                {lead.phone && (
-                  <li>
-                    <a href={`tel:${lead.phone.replace(/[^\d+]/gu, "")}`} className="inline-flex items-center gap-1.5 hover:underline">
-                      <PhoneIcon aria-hidden="true" className="size-4" />
-                      <span className="tabular-nums">{lead.phone}</span>
-                    </a>
-                  </li>
-                )}
-                <li className="inline-flex min-w-0 items-center gap-1.5">
-                  <MapPinIcon aria-hidden="true" className="size-4 shrink-0" />
-                  <span className="truncate">{lead.address}</span>
-                </li>
-              </>
-            ) : (
-              <li className="flex items-center gap-3" aria-hidden="true">
-                <PlaceholderBar width={140} />
-                <PlaceholderBar width={110} />
-              </li>
-            )}
-          </ul>
+            {fitWord && <span>{fitWord} fit.</span>}
+            <span>{summary.category_label}.</span>
+            <span className="tabular-nums">{formatDistance(summary.distance_mi)}.</span>
+          </p>
+          {lead ? (
+            <p className="text-ui">
+              <span>{lead.address}.</span>
+              {lead.phone && (
+                <>
+                  {" "}
+                  <a
+                    href={`tel:${lead.phone.replace(/[^\d+]/gu, "")}`}
+                    className="tabular-nums whitespace-nowrap underline-offset-4 hover:underline"
+                  >
+                    {lead.phone}
+                  </a>
+                  .
+                </>
+              )}
+              {lead.website && (
+                <>
+                  {" "}
+                  <a
+                    href={lead.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold underline underline-offset-[3px] hover:text-edge"
+                  >
+                    {displayDomain(lead.website)}
+                    <span className="sr-only"> (opens in a new tab)</span>
+                  </a>
+                </>
+              )}
+            </p>
+          ) : (
+            <p className="flex items-center gap-3" aria-hidden="true">
+              <PlaceholderBar width={220} />
+              <PlaceholderBar width={110} />
+            </p>
+          )}
           {reason ? (
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-ui text-foreground">
+            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-ui">
               <span>
-                <span className="font-medium">Why: </span>
+                <span className="font-bold">Why: </span>
                 {reason}
               </span>
               <SourceTag kind="judgment" />
             </p>
           ) : lead && summary.fit_score === null && summary.status !== "failed" ? (
-            <p className="text-ui text-muted-foreground">The fit and the reason appear after the hook is chosen.</p>
+            <p className="aside">The fit and the reason appear after the hook is chosen.</p>
           ) : null}
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1 pt-1">
           <NavButton label="Previous lead" keys="K" onClick={onPrev} icon={<ChevronUpIcon aria-hidden="true" />} />
           <NavButton label="Next lead" keys="J" onClick={onNext} icon={<ChevronDownIcon aria-hidden="true" />} />
         </div>
@@ -123,7 +136,7 @@ function NavButton({
       <TooltipTrigger
         render={
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon-sm"
             aria-label={label}
             aria-keyshortcuts={keys}

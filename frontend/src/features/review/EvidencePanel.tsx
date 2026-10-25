@@ -1,17 +1,9 @@
 import * as React from "react"
-import {
-  CheckIcon,
-  CircleCheckIcon,
-  CopyIcon,
-  ExternalLinkIcon,
-  GaugeIcon,
-  MinusIcon,
-  TriangleAlertIcon,
-  XIcon,
-} from "lucide-react"
+import { CopyIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { EmailAddress } from "@/components/EmailAddress"
+import { Mark } from "@/components/Mark"
 import { PlaceholderBar } from "@/components/PlaceholderBar"
 import { SourceTag } from "@/components/SourceTag"
 import type { Contact, Fact, Lead, SiteCheck } from "@/lib/api/types"
@@ -41,27 +33,32 @@ export function EvidencePanel({ lead, numbers, aligned, onCopyAddress, onWrongFa
   React.useEffect(() => setShowAll(false), [lead.id])
 
   return (
-    <aside aria-labelledby="evidence-heading" className={cn("space-y-6", className)} data-slot="evidence">
+    <aside aria-labelledby="evidence-heading" className={cn("space-y-7", className)} data-slot="evidence">
       <h2 id="evidence-heading" className="sr-only">
         Evidence
       </h2>
       <section aria-labelledby="contact-heading" className="space-y-2">
-        <h3 id="contact-heading" className="text-meta font-semibold text-ink-secondary">
+        <h3 id="contact-heading" className="text-lead font-extrabold stretch-condensed">
           Contact
         </h3>
         {lead.status === "failed" && !lead.contact ? (
-          <p className="text-ui text-muted-foreground">Not found before research stopped.</p>
+          <p className="aside">Not found before research stopped.</p>
         ) : (
           <ContactBlock contact={lead.contact} phone={lead.phone} onCopyAddress={onCopyAddress} />
         )}
       </section>
 
       <section aria-labelledby="facts-heading" className="space-y-2">
-        <h3 id="facts-heading" className="text-meta font-semibold text-ink-secondary">
-          {lead.facts.length === 0 ? "Facts" : `Facts used (${used.length} of ${lead.facts.length})`}
+        <h3 id="facts-heading" className="flex items-baseline gap-2">
+          <span className="text-lead font-extrabold stretch-condensed">Facts used</span>
+          {lead.facts.length > 0 && (
+            <span className="aside">
+              {used.length} of {lead.facts.length}
+            </span>
+          )}
         </h3>
         {lead.facts.length === 0 ? (
-          <p className="text-ui text-muted-foreground">
+          <p className="aside">
             {lead.email
               ? "This draft uses no site facts."
               : lead.status === "failed"
@@ -94,19 +91,18 @@ export function EvidencePanel({ lead, numbers, aligned, onCopyAddress, onWrongFa
       </section>
 
       <section aria-labelledby="sitecheck-heading" className="space-y-2">
-        <h3 id="sitecheck-heading" className="text-meta font-semibold text-ink-secondary">
-          Site check
+        <h3 id="sitecheck-heading" className="flex flex-wrap items-baseline gap-x-2">
+          <span className="text-lead font-extrabold stretch-condensed">Site check</span>
           {lead.site_check && (
-            <span className="font-normal text-muted-foreground">
-              {" "}
-              · {displayDomain(lead.site_check.url)}, {formatDate(lead.site_check.checked_at)}
+            <span className="aside">
+              {displayDomain(lead.site_check.url)}, {formatDate(lead.site_check.checked_at)}
             </span>
           )}
         </h3>
         {lead.site_check ? (
           <SiteCheckGrid check={lead.site_check} />
         ) : (
-          <p className="text-ui text-muted-foreground">
+          <p className="aside">
             {!lead.website
               ? "No website to check."
               : lead.status === "failed"
@@ -119,16 +115,12 @@ export function EvidencePanel({ lead, numbers, aligned, onCopyAddress, onWrongFa
       {lead.email && (
         <p
           className={cn(
-            "flex items-center gap-2 border-t pt-4 text-ui font-medium",
-            problems.length === 0 ? "text-success" : "text-warning"
+            "flex items-center gap-2 border-t-2 border-ink pt-3 text-ui font-bold",
+            problems.length > 0 && "text-edge"
           )}
           data-slot="evidence-summary"
         >
-          {problems.length === 0 ? (
-            <CircleCheckIcon aria-hidden="true" className="size-4" />
-          ) : (
-            <TriangleAlertIcon aria-hidden="true" className="size-4" />
-          )}
+          <Mark name={problems.length === 0 ? "check" : "asterisk"} />
           {problems.length === 0
             ? "Every claim has a source"
             : `${plural(problems.length, "claim")} ${problems.length === 1 ? "needs" : "need"} checking`}
@@ -162,7 +154,7 @@ function ContactBlock({ contact, phone, onCopyAddress }: { contact: Contact | nu
     <div className="space-y-2">
       {contact.kind === "email" && contact.email ? (
         <div className="flex items-center gap-1">
-          <p className="min-w-0 text-ui font-medium text-foreground" data-slot="contact-email">
+          <p className="min-w-0 text-ui font-bold" data-slot="contact-email">
             <EmailAddress email={contact.email} />
           </p>
           <Button variant="ghost" size="icon-xs" onClick={onCopyAddress} aria-label={`Copy ${contact.email}`}>
@@ -174,23 +166,22 @@ function ContactBlock({ contact, phone, onCopyAddress }: { contact: Contact | nu
           href={contact.form_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-ui font-medium text-primary hover:underline"
+          className="text-ui font-bold underline underline-offset-[3px] hover:text-edge"
         >
           Contact form
-          <ExternalLinkIcon aria-hidden="true" className="size-4" />
           <span className="sr-only"> (opens in a new tab)</span>
         </a>
       ) : (
         <div className="space-y-1">
-          <p className="text-ui font-medium text-foreground">No published contact</p>
-          <p className="text-ui text-ink-secondary">
+          <p className="text-ui font-bold">No published contact</p>
+          <p className="text-ui">
             We didn't find an email address or a contact form we may use.
             {phone ? ` You could call ${phone}, or skip this business.` : " You can skip this business."}
           </p>
         </div>
       )}
       {source && <div>{source}</div>}
-      {contact.note && <p className="text-meta text-muted-foreground">{contact.note}</p>}
+      {contact.note && <p className="aside">{contact.note}</p>}
     </div>
   )
 }
@@ -307,29 +298,29 @@ const FactItem = React.forwardRef<
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) desk.setActiveFactId(null)
       }}
       className={cn(
-        "rounded-lg border bg-card p-3 transition-[border-color,box-shadow,top] duration-150",
-        active && "border-primary shadow-[0_0_0_1px_var(--primary)]",
-        fact.flagged_wrong && "opacity-75"
+        "-mx-2 px-2 py-2 transition-[background-color,top] duration-(--dur-fast)",
+        active && "bg-tint",
+        fact.flagged_wrong && "text-ink-soft"
       )}
     >
       <div className="flex gap-2">
         {number !== null && (
           <span
             className={cn(
-              "mt-px inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-sm border px-1 text-meta font-semibold tabular-nums",
-              active ? "border-primary bg-primary text-primary-foreground" : "border-[color-mix(in_srgb,var(--primary)_45%,transparent)] text-primary"
+              "inline-flex h-5 min-w-5 shrink-0 items-center justify-center px-0.5 text-ui leading-none font-extrabold stretch-condensed tabular-nums",
+              active && "bg-ink text-paper"
             )}
           >
             <span aria-hidden="true">{number}</span>
           </span>
         )}
-        <p className={cn("min-w-0 text-ui text-foreground", fact.flagged_wrong && "line-through decoration-ink-secondary")}>
+        <p className={cn("min-w-0 text-ui", fact.flagged_wrong && "line-through decoration-1")}>
           {number !== null && <span className="sr-only">Fact {number}: </span>}
           {fact.text}
           {fact.flagged_wrong && <span className="sr-only"> (marked wrong)</span>}
         </p>
       </div>
-      <div className="mt-2">
+      <div className={cn("mt-1", number !== null && "pl-7")}>
         {fact.source_kind === "listing" ? (
           <SourceTag kind="listing" label={fact.source_label} />
         ) : (
@@ -343,32 +334,32 @@ const FactItem = React.forwardRef<
           />
         )}
       </div>
-      <div className="mt-1.5 flex min-h-6 items-center gap-2">
+      <div className={cn("mt-1 flex min-h-6 items-center gap-2", number !== null && "pl-7")}>
         {fact.flagged_wrong ? (
-          <span className="inline-flex items-center gap-1 text-meta text-ink-secondary">
-            <XIcon aria-hidden="true" className="size-3.5" />
+          <span className="inline-flex items-center gap-1.5 text-meta">
+            <Mark name="cross" />
             Marked wrong
           </span>
         ) : fact.state === "supported" ? (
-          <span className="inline-flex items-center gap-1 text-meta font-medium text-success">
-            <CheckIcon aria-hidden="true" className="size-3.5" />
+          <span className="inline-flex items-center gap-1.5 text-meta">
+            <Mark name="check" />
             Supported
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 text-meta font-medium text-warning">
-            <TriangleAlertIcon aria-hidden="true" className="size-3.5" />
+          <span className="inline-flex items-center gap-1.5 text-meta font-bold text-edge">
+            <Mark name="asterisk" />
             Check
           </span>
         )}
         {onWrongFact && !fact.flagged_wrong && !confirming && (
-          <Button variant="ghost" size="xs" className="-mr-1.5 ml-auto h-6 px-1.5 text-ink-secondary" onClick={() => setConfirming(true)}>
+          <Button variant="ghost" size="xs" className="-mr-1.5 ml-auto h-6 px-1.5 font-semibold" onClick={() => setConfirming(true)}>
             Wrong fact
           </Button>
         )}
       </div>
       {confirming && onWrongFact && (
         <form
-          className="mt-2.5 space-y-2 border-t pt-2.5"
+          className={cn("mt-2.5 space-y-2 border-t border-hairline pt-2.5", number !== null && "ml-7")}
           onSubmit={(event) => {
             event.preventDefault()
             onWrongFact(fact, note.trim() || undefined)
@@ -376,13 +367,13 @@ const FactItem = React.forwardRef<
             setNote("")
           }}
         >
-          <p className="text-meta text-ink-secondary">We'll remove it, rewrite the email without it and count it in the weekly audit.</p>
+          <p className="aside">We'll remove it, rewrite the email without it and count it in the weekly audit.</p>
           <Input
             value={note}
             onChange={(event) => setNote(event.target.value)}
             placeholder="What's wrong? (optional)"
             aria-label={`What's wrong with fact ${number ?? ""}? Optional`}
-            className="h-8"
+            className="h-9"
             autoFocus
           />
           <div className="flex gap-2">
@@ -400,27 +391,11 @@ const FactItem = React.forwardRef<
 })
 
 function CheckValue({ ok, yes, no, unknown = "Unknown" }: { ok: boolean | null; yes: string; no: string; unknown?: string }) {
-  if (ok === null)
-    return (
-      <span className="inline-flex items-center gap-1 text-muted-foreground">
-        <MinusIcon aria-hidden="true" className="size-4" />
-        {unknown}
-      </span>
-    )
-  return ok ? (
-    <span className="inline-flex items-center gap-1 text-foreground">
-      <CheckIcon aria-hidden="true" className="size-4 text-success" />
-      {yes}
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 text-foreground">
-      <XIcon aria-hidden="true" className="size-4 text-warning" />
-      {no}
-    </span>
-  )
+  if (ok === null) return <span className="italic">{unknown}</span>
+  return ok ? <span>{yes}</span> : <span className="font-bold">{no}</span>
 }
 
-/** The site check as icon + word pairs. */
+/** The site check as a key: label, dot leader, value. The gaps it found are set in bold. */
 export function SiteCheckGrid({ check }: { check: SiteCheck }) {
   const year = new Date().getFullYear()
   const dated = check.copyright_year !== null && check.copyright_year < year - 2
@@ -433,8 +408,7 @@ export function SiteCheckGrid({ check }: { check: SiteCheck }) {
       check.load_seconds === null ? (
         <CheckValue key="load" ok={null} yes="" no="" />
       ) : (
-        <span key="load" className={cn("inline-flex items-center gap-1 tabular-nums", slow ? "text-warning" : "text-foreground")}>
-          <GaugeIcon aria-hidden="true" className={cn("size-4", slow ? "text-warning" : "text-muted-foreground")} />
+        <span key="load" className={cn("tabular-nums", slow && "font-bold")}>
           {check.load_seconds.toFixed(1)} s{slow ? ", slow" : ""}
         </span>
       ),
@@ -444,8 +418,7 @@ export function SiteCheckGrid({ check }: { check: SiteCheck }) {
       check.copyright_year === null ? (
         <CheckValue key="year" ok={null} yes="" no="" unknown="Not shown" />
       ) : (
-        <span key="year" className={cn("inline-flex items-center gap-1 tabular-nums", dated ? "text-warning" : "text-foreground")}>
-          {dated && <TriangleAlertIcon aria-hidden="true" className="size-4" />}
+        <span key="year" className={cn("tabular-nums", dated && "font-bold")}>
           {check.copyright_year}
           {dated ? ", dated" : ""}
         </span>
@@ -456,18 +429,19 @@ export function SiteCheckGrid({ check }: { check: SiteCheck }) {
     ["Prices", <CheckValue key="prices" ok={check.prices} yes="Listed" no="Not listed" />],
     [
       "Social",
-      <span key="social" className={cn(check.social.length ? "text-foreground" : "text-muted-foreground")}>
+      <span key="social" className={cn(!check.social.length && "italic")}>
         {check.social.length ? check.social.join(", ") : "None found"}
       </span>,
     ],
   ]
   return (
-    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-ui" data-slot="site-check">
+    <dl className="space-y-1 text-ui" data-slot="site-check">
       {rows.map(([label, value]) => (
-        <React.Fragment key={label}>
-          <dt className="text-ink-secondary">{label}</dt>
-          <dd className="min-w-0">{value}</dd>
-        </React.Fragment>
+        <div key={label} className="flex items-baseline gap-1.5">
+          <dt className="shrink-0">{label}</dt>
+          <span aria-hidden="true" className="leader" />
+          <dd className="min-w-0 text-right">{value}</dd>
+        </div>
       ))}
     </dl>
   )
