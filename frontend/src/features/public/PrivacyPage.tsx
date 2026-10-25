@@ -41,28 +41,22 @@ export function PrivacyPage() {
               What NearbyNudge stores and how long it keeps it
             </caption>
             <thead>
-              <tr className="border-b">
-                <th
-                  scope="col"
-                  className="py-2 pr-4 font-medium text-ink-secondary"
-                >
+              <tr className="border-b-2 border-ink">
+                <th scope="col" className="py-2 pr-4 font-extrabold stretch-condensed">
                   What
                 </th>
-                <th scope="col" className="py-2 font-medium text-ink-secondary">
+                <th scope="col" className="py-2 font-extrabold stretch-condensed">
                   How long we keep it
                 </th>
               </tr>
             </thead>
             <tbody>
               {RETENTION.map((row) => (
-                <tr key={row.what} className="border-b align-top last:border-0">
-                  <th
-                    scope="row"
-                    className="py-2.5 pr-4 font-semibold text-foreground"
-                  >
+                <tr key={row.what} className="border-b border-hairline align-top">
+                  <th scope="row" className="py-2.5 pr-4 font-semibold">
                     {row.what}
                   </th>
-                  <td className="py-2.5 text-foreground">{row.howLong}</td>
+                  <td className="py-2.5">{row.howLong}</td>
                 </tr>
               ))}
             </tbody>

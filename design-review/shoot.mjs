@@ -538,6 +538,44 @@ const FLOWS = {
       await gone(p, '#optouts tr:has-text("flow-test.example")')
     }],
   ],
+  public: [
+    ["open the bot page", async (p) => {
+      await p.goto("/bot")
+      await p.getByRole("heading", { level: 1, name: "NearbyNudgeBot" }).waitFor()
+    }],
+    ["the opt-out form checks its fields", async (p) => {
+      const form = p.getByRole("form", { name: "Opt-out request" })
+      await form.getByRole("button", { name: "Send opt-out request" }).click()
+      await form.getByText("Enter your website's address, such as example.com.").waitFor()
+    }],
+    ["an opt-out request is received", async (p) => {
+      const form = p.getByRole("form", { name: "Opt-out request" })
+      await form.getByRole("textbox", { name: "Your website" }).fill("flow-site.example")
+      await form.getByRole("textbox", { name: "Your email" }).fill("owner@flow-site.example")
+      await form.getByRole("button", { name: "Send opt-out request" }).click()
+      await p.getByTestId("optout-confirmation").getByRole("heading", { name: /Request received for flow-site.example/ }).waitFor()
+    }],
+    ["send another request brings the form back", async (p) => {
+      await p.getByRole("button", { name: "Send another request" }).click()
+      await p.getByRole("form", { name: "Opt-out request" }).waitFor()
+    }],
+    ["the footer leads to Data sources, Privacy and Terms", async (p) => {
+      const footer = p.getByRole("navigation", { name: "About NearbyNudge" })
+      await footer.getByRole("link", { name: "Data sources" }).click()
+      await p.getByRole("heading", { level: 1, name: "Data sources" }).waitFor()
+      await footer.getByRole("link", { name: "Privacy" }).click()
+      await p.getByRole("heading", { level: 1, name: /Privacy/ }).waitFor()
+      await footer.getByRole("link", { name: "Terms" }).click()
+      await p.getByRole("heading", { level: 1, name: /Terms/ }).waitFor()
+    }],
+    ["a dead link says so and leads home", async (p) => {
+      await p.goto("/no-such-listing")
+      await p.getByRole("heading", { level: 1, name: "We couldn't find that page" }).waitFor()
+      await p.getByText("/no-such-listing").waitFor()
+      await p.getByRole("link", { name: "Go to campaigns" }).click()
+      await p.getByRole("heading", { level: 1, name: "Campaigns" }).waitFor()
+    }],
+  ],
   desk: [
     ["open", async (p) => {
       await p.goto(CAMPAIGN)

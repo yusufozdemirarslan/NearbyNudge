@@ -85,9 +85,7 @@ export function BotPage() {
         >
           <p>There are two ways, and you can use both.</p>
           <div className="flex flex-col gap-3">
-            <h3 className="text-email font-semibold">
-              Add two lines to robots.txt
-            </h3>
+            <h3 className="text-lead font-bold">Add two lines to robots.txt</h3>
             <p>
               Add these lines to the robots.txt file at the top of your site.
               NearbyNudgeBot checks it every day.
@@ -95,7 +93,7 @@ export function BotPage() {
             <CodeBlock code={ROBOTS_TXT} label="robots.txt lines" />
           </div>
           <div className="flex flex-col gap-3">
-            <h3 className="text-email font-semibold">Or ask us here</h3>
+            <h3 className="text-lead font-bold">Or ask us here</h3>
             <p>
               We stop reading your site within 2 business days, usually right
               away. We use your email only to confirm the request or ask about

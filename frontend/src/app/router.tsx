@@ -7,13 +7,13 @@ import {
   Outlet,
   redirect,
   useRouter,
+  useRouterState,
 } from "@tanstack/react-router"
 import type { QueryClient } from "@tanstack/react-query"
 import { CalmError } from "@/components/CalmError"
-import { EmptyState } from "@/components/EmptyState"
 import { buttonVariants } from "@/components/ui/button"
 import { AppShell } from "@/components/shell/AppShell"
-import { PublicLayout, SetupLayout } from "@/components/shell/PublicLayout"
+import { PublicLayout, SetupLayout, StandalonePage } from "@/components/shell/PublicLayout"
 import { ThemeSync } from "@/components/shell/ThemeSync"
 import { CampaignsPage } from "@/features/campaigns/CampaignsPage"
 import { ReviewDeskPage } from "@/features/review/ReviewDeskPage"
@@ -53,32 +53,35 @@ function RootLayout() {
 function RootError({ error }: { error: unknown }) {
   const router = useRouter()
   return (
-    <div className="flex min-h-svh items-center justify-center bg-background px-4">
+    <StandalonePage>
       <CalmError
         title="We couldn't open this page"
         error={error}
         onRetry={() => void router.invalidate()}
         action={
-          <Link to="/" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+          <Link to="/" className={buttonVariants({ variant: "outline", size: "sm" })}>
             Go to campaigns
           </Link>
         }
       />
-    </div>
+    </StandalonePage>
   )
 }
 
+/** A dead end, said plainly: the address that wasn't found, struck through like a filed entry. */
 function NotFound() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
   return (
-    <EmptyState
-      title="We couldn't find that page"
-      description="The link may be old, or the item was deleted."
-      action={
-        <Link to="/" className={buttonVariants()}>
+    <StandalonePage>
+      <div className="flex flex-col items-start gap-4">
+        <h1 className="running-head">{"We couldn't find that page"}</h1>
+        <p className="text-lead font-bold break-all line-through decoration-edge decoration-2">{pathname}</p>
+        <p className="max-w-measure text-ui">The link may be old, or the item was deleted.</p>
+        <Link to="/" className={buttonVariants({ className: "mt-2" })}>
           Go to campaigns
         </Link>
-      }
-    />
+      </div>
+    </StandalonePage>
   )
 }
 

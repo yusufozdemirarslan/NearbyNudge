@@ -1,3 +1,4 @@
+import type * as React from "react"
 import { Link, Outlet } from "@tanstack/react-router"
 import { buttonVariants } from "@/components/ui/button"
 import { BrandMark } from "./BrandMark"
@@ -49,6 +50,27 @@ export function PublicLayout() {
           <PublicFooterLinks />
         </div>
       </footer>
+    </div>
+  )
+}
+
+/**
+ * A page outside every layout (not found, a crash): the wordmark over the
+ * heavy rule, then one column, so even a dead end looks like NearbyNudge.
+ */
+export function StandalonePage({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-svh flex-col bg-paper">
+      <header className="border-b-(length:--rule-heavy) border-ink">
+        <div className="mx-auto flex h-(--masthead) max-w-5xl items-center px-4 sm:px-6">
+          <Link to="/" aria-label="NearbyNudge home">
+            <BrandMark />
+          </Link>
+        </div>
+      </header>
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 outline-none sm:px-6 sm:py-14">
+        {children}
+      </main>
     </div>
   )
 }

@@ -29,8 +29,8 @@ const FRONTEND: Credit[] = [
   { name: "Recharts", use: "Charts on the Numbers page", license: "MIT" },
   { name: "Lucide", use: "Icons", license: "ISC" },
   {
-    name: "Atkinson Hyperlegible Next",
-    use: "The typeface, designed by the Braille Institute for easy reading",
+    name: "Archivo",
+    use: "The typeface, from Omnibus-Type, in its normal and condensed widths",
     license: "SIL Open Font License 1.1 (OFL)",
   },
 ]
@@ -73,41 +73,32 @@ function CreditTable({
 }) {
   return (
     <table className="w-full table-fixed border-collapse text-left text-ui">
-      <caption className="mb-2 text-left text-email font-semibold text-foreground">
+      <caption className="mb-2 text-left text-lead font-extrabold stretch-condensed">
         {caption}
       </caption>
       <thead>
-        <tr className="border-b">
-          <th
-            scope="col"
-            className="w-[31%] py-2 pr-4 font-medium text-ink-secondary"
-          >
+        <tr className="border-b-2 border-ink">
+          <th scope="col" className="w-[31%] py-2 pr-4 font-extrabold stretch-condensed">
             Project
           </th>
-          <th scope="col" className="py-2 pr-4 font-medium text-ink-secondary">
+          <th scope="col" className="py-2 pr-4 font-extrabold stretch-condensed">
             What it does here
           </th>
-          <th
-            scope="col"
-            className="w-[27%] py-2 font-medium text-ink-secondary sm:w-[24%]"
-          >
+          <th scope="col" className="w-[27%] py-2 font-extrabold stretch-condensed sm:w-[24%]">
             License
           </th>
         </tr>
       </thead>
       <tbody>
         {credits.map((credit) => (
-          <tr key={credit.name} className="border-b align-top last:border-0">
-            <th
-              scope="row"
-              className="py-2.5 pr-4 font-semibold text-foreground"
-            >
+          <tr key={credit.name} className="border-b border-hairline align-top">
+            <th scope="row" className="py-2.5 pr-4 font-semibold">
               {credit.name}
             </th>
-            <td className="py-2.5 pr-4 text-foreground">{credit.use}</td>
+            <td className="py-2.5 pr-4">{credit.use}</td>
             <td
               className={cn(
-                "py-2.5 text-foreground",
+                "py-2.5",
                 credit.license.length <= 14 && "whitespace-nowrap"
               )}
             >
@@ -120,16 +111,14 @@ function CreditTable({
   )
 }
 
-/** Each source as a short "card" of facts: who publishes it and under what license. */
+/** Each source as a short key of facts between two rules: who publishes it and under what license. */
 function SourceFacts({ rows }: { rows: [string, ReactNode][] }) {
   return (
-    <dl className="grid grid-cols-1 gap-x-6 gap-y-1 rounded-xl border bg-card px-4 py-3.5 text-ui sm:grid-cols-[9rem_minmax(0,1fr)]">
+    <dl className="grid grid-cols-1 gap-x-6 gap-y-1 border-y-2 border-ink py-2.5 text-ui sm:grid-cols-[9rem_minmax(0,1fr)]">
       {rows.map(([term, detail]) => (
         <div key={term} className="contents">
-          <dt className="pt-1.5 font-medium text-ink-secondary sm:pt-1">
-            {term}
-          </dt>
-          <dd className="pb-1.5 text-foreground sm:py-1">{detail}</dd>
+          <dt className="pt-1.5 font-bold sm:pt-1">{term}</dt>
+          <dd className="pb-1.5 sm:py-1">{detail}</dd>
         </div>
       ))}
     </dl>
@@ -223,7 +212,7 @@ export function DataSourcesPage() {
             <CreditTable caption="In your browser" credits={FRONTEND} />
             <CreditTable caption="On our server" credits={BACKEND} />
           </div>
-          <p className="text-ui text-ink-secondary">
+          <p className="aside">
             Smaller libraries that these projects rely on keep their own
             licenses.
           </p>

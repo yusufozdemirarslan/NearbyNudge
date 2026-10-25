@@ -1,10 +1,10 @@
 import * as React from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
-import { CircleCheckIcon } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { CalmError } from "@/components/CalmError"
+import { Mark } from "@/components/Mark"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -86,21 +86,18 @@ export function OptOutForm() {
   if (done) {
     return (
       <div
-        className="flex flex-col gap-3 rounded-xl border bg-card p-5"
+        className="flex flex-col gap-3 border-2 border-ink p-5 sm:p-6"
         data-testid="optout-confirmation"
       >
         <h4
           ref={confirmationRef}
           tabIndex={-1}
-          className="flex items-center gap-2 text-ui font-semibold text-foreground outline-none"
+          className="flex items-center gap-2 text-lead font-bold outline-none"
         >
-          <CircleCheckIcon
-            aria-hidden="true"
-            className="size-5 shrink-0 text-success"
-          />
+          <Mark name="check" />
           Request received for {done.domain}
         </h4>
-        <p className="text-ui text-ink-secondary">{done.message}</p>
+        <p className="text-ui">{done.message}</p>
         <div>
           <Button
             variant="outline"
@@ -126,7 +123,7 @@ export function OptOutForm() {
       noValidate
       aria-label="Opt-out request"
       onSubmit={handleSubmit((values) => mutation.mutate(values))}
-      className="flex flex-col gap-5 rounded-xl border bg-card p-5 text-ui"
+      className="flex flex-col gap-5 border-2 border-dashed border-ink p-5 text-ui sm:p-6"
     >
       <FormField
         label="Your website"
@@ -175,7 +172,7 @@ export function OptOutForm() {
             {...control}
             {...register("note")}
             rows={3}
-            className="text-base md:text-ui"
+            className="text-body md:text-ui"
           />
         )}
       </FormField>

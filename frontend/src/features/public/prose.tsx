@@ -1,15 +1,16 @@
 import * as React from "react"
 import { Link } from "@tanstack/react-router"
-import { CheckIcon, CopyIcon } from "lucide-react"
+import { Mark } from "@/components/Mark"
 import { Button } from "@/components/ui/button"
 import { useAnnounce } from "@/hooks/use-announce"
 import { copyText } from "@/features/settings/form-kit"
 import { cn } from "@/lib/utils"
 
 /*
- * Reading layout for the public pages (/bot, /data-sources, /terms, /privacy):
- * 16/25 body text at most 68 characters a line, section headings with
- * anchors, quiet lists and tables. One typeface throughout (brief §6).
+ * Reading layout for the public pages (/bot, /data-sources, /terms, /privacy),
+ * set like a directory's front matter: 16/26 body text at most 68 characters a
+ * line, condensed section heads with anchors, ink lists and ruled tables.
+ * One typeface throughout.
  */
 
 /** The page body: a single reading column. */
@@ -23,7 +24,7 @@ export function Prose({
   return (
     <div
       className={cn(
-        "flex max-w-[68ch] flex-col gap-10 text-email text-foreground",
+        "flex max-w-measure flex-col gap-12 text-body",
         className
       )}
     >
@@ -50,10 +51,7 @@ export function ProseSection({
       aria-labelledby={`${id}-title`}
       className={cn("flex scroll-mt-6 flex-col gap-4", className)}
     >
-      <h2
-        id={`${id}-title`}
-        className="text-pane-title font-semibold text-foreground"
-      >
+      <h2 id={`${id}-title`} className="section-head">
         {title}
       </h2>
       {children}
@@ -70,7 +68,7 @@ export function SubHeading({
   id?: string
 }) {
   return (
-    <h3 id={id} className="mt-2 text-email font-semibold text-foreground">
+    <h3 id={id} className="mt-2 text-lead font-bold">
       {children}
     </h3>
   )
@@ -87,7 +85,7 @@ export function List({
   return (
     <ul
       className={cn(
-        "flex list-disc flex-col gap-2 pl-6 marker:text-muted-foreground",
+        "flex list-disc flex-col gap-2 pl-6 marker:text-ink",
         className
       )}
     >
@@ -104,7 +102,7 @@ export function TextLink({
   return (
     <Link
       {...props}
-      className="rounded-xs font-medium text-primary underline decoration-[color-mix(in_srgb,var(--primary)_45%,transparent)] underline-offset-3 hover:decoration-primary"
+      className="font-semibold underline decoration-1 underline-offset-[3px] hover:text-edge"
     >
       {children}
     </Link>
@@ -123,14 +121,14 @@ export function CodeBlock({ code, label }: { code: string; label: string }) {
   return (
     <figure className="flex flex-col gap-2">
       <figcaption className="sr-only">{label}</figcaption>
-      <div className="flex items-start gap-3 rounded-xl border bg-card py-3 pr-2 pl-4">
-        <pre className="min-w-0 flex-1 py-1 font-sans text-ui font-medium [overflow-wrap:anywhere] whitespace-pre-wrap text-foreground">
+      <div className="flex items-start gap-3 border-2 border-ink py-3 pr-3 pl-4">
+        <pre className="min-w-0 flex-1 py-1 font-sans text-body font-bold [overflow-wrap:anywhere] whitespace-pre-wrap">
           <code className="font-sans">{code}</code>
         </pre>
         <Button
-          variant="ghost"
+          variant="link"
           size="sm"
-          className="shrink-0"
+          className="shrink-0 px-1"
           aria-label={copied ? `Copied ${label}` : `Copy ${label}`}
           onClick={async () => {
             const ok = await copyText(code)
@@ -142,11 +140,7 @@ export function CodeBlock({ code, label }: { code: string; label: string }) {
             )
           }}
         >
-          {copied ? (
-            <CheckIcon aria-hidden="true" />
-          ) : (
-            <CopyIcon aria-hidden="true" />
-          )}
+          {copied && <Mark name="check" />}
           {copied ? "Copied" : "Copy"}
         </Button>
       </div>
@@ -161,5 +155,5 @@ export function NoWrap({ children }: { children: React.ReactNode }) {
 
 /** "Last updated" line under a page header. */
 export function Updated({ date }: { date: string }) {
-  return <p className="text-ui text-ink-secondary">Last updated {date}.</p>
+  return <p className="aside">Last updated {date}.</p>
 }
