@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-25T00:00:00Z",
+  "title": "Design System: NearbyNudge",
+  "extensions": {
+    "colorMeta": {
+      "paper": { "role": "neutral", "displayName": "Paper", "canonical": "#FFFFFF", "night": "#000000", "tonalRamp": ["#262626", "#404040", "#595959", "#737373", "#8c8c8c", "#bfbfbf", "#e6e6e6", "#ffffff"] },
+      "ink": { "role": "primary", "displayName": "Ink", "canonical": "#000000", "night": "#FFFFFF", "tonalRamp": ["#000000", "#1a1a1a", "#333333", "#4d4d4d", "#666666", "#999999", "#cccccc", "#f2f2f2"] },
+      "edge": { "role": "secondary", "displayName": "Edge Red", "canonical": "#C8102E", "night": "#FF5C61", "tonalRamp": ["#3d0610", "#6b0b1b", "#9a0e25", "#c8102e", "#e0384f", "#f07a86", "#f8b9bf", "#fde8ea"] },
+      "edge-ink": { "role": "neutral", "displayName": "Text on Edge", "canonical": "#FFFFFF", "night": "#000000", "tonalRamp": ["#262626", "#404040", "#595959", "#737373", "#8c8c8c", "#bfbfbf", "#e6e6e6", "#ffffff"] },
+      "ink-soft": { "role": "neutral", "displayName": "Soft Ink (placeholders and disabled only)", "canonical": "#6B6B6B", "night": "#9A9A9A", "tonalRamp": ["#262626", "#3d3d3d", "#545454", "#6b6b6b", "#858585", "#a3a3a3", "#c7c7c7", "#ebebeb"] },
+      "tint": { "role": "neutral", "displayName": "Halftone", "canonical": "#F2F2F2", "night": "#161616", "tonalRamp": ["#262626", "#404040", "#595959", "#808080", "#a6a6a6", "#cccccc", "#e6e6e6", "#f2f2f2"] },
+      "leader": { "role": "neutral", "displayName": "Leader Grey (never text)", "canonical": "#A6A6A6", "night": "#6B6B6B", "tonalRamp": ["#262626", "#404040", "#595959", "#737373", "#8c8c8c", "#a6a6a6", "#cccccc", "#ebebeb"] },
+      "hairline": { "role": "neutral", "displayName": "Hairline", "canonical": "#D9D9D9", "night": "#333333", "tonalRamp": ["#262626", "#404040", "#595959", "#808080", "#a6a6a6", "#bfbfbf", "#d9d9d9", "#f2f2f2"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Extra-condensed 800. The open entry's name (caps) and its fit at 1280px and up; the page's one big number." },
+      "title": { "displayName": "Running head", "purpose": "Extra-condensed 800 caps, set solid. Every page's h1; the open entry's name under 1280px." },
+      "head": { "displayName": "Section head", "purpose": "Extra-condensed 800, sentence case. h2, dialog and sheet titles, the wordmark." },
+      "lead": { "displayName": "Lead", "purpose": "600. Email subjects, h3, campaign names, numbers on list lines." },
+      "body": { "displayName": "Body", "purpose": "Letters and prose within 68ch; input text on phones." },
+      "ui": { "displayName": "UI", "purpose": "Controls, table cells, entry names in bold." },
+      "meta": { "displayName": "Aside", "purpose": "Italic. The second line of an entry, hints, dates." },
+      "micro": { "displayName": "Micro", "purpose": "Key hints, footnote numerals, tooltips, menu shortcuts, chart axes." }
+    },
+    "shadows": [
+      { "name": "shadow-overlay", "value": "0 22px 44px -20px var(--shadow-color), 0 2px 6px -2px var(--shadow-color)", "purpose": "Overlays only: a slip of paper lying on the page. Shadow colour is black at 38% (90% at night)." }
+    ],
+    "motion": [
+      { "name": "dur-fast", "value": "120ms", "purpose": "Hover, press, menus and popovers." },
+      { "name": "dur-state", "value": "200ms", "purpose": "State changes, dialogs, sheets, meters filling." },
+      { "name": "dur-file", "value": "380ms", "purpose": "Filing: the edge strike and the count tick." },
+      { "name": "motion-ease", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Every transition and animation." },
+      { "name": "working", "value": "opacity pulse 1.6s ease-in-out infinite", "purpose": "The dot of a working stage." },
+      { "name": "dots", "value": "clip reveal 1.2s steps(4, end) infinite", "purpose": "The three-dot leader while something loads." },
+      { "name": "row-new", "value": "14% edge halftone fading to transparent, 1.4s, once", "purpose": "A row that has just arrived." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "desk-two", "value": "840px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "desk-three", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one main action in a place: ink fill, paper text, square, underlined on hover.",
+      "html": "<button class=\"ds-btn-primary\">Approve <span class=\"ds-key\">A</span></button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 2px solid #000; border-radius: 0; background: #000; color: #fff; font: 600 14px/20px 'Archivo Variable', ui-sans-serif, system-ui, sans-serif; text-decoration-thickness: 2px; text-underline-offset: 5px; cursor: pointer; transition: color 120ms cubic-bezier(0.16,1,0.3,1), background-color 120ms cubic-bezier(0.16,1,0.3,1), transform 120ms cubic-bezier(0.16,1,0.3,1); } .ds-btn-primary:hover { text-decoration-line: underline; } .ds-btn-primary:focus-visible { outline: 2px solid #000; outline-offset: 2px; } .ds-btn-primary:active { transform: translateY(1px); } .ds-key { display: inline-flex; align-items: center; justify-content: center; height: 20px; min-width: 20px; padding: 0 4px; border: 1px solid currentColor; font-size: 12px; line-height: 1; font-weight: 800; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary actions: 2px ink border on paper.",
+      "html": "<button class=\"ds-btn-outline\">Skip</button>",
+      "css": ".ds-btn-outline { height: 40px; padding: 0 16px; border: 2px solid #000; border-radius: 0; background: #fff; color: #000; font: 600 14px/20px 'Archivo Variable', ui-sans-serif, system-ui, sans-serif; text-decoration-thickness: 2px; text-underline-offset: 5px; cursor: pointer; transition: transform 120ms cubic-bezier(0.16,1,0.3,1); } .ds-btn-outline:hover { text-decoration-line: underline; } .ds-btn-outline:focus-visible { outline: 2px solid #000; outline-offset: 2px; } .ds-btn-outline:active { transform: translateY(1px); }"
+    },
+    {
+      "name": "Edge Outline Button",
+      "kind": "button",
+      "refersTo": "button-edge-outline",
+      "description": "A destructive action that should stand apart: dashed edge-red border and text.",
+      "html": "<button class=\"ds-btn-edge-outline\">Delete all data</button>",
+      "css": ".ds-btn-edge-outline { height: 40px; padding: 0 16px; border: 2px dashed #c8102e; border-radius: 0; background: #fff; color: #c8102e; font: 600 14px/20px 'Archivo Variable', ui-sans-serif, system-ui, sans-serif; text-decoration-thickness: 2px; text-underline-offset: 5px; cursor: pointer; } .ds-btn-edge-outline:hover { text-decoration-line: underline; } .ds-btn-edge-outline:focus-visible { outline: 2px solid #000; outline-offset: 2px; } .ds-btn-edge-outline:active { transform: translateY(1px); }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Square, 1px ink border, 40px tall, italic soft placeholder; edge red on error.",
+      "html": "<input class=\"ds-input\" placeholder=\"Business name\" />",
+      "css": ".ds-input { height: 40px; width: 240px; padding: 4px 12px; border: 1px solid #000; border-radius: 0; background: #fff; color: #000; caret-color: #c8102e; font: 400 14px/20px 'Archivo Variable', ui-sans-serif, system-ui, sans-serif; } .ds-input::placeholder { color: #6b6b6b; font-style: italic; opacity: 1; } .ds-input:focus-visible { outline: 2px solid #000; outline-offset: 2px; } .ds-input[aria-invalid='true'] { border-color: #c8102e; outline-color: #c8102e; } .ds-input:disabled { border-style: dashed; background: #f2f2f2; color: #6b6b6b; cursor: not-allowed; }"
+    },
+    {
+      "name": "Thumb Index",
+      "kind": "nav",
+      "refersTo": "thumb-tab",
+      "description": "Die-cut tabs drawn in ink, open on the rule they stand on; the open tab is filled edge red; counts in condensed numerals.",
+      "html": "<div class=\"ds-thumb\"><button class=\"ds-tab ds-tab-open\">Ready <b>12</b></button><button class=\"ds-tab\">Needs review <b>3</b></button><button class=\"ds-tab\">Approved <b>7</b></button></div>",
+      "css": ".ds-thumb { display: flex; align-items: flex-end; gap: 4px; border-bottom: 2px solid #000; } .ds-tab { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 16px; border: 2px solid #000; border-bottom: 0; border-radius: 10px 10px 0 0; background: #fff; color: #000; font: 600 14px/20px 'Archivo Variable', ui-sans-serif, system-ui, sans-serif; text-underline-offset: 4px; cursor: pointer; transition: color 120ms, background-color 120ms; } .ds-tab b { font-weight: 800; font-stretch: 62.5%; font-variant-numeric: tabular-nums lining-nums; } .ds-tab:hover { text-decoration-line: underline; } .ds-tab:focus-visible { outline: 2px solid #000; outline-offset: 2px; } .ds-tab-open { border-color: #c8102e; background: #c8102e; color: #fff; }"
+    },
+    {
+      "name": "White-pages Line",
+      "kind": "custom",
+      "description": "Every list entry: bold name, dot leader, condensed number weighted by fit, italic aside beneath; the open entry's name is edge red with a drawn pointer.",
+      "html": "<ul class=\"ds-wp\"><li class=\"ds-wp-row ds-wp-open\"><span class=\"ds-wp-line\"><svg class=\"ds-pointer\" viewBox=\"0 0 12 12\" aria-hidden=\"true\"><path d=\"M3 1.8 10 6l-7 4.2z\" fill=\"currentColor\"/></svg><span class=\"ds-wp-name\">Sample Dental Studio</span><span class=\"ds-leader\"></span><span class=\"ds-wp-num\" style=\"font-weight:800\">92</span></span><span class=\"ds-wp-aside\">Dentist, email on file. 0.4 mi</span></li><li class=\"ds-wp-row\"><span class=\"ds-wp-line\"><span class=\"ds-wp-name\">Corner Bakery</span><span class=\"ds-leader\"></span><span class=\"ds-wp-num\" style=\"font-weight:600\">71</span></span><span class=\"ds-wp-aside\">Bakery, contact form only. 0.9 mi</span></li></ul>",
+      "css": ".ds-wp { list-style: none; margin: 0; padding: 0; width: 340px; font-family: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif; color: #000; } .ds-wp-row { display: flex; flex-direction: column; gap: 2px; padding: 12px 16px; border-bottom: 1px solid #d9d9d9; cursor: pointer; transition: background-color 120ms; } .ds-wp-row:hover { background: #f2f2f2; } .ds-wp-row:hover .ds-wp-name { text-decoration-line: underline; text-underline-offset: 4px; } .ds-wp-line { display: flex; align-items: baseline; gap: 6px; } .ds-pointer { width: 12px; height: 12px; margin-left: -14px; color: #c8102e; } .ds-wp-name { font: 700 14px/20px inherit; font-family: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ds-wp-open .ds-wp-name { color: #c8102e; } .ds-wp-open:hover { background: transparent; } .ds-leader { flex: 1 1 1.5rem; min-width: 1.5rem; height: 0.7em; border-bottom: 2px dotted #a6a6a6; } .ds-wp-num { font-size: 18px; line-height: 26px; font-stretch: 62.5%; font-variant-numeric: tabular-nums lining-nums; } .ds-wp-aside { font-size: 13px; line-height: 18px; font-style: italic; }"
+    },
+    {
+      "name": "Meter",
+      "kind": "custom",
+      "description": "A value in words over a dotted leader track filled with solid ink; edge red at the limit.",
+      "html": "<div class=\"ds-meter\"><span>Sent today</span><span class=\"ds-track\"><span class=\"ds-fill\" style=\"width:35%\"></span></span><span class=\"ds-meter-num\">7 of 20</span></div>",
+      "css": ".ds-meter { display: flex; align-items: center; gap: 10px; width: 280px; font: 400 14px/20px 'Archivo Variable', ui-sans-serif, system-ui, sans-serif; color: #000; } .ds-track { position: relative; flex: 1; height: 8px; } .ds-track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); border-bottom: 2px dotted #a6a6a6; } .ds-fill { position: absolute; top: 0; bottom: 0; left: 0; background: #000; transition: width 200ms cubic-bezier(0.16,1,0.3,1); } .ds-meter-num { font-size: 18px; font-weight: 800; font-stretch: 62.5%; font-variant-numeric: tabular-nums lining-nums; }"
+    },
+    {
+      "name": "Notice that needs you",
+      "kind": "card",
+      "description": "Boxed with a 1px ink rule and a 3px edge-red top rule, a condensed head; never on a tint.",
+      "html": "<div class=\"ds-notice\"><svg viewBox=\"0 0 12 12\" class=\"ds-mark\" aria-hidden=\"true\"><path d=\"M6 1.4v9.2M2 3.7l8 4.6M2 8.3l8-4.6\"/></svg><div><p class=\"ds-notice-head\">One claim needs a source</p><p>Check fact 2 against the site before you approve.</p></div></div>",
+      "css": ".ds-notice { display: flex; gap: 8px; align-items: flex-start; max-width: 420px; padding: 12px 16px; border: 1px solid #000; border-top: 3px solid #c8102e; background: #fff; color: #000; font: 400 14px/20px 'Archivo Variable', ui-sans-serif, system-ui, sans-serif; } .ds-notice p { margin: 0; } .ds-notice-head { font-size: 24px; line-height: 26px; font-weight: 800; font-stretch: 62.5%; margin-bottom: 4px !important; } .ds-mark { width: 12px; height: 12px; margin-top: 7px; flex-shrink: 0; fill: none; stroke: #c8102e; stroke-width: 1.75; stroke-linecap: square; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The criss-cross directory",
+    "overview": "Before the web, salespeople found every business on a street in the criss-cross city directory. NearbyNudge prints a fresh one for each campaign: every business in range, set as a white-pages entry; what it says about itself, with its sources set as footnotes; beneath it, the letter worth sending. What this refuses is the SaaS dashboard made of soft cards, tinted panels and icon tiles.",
+    "keyCharacteristics": [
+      "Two inks on white: black and edge red. The night version reverses them.",
+      "Every list is a directory. An entry is a white-pages line: name, dot leader, number.",
+      "Navigation is a thumb index. Views and sections are die-cut tabs. The open tab is red.",
+      "Sources are footnotes; checks are keys.",
+      "Spend boldness once per screen.",
+      "Corners are square, except where paper is die-cut (tabs) and where a circle means a dot.",
+      "One authored motion: filing. Everything else that moves only shows a state."
+    ],
+    "rules": [
+      { "name": "The Two Inks Rule", "body": "Black and edge red on white, reversed at night. A new colour needs a new meaning, and there isn't one.", "section": "colors" },
+      { "name": "The No Grey Text Rule", "body": "ink-soft is for placeholders, disabled labels and facts the reviewer marked wrong. Anything else that wants to be quieter is set in italic.", "section": "colors" },
+      { "name": "The Edge Halftone Rule", "body": "Edge red may be screened only for something passing: text selection (24% edge on paper) and the fade on a row that just arrived (14%, gone in 1.4s). It never rests as a background; there is no pink wash.", "section": "colors" },
+      { "name": "The Solid Caps Rule", "body": "Caps are only ever the heading itself, set solid (0.004em). They are never a tracked-out label above a heading.", "section": "typography" },
+      { "name": "The Fit Weight Rule", "body": "A fit number's weight says how strong it is, everywhere: Strong 800, Good 600, Weak 400. The word carries the meaning; the weight echoes it.", "section": "typography" },
+      { "name": "The Flat Page Rule", "body": "Nothing on the page itself casts a shadow. Grouping is done with rules: 3px for running heads and notices, 2px for sections and frames, 1px for boxes and columns, hairlines between rows.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do set every list as white-pages lines: bold name, dot leader, condensed tabular number, italic aside beneath.",
+      "Do keep edge red (#C8102E, #FF5C61 at night) for here and needs you, and nothing else.",
+      "Do pair every drawn mark, meter and fill with a word, so colour and shape are never the only signal.",
+      "Do give each screen one bold element besides the running head and the thumb index.",
+      "Do separate with rules (3px, 2px, 1px, hairline) instead of boxes, fills or shadows.",
+      "Do keep every touch target at least 44px on phones and every focus ring a 2px ink outline."
+    ],
+    "donts": [
+      "Don't set text in grey; use italic for what is secondary.",
+      "Don't put soft cards, tinted panels, icon tiles or a pink wash on the page.",
+      "Don't round a corner other than a die-cut tab or a radio.",
+      "Don't set a tracked-out caps label above a heading.",
+      "Don't separate meta with middle dots or put arrows on links and buttons; full stops and commas do that job.",
+      "Don't add motion beyond filing and the three state signals, and never let anything move under reduced motion or paused live updates."
+    ]
+  }
+}
