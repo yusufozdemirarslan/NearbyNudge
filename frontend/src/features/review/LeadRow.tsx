@@ -169,7 +169,7 @@ export const LeadRow = React.memo(function LeadRow({
           )}
         </span>
         {!compact && (
-          <span className="flex min-w-0 items-baseline gap-3 pl-4">
+          <span className="flex min-w-0 items-baseline gap-3 pl-4 max-sm:pl-0">
             <span className="flex min-w-0 items-baseline aside">
               <span className="shrink-0 tabular-nums not-italic">{formatDistance(lead.distance_mi)}</span>
               {/* The contact appears once research finds it; a lead whose research ended without it shows none. */}

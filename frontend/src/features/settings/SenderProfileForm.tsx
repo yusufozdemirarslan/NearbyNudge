@@ -338,10 +338,16 @@ export function FooterPreview({
           <p className="text-body [overflow-wrap:anywhere]">
             {lines.map((line) =>
               line.text === null ? (
-                <span key={line.key} className="flex items-baseline gap-2 italic">
-                  <span className="min-w-0">{line.placeholder}</span>
-                  <span aria-hidden="true" className="leader" />
-                </span>
+                line.key === "offer" ? (
+                  <span key={line.key} className="block italic">
+                    {line.placeholder}
+                  </span>
+                ) : (
+                  <span key={line.key} className="flex items-baseline gap-2 italic">
+                    <span className="min-w-0">{line.placeholder}</span>
+                    <span aria-hidden="true" className="leader" />
+                  </span>
+                )
               ) : (
                 <span key={line.key} className="block">
                   {line.text || "\u00a0"}

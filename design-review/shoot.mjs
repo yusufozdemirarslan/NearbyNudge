@@ -799,6 +799,8 @@ async function shoot(browser, screen, size, theme, outDir) {
       await settle(page)
     }
     if (!screen.window) await growToContent(page, size)
+    // Park the pointer in the empty top-left corner so a clicked button isn't caught mid-hover.
+    await page.mouse.move(0, 0)
     await page.screenshot({ path: file, fullPage: !screen.window, animations: "disabled", caret: "hide" })
     return { file, problems }
   } finally {

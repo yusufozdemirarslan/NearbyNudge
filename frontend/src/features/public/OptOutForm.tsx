@@ -123,7 +123,7 @@ export function OptOutForm() {
       noValidate
       aria-label="Opt-out request"
       onSubmit={handleSubmit((values) => mutation.mutate(values))}
-      className="flex flex-col gap-5 border-2 border-dashed border-ink p-5 text-ui sm:p-6"
+      className="flex flex-col gap-5 border border-t-(length:--rule-heavy) border-ink p-5 text-ui sm:p-6"
     >
       <FormField
         label="Your website"

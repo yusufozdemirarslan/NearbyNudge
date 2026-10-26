@@ -438,9 +438,15 @@ function CouldntFinish({ lead, className }: { lead: Lead; className?: string }) 
     <div className={cn("border border-t-(length:--rule-heavy) border-ink border-t-edge p-5", className)} data-slot="couldnt-finish">
       <p className="flex items-center gap-2 text-lead font-extrabold stretch-condensed">
         <Mark name="cross" className="size-3.5" />
-        Couldn't finish: {lead.error ?? "research stopped"}
+        Couldn't finish
       </p>
       <p className="mt-1.5 text-ui">
+        {lead.error && (
+          <span className="font-semibold">
+            {lead.error}
+            {/[.!?]$/u.test(lead.error) ? "" : "."}{" "}
+          </span>
+        )}
         {/site/iu.test(lead.error ?? "")
           ? "The site didn't respond, blocked our reader, or had no readable text."
           : "Research stopped before a draft was ready."}{" "}

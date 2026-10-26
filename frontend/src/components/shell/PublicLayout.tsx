@@ -33,11 +33,11 @@ export function PublicLayout() {
     <div className="flex min-h-svh flex-col bg-paper">
       <SkipLink />
       <header className="border-b-(length:--rule-heavy) border-ink">
-        <div className="mx-auto flex h-(--masthead) max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
-          <Link to="/" aria-label="NearbyNudge home">
+        <div className="mx-auto flex h-(--masthead) max-w-5xl items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6">
+          <Link to="/" aria-label="NearbyNudge home" className="min-w-0">
             <BrandMark />
           </Link>
-          <Link to="/" className={buttonVariants({ variant: "outline", size: "sm" })}>
+          <Link to="/" className={buttonVariants({ variant: "outline", size: "sm", className: "max-sm:px-2.5" })}>
             Go to campaigns
           </Link>
         </div>

@@ -26,7 +26,7 @@ export function Masthead() {
   return (
     <header
       data-slot="top-bar"
-      className="relative z-30 flex h-(--masthead) shrink-0 items-center gap-6 border-b-(length:--rule-heavy) border-ink bg-paper px-4 sm:px-6"
+      className="relative z-30 flex h-(--masthead) shrink-0 items-center gap-3 border-b-(length:--rule-heavy) border-ink bg-paper px-4 sm:gap-6 sm:px-6"
     >
       <Link to="/" aria-label="NearbyNudge, campaigns" className="shrink-0">
         <BrandMark />

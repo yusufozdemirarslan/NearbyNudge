@@ -437,7 +437,13 @@ export function SentPage() {
       >
         <TabsList aria-label="Filter by status" className="w-full flex-nowrap gap-1 overflow-x-auto border-b-2 border-ink">
           {FILTERS.map((item) => (
-            <TabsTrigger key={item.value} value={item.value} className="h-11 shrink-0 gap-2 px-2.5 sm:gap-2.5 sm:px-4">
+            <TabsTrigger
+              key={item.value}
+              value={item.value}
+              // Phones: four equal tabs, the label over its count, so every filter stays in view.
+              // (The tab's base height and padding use a group selector, hence the `!`.)
+              className="shrink-0 gap-2.5 max-sm:h-auto! max-sm:min-w-0 max-sm:flex-1 max-sm:flex-col max-sm:gap-0.5 max-sm:px-1! max-sm:py-1.5 max-sm:text-micro"
+            >
               {item.label}
               <span className="numeral text-lead leading-none sm:text-head">{items ? counts[item.value] : ""}</span>
             </TabsTrigger>
