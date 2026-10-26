@@ -1,5 +1,9 @@
 # secrets and local data
 .env
+.env*.local
+
+# Vercel project link (made by `vercel link`)
+.vercel
 data/
 *.duckdb
 *.duckdb.wal

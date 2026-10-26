@@ -1,0 +1,38 @@
+# What `vercel deploy` must never upload. The deploy builds the dashboard and loads its data itself.
+
+# secrets and local data (the hosted copy has its own database and loads its listings at build time)
+.env
+.env.*
+**/.env
+**/.env.*
+data/
+*.db
+*.db-*
+*.duckdb
+*.duckdb.wal
+*.log
+
+# local tools, caches and builds
+.git/
+.vercel/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/node_modules/
+frontend/dist/
+frontend/dist-*/
+.impeccable/
+design-review/
+docs/
+
+# tests and their output
+backend/tests/
+backend/scripts/e2e_server.py
+backend/scripts/live_run.py
+frontend/test-results*/
+frontend/playwright-report*/
+frontend/blob-report/
+
+# scripts for this computer
+start.ps1
+verify.ps1
