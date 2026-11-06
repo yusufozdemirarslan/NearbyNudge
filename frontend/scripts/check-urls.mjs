@@ -13,7 +13,7 @@ import { extname, join, relative } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = fileURLToPath(new URL("..", import.meta.url))
-// Optional folder argument, for builds made outside dist/ (e.g. a review build).
+// Optional folder argument, for builds made outside dist/.
 const dist = join(root, process.argv[2] ?? "dist")
 const allowlist = JSON.parse(readFileSync(join(root, "scripts", "url-allowlist.json"), "utf8"))
 const TEXT = new Set([".js", ".mjs", ".css", ".html", ".svg", ".json", ".txt", ".xml", ".webmanifest", ".map"])

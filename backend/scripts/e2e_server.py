@@ -9,7 +9,7 @@ workspace switch (POST /api/dev/workspace) is on, so each test can work in its o
 
     cd backend && .venv/Scripts/python.exe scripts/e2e_server.py --port 8100 [--live]
     # then in frontend/:  E2E_BASE_URL=http://localhost:8100 npx playwright test
-    # --dist frontend/dist-redesign serves another dashboard build (default: frontend/dist)
+    # --dist <folder> serves another dashboard build; a relative folder is taken from the project folder, e.g. frontend/dist-preview (default: frontend/dist)
 """
 
 from __future__ import annotations

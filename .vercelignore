@@ -22,7 +22,6 @@ data/
 frontend/dist/
 frontend/dist-*/
 .impeccable/
-design-review/
 docs/
 
 # tests and their output

@@ -2,7 +2,7 @@
 
 <!-- impeccable:product-schema 1 -->
 
-Sources: the PRD (`../NearbyNudge-2.0-PRD.md`), the code in this repo, and the owner's own instructions in the build sessions. Facts marked *(inferred)* were not confirmed by the owner directly; correct them here.
+Sources: the original PRD, the code in this repo, and the owner's own instructions in the build sessions. Facts marked *(inferred)* were not confirmed by the owner directly; correct them here.
 
 ## Platform
 
@@ -119,8 +119,8 @@ The app shows its work at three levels:
 ## Evidence on Hand
 
 - **Sample data:** the mock adapter's sample campaign, "Dentists within 5 mi of Arlington, VA" (`frontend/src/lib/api/mock/`). The businesses are synthetic, and any design shot that shows them must not be passed off as real.
-- **Live-run screenshots:** `docs/live-ui/` shows real businesses. It is gitignored because it contains real contact details, and must never ship in the app or in design material.
-- **Measured AI cost:** about $0.04–0.07 per lead in live runs.
+- **Live-run screenshots:** the live run through the dashboard (`frontend/e2e/live-ui.spec.ts`) saves them to `docs/live-ui/`. They show real businesses, so that folder is gitignored and must never ship in the app or in design material.
+- **Measured AI cost:** about $0.07 per lead in two live runs ($0.067 and $0.074 on average; single leads $0.04 to $0.08).
 - **What does not exist:** testimonials, customer logos, pricing or adoption numbers. None may be invented.
 
 ## Product Principles

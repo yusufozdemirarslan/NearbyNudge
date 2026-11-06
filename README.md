@@ -67,6 +67,8 @@ Two live checks use real Claude, real listings and real websites (about $0.30 to
 | `NN_AI_FALLBACKS` | `true` | Server-side refusal fallback (Claude API `fallbacks: "default"`) |
 | `NN_AI_WEB_SEARCH` | `true` | Use one web search to check businesses that have no website |
 | `NN_LEAD_COST_CAP` | `0.30` | A lead that reaches this AI cost stops ("Couldn't finish") |
+| `NN_AI_RPM` | `50` | AI requests per minute |
+| `NN_AI_OUTAGE_PAUSE_S` | `60` | Seconds AI work pauses after an overload or outage, or after a rate limit that doesn't say how long to wait (when it does, the pause follows its `retry-after`, up to 120 s); the job goes back in the queue and gives up only after 24 hours. A rejected key, a billing problem or an unavailable model pauses work until fixed (admin **Resume now**, or a check every 5 minutes) |
 | `NN_WORKER_CONCURRENCY` | `4` | Leads researched at the same time |
 | `NN_PUBLIC_URL` | `http://localhost:8000` | Where the app is served; the server answers only to this host name and this computer's own addresses |
 | `NN_LOGIN_EMAIL` / `NN_LOGIN_PASSWORD_HASH` | (empty: no sign-in) | The one account. Make the hash with `python -m nearbynudge hash-password` |
@@ -80,13 +82,14 @@ backend/nearbynudge/   app.py (startup, security headers, CSRF)  api/  ai/ (Clau
                        pipeline/ (jobs, worker, steps, actions, live events)  reader/  listings/  geo/
 backend/tests/         fake_ai.py (fake Claude API), sites/ (fixture websites)
 frontend/src/          app/ (router, session)  components/ (shell, shared, ui)  features/ (one folder per screen)  lib/api/
-docs/                  plan.md, api-contract.md, api-types.ts (the API contract), live-run reports
+docs/                  api-contract.md, api-types.ts (the API contract); the live checks write their reports and screenshots here (gitignored)
 ```
 
 ## Notes
 
-- **AI provider.** The PRD named Xiaomi MiMo as the one API. Per the product owner's instruction in `API.md`, the app uses Claude Sonnet 5.5 at medium effort instead; the one-API rule is unchanged (Claude is the only outside API). Every vendor-specific name lives in `backend/nearbynudge/ai/` and the settings.
-- **Costs.** Claude Sonnet 5.5 lists at $2 per million input tokens and $10 per million output. A lead takes about 5 AI calls; see `docs/live-run-report.json` for measured cost per lead. The admin console shows spend by day and by role.
+- **AI provider.** The PRD named Xiaomi MiMo as the one API. Per the product owner's instruction, the app uses Claude Sonnet 5.5 at medium effort instead; the one-API rule is unchanged (Claude is the only outside API). Every vendor-specific name lives in `backend/nearbynudge/ai/` and the settings.
+- **Costs.** Claude Sonnet 5.5 lists at $2 per million input tokens and $10 per million output. A lead takes about 5 AI calls; two live runs measured about $0.07 per lead ($0.067 and $0.074). The admin console shows spend by day and by role.
+- **Pipeline rules.** Your decisions win: every pipeline write checks that the lead is still in progress, so skipping a lead, marking it Do not contact, or deleting its campaign (or all data) while it is being researched is never overwritten. On this computer that decision also cancels the running job; hosted, the job finishes the step it is on and that step's result is dropped. Email length is measured by code, not by the AI editor: the editor gets the word counts and fixes length only when the code reports a problem. Do not contact matches the place, the website's domain, the email address or the business name (legal suffixes, case and punctuation ignored).
 - **Sign-in.** One account, no sign-up: the email in `NN_LOGIN_EMAIL` and the password whose scrypt hash is `NN_LOGIN_PASSWORD_HASH`. A signed-in browser holds an HttpOnly session cookie for 7 days; five wrong passwords from one address (or 50 from everywhere) in 15 minutes pause sign-in for a while, counted in the database. Without the sign-in settings (tests, or this computer if you remove the lines) everyone who opens the app works in the one shared workspace, so then it should stay on this computer: the server listens only on `127.0.0.1` and `::1` and refuses any other host name (DNS rebinding). The hosted copy never starts without sign-in. "Delete all data" in Settings starts over.
 - **Setup-time downloads** (like `pip` or `npm`, not runtime APIs): Python and npm packages, DuckDB's `httpfs` extension (fetched once from extensions.duckdb.org the first time listings are loaded), the Census Gazetteer files and the Overture Maps listings.
 - **Listings refresh.** Overture publishes a new release monthly; reload with `python -m nearbynudge load-listings --metro dc` while the app is stopped (DuckDB allows one writer).

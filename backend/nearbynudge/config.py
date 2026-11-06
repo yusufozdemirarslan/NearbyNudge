@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ROOT = Path(__file__).resolve().parents[2]  # NearbyNudge-2.0/
+ROOT = Path(__file__).resolve().parents[2]  # the project folder (backend/, frontend/, data/)
 
 AI_MODEL = "claude-sonnet-5-5"
 

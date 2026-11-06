@@ -143,7 +143,7 @@ components:
 
 # Design System: NearbyNudge
 
-The look of NearbyNudge, and the rules for keeping it. Product facts live in [PRODUCT.md](PRODUCT.md). The directions this was chosen from are in [design-review/DIRECTIONS.md](design-review/DIRECTIONS.md). All tokens live in `frontend/src/index.css`; components use the Tailwind utilities generated from them, never raw values.
+The look of NearbyNudge, and the rules for keeping it. Product facts live in [PRODUCT.md](PRODUCT.md). All tokens live in `frontend/src/index.css`; components use the Tailwind utilities generated from them, never raw values.
 
 ## Overview
 
@@ -272,7 +272,7 @@ Two inks on paper, with a few screens of ink for structure. The night version sw
 
 ## Brand
 
-The identity is **One Step** (brand concept 04, approved): two large squares for nearby places and a small displaced square, the measured nudge. The handoff with its specification is kept outside the repository; everything the app needs is in it:
+The identity is **One Step** (brand concept 04, approved): two large squares for nearby places and a small displaced square, the measured nudge. Everything the app needs from the brand handoff is in the repository:
 - `frontend/public/brand/nearbynudge/`: the supplied SVG marks, favicons (ICO, OS-aware SVG), touch and app icons, maskable icons, light, dark and one-ink variants.
 - `frontend/src/components/shell/BrandMark.tsx`: `OneStepMark` (the inline symbol) and `BrandMark` (symbol and name).
 
@@ -286,6 +286,7 @@ The identity is **One Step** (brand concept 04, approved): two large squares for
 - Masthead (every app page), the phone menu, public pages, dead ends and the set-up screen: `BrandMark` at md.
 - Public and set-up footers: `BrandMark` at sm, before the links.
 - Constrained places show the mark alone (the masthead at 1024–1439px and under 360px).
+- Near other UI the mark keeps at least 2 grid units of clear space outside its squares (2px at 16px, 4px at 32px). The drawing's own 1-unit margin inside the viewBox counts toward it; the container supplies the rest (1px at 16px, 2px at 32px), and the drawing never changes.
 
 **Accessibility.** Beside the readable name the mark is decorative (`aria-hidden`), so the name isn't announced twice. A link that may show the mark alone carries the name (`aria-label="NearbyNudge, campaigns"`, "NearbyNudge home"). Its focus ring is the usual 2px ink outline, 4px clear of the squares.
 

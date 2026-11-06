@@ -22,7 +22,7 @@ __pycache__/
 # node
 node_modules/
 frontend/dist/
-frontend/dist-redesign/
+frontend/dist-*/
 frontend/test-results*/
 frontend/playwright-report*/
 frontend/blob-report/
@@ -30,10 +30,6 @@ frontend/blob-report/
 # live-run reports contain real business contact details
 docs/live-run-*.json
 docs/live-run-*.log
-
-# design review screenshots (regenerate with: node design-review/shoot.mjs before|after)
-design-review/before/
-design-review/after/
 
 # test output (live screenshots show real business contact details)
 docs/live-ui/
