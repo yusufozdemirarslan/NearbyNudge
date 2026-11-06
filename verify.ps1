@@ -2,7 +2,8 @@
 #   powershell -ExecutionPolicy Bypass -File .\verify.ps1
 # 1) backend tests  2) release check (outside connections)  3) dashboard typecheck + build + URL check
 # 4) browser tests (Playwright + axe) against the real backend with fixture sites and a fake AI (no cost)
-# 5) browser tests against the dashboard's sample data
+# 5) the sign-in tests, against a second test server with sign-in on
+# 6) browser tests against the dashboard's sample data
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -44,7 +45,29 @@ try {
     Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
 }
 
-# 5) the same browser tests against the dashboard's built-in sample data (covers states the fake AI can't reach)
+# 5) sign-in: a test server with sign-in on and a password made up for this run
+$loginPort = 8101
+$env:E2E_LOGIN_PASSWORD = "test-" + [guid]::NewGuid().ToString("N").Substring(0, 16)
+$loginServer = Start-Process -FilePath $py -ArgumentList "scripts\e2e_server.py", "--port", "$loginPort", "--login" `
+    -WorkingDirectory (Join-Path $root "backend") -PassThru -WindowStyle Hidden
+try {
+    $ready = $false
+    for ($i = 0; $i -lt 60; $i++) {
+        try { Invoke-WebRequest "http://localhost:$loginPort/api/health" -UseBasicParsing -TimeoutSec 2 | Out-Null; $ready = $true; break }
+        catch { Start-Sleep -Milliseconds 500 }
+    }
+    if (-not $ready) { throw "the sign-in test server didn't start" }
+    Push-Location (Join-Path $root "frontend")
+    $env:E2E_BASE_URL = "http://localhost:$loginPort"
+    Step "Sign-in tests" { npx playwright test e2e/login.spec.ts }
+    Remove-Item Env:E2E_BASE_URL
+    Pop-Location
+} finally {
+    Stop-Process -Id $loginServer.Id -Force -ErrorAction SilentlyContinue
+    Remove-Item Env:E2E_LOGIN_PASSWORD -ErrorAction SilentlyContinue
+}
+
+# 6) the same browser tests against the dashboard's built-in sample data (covers states the fake AI can't reach)
 Remove-Item Env:E2E_BASE_URL -ErrorAction SilentlyContinue
 Push-Location (Join-Path $root "frontend")
 Step "Browser tests (sample data)" { npx playwright test }

@@ -2,7 +2,7 @@ import * as React from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 import { KeyHint } from "@/components/KeyHint"
-import { usePreferences, useUpdatePreferences } from "@/hooks/use-account"
+import { usePreferences, useSavePreference } from "@/hooks/use-account"
 import { useShortcutRegistry, useShortcuts } from "@/hooks/use-shortcuts"
 
 interface SheetContextValue {
@@ -46,7 +46,7 @@ export function useShortcutSheet() {
 function ShortcutSheetDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const registry = useShortcutRegistry()
   const preferences = usePreferences()
-  const updatePreferences = useUpdatePreferences()
+  const savePreference = useSavePreference()
   const groups = open ? registry.list() : []
   const switchId = React.useId()
 
@@ -65,7 +65,7 @@ function ShortcutSheetDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             <Switch
               id={switchId}
               checked={preferences.shortcuts_enabled}
-              onCheckedChange={(checked) => void updatePreferences({ shortcuts_enabled: checked })}
+              onCheckedChange={(checked) => savePreference({ shortcuts_enabled: checked })}
             />
           </div>
         </DialogHeader>

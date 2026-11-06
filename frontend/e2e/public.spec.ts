@@ -78,7 +78,7 @@ test.describe("public pages", () => {
     await expect(
       page.getByRole("link", { name: "Delete all data in Settings" })
     ).toHaveAttribute("href", "/settings#delete-data")
-    await expect(page.getByText("NearbyNudge has no sign-in.", { exact: false })).toBeVisible()
+    await expect(page.getByText("Each copy of NearbyNudge has one account, protected by a password", { exact: false })).toBeVisible()
   })
 
   test("the opt-out form explains what to fix, next to each field", async ({

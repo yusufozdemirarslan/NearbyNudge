@@ -155,10 +155,21 @@ def test_text_fragment_collapses_whitespace():
         ("localhost:8000", "localhost"),
         ("http://localhost/", "localhost"),
         ("", ""),
+        ("https://www.café.com/", "xn--caf-dma.com"),  # international names compare as httpx connects: punycode
+        ("https://www.xn--caf-dma.com/menu", "xn--caf-dma.com"),
+        ("https://WWW.CAFÉ.com", "xn--caf-dma.com"),
+        ("https://www.diş-kliniği.com.tr/", "xn--di-klinii-xkb11e.com.tr"),
     ],
 )
 def test_registrable_domain(value, domain):
     assert registrable_domain(value) == domain
+
+
+def test_host_names_that_arent_valid_international_names_are_kept_as_they_are():
+    from nearbynudge.reader.urls import host_of
+
+    assert host_of("https://😀.example/") == "😀.example"
+    assert host_of("https://www.Café.com:8080/x") == "www.xn--caf-dma.com"
 
 
 # ------------------------------------------------------------------ normalize_url

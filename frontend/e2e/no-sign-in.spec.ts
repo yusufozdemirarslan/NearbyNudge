@@ -2,15 +2,17 @@ import { apiRequest, devWorkspace } from "./accounts"
 import { expect, expectNoAxeViolations, mockSettings, test, usingRealBackend } from "./fixtures"
 
 /*
- * NearbyNudge has no sign-in: everyone who opens it uses one workspace. These
- * run on the sample data and on the real backend (where each test that
- * changes the workspace takes its own through POST /api/dev/workspace).
+ * Without a password set (the sample data, the test server, this computer by
+ * default) NearbyNudge asks for no sign-in: everyone who opens it uses one
+ * workspace. These run on the sample data and on the real backend (where each
+ * test that changes the workspace takes its own through POST /api/dev/workspace).
+ * The sign-in itself is in login.spec.ts.
  */
 
 /** The address of the campaigns home, with no path or query after it. */
 const HOME = /^[a-z]+:\/\/[^/]+\/$/u
 
-test.describe("no sign-in", () => {
+test.describe("with sign-in off", () => {
   test("the app opens straight to campaigns, with no sign-in anywhere", async ({ page }) => {
     await page.goto("/")
     await expect(page.getByRole("heading", { level: 1, name: "Campaigns" })).toBeVisible()
@@ -29,18 +31,25 @@ test.describe("no sign-in", () => {
       const me = await apiRequest<{ user: { onboarded: boolean; name: string } }>(page, "GET", "/api/me")
       expect(me.status).toBe(200)
       expect(me.body.user).toMatchObject({ onboarded: true, name: "Test Sender" })
-      // The sign-in endpoints are gone.
+      expect((await apiRequest(page, "GET", "/api/auth/session")).body).toEqual({ enabled: false, signed_in: true, email: null })
+      // The old passkey endpoints are gone.
       expect((await apiRequest(page, "GET", "/api/auth/me")).status).toBe(404)
       expect((await apiRequest(page, "POST", "/api/auth/login/options", {})).status).toBe(404)
     }
   })
 
-  test("old sign-in and sign-up links open the app", async ({ page }) => {
-    for (const path of ["/signin", "/signin?redirect=%2Fsent", "/signup?invite=NN-245U-YXYG", "/recover"]) {
+  test("the sign-in page and old sign-in and sign-up links open the app", async ({ page }) => {
+    const paths = ["/login", "/login?redirect=https%3A%2F%2Fevil.example%2F", "/login?redirect=%2F%2Fevil.example",
+      "/signin", "/signin?redirect=%2Fsent", "/signup?invite=NN-245U-YXYG", "/recover"]
+    for (const path of paths) {
       await page.goto(path)
       await expect(page, path).toHaveURL(HOME)
       await expect(page.getByRole("heading", { level: 1, name: "Campaigns" })).toBeVisible()
     }
+    // A page the browser was on its way to comes next.
+    await page.goto("/login?redirect=%2Fsent%3Fstatus%3Dall")
+    await expect(page).toHaveURL(/\/sent\?status=all$/u)
+    await expect(page.getByRole("heading", { level: 1, name: "Sent" })).toBeVisible()
   })
 
   test("a new workspace sets up its sender profile once, then lands on New campaign", async ({ page }) => {

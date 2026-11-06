@@ -235,14 +235,25 @@ export function SpendSection({ overview }: { overview: AdminOverview }) {
 // ---------------------------------------------------------------------------
 
 const RESERVE_DAYS = 60
+/** The server's limit for a balance. */
+const MAX_BALANCE = 1_000_000
+
+/** "$1,250.40" → "1250.40". Commas only as thousands separators, so "1,50" isn't read as 150. */
+const plainAmount = (value: string) => {
+  const text = value.replace(/[$\s]/gu, "")
+  return /^\d{1,3}(,\d{3})+(\.\d{1,2})?$/u.test(text) ? text.replace(/,/gu, "") : text
+}
 
 const balanceSchema = z.object({
   amount: z
     .string()
     .trim()
     .min(1, "Enter the balance in dollars, like 50 or 125.40.")
-    .refine((value) => /^\d{1,7}(\.\d{1,2})?$/u.test(value.replace(/[$,\s]/gu, "")), {
+    .refine((value) => /^\d+(\.\d{1,2})?$/u.test(plainAmount(value)), {
       message: "Enter dollars and cents only, like 50 or 125.40.",
+    })
+    .refine((value) => !/^\d+(\.\d{1,2})?$/u.test(plainAmount(value)) || Number(plainAmount(value)) <= MAX_BALANCE, {
+      message: "Enter a balance of $1,000,000 or less.",
     }),
 })
 type BalanceValues = z.infer<typeof balanceSchema>
@@ -263,7 +274,7 @@ export function BalanceSection({ overview }: { overview: AdminOverview }) {
     onError: (error) => applyServerErrors(error, { setError, setFocus }, ["amount"]),
   })
   const onSubmit = handleSubmit((values) => {
-    if (!save.isPending) save.mutate(Number(values.amount.replace(/[$,\s]/gu, "")))
+    if (!save.isPending) save.mutate(Number(plainAmount(values.amount)))
   })
 
   const daysLeft = balance.days_left

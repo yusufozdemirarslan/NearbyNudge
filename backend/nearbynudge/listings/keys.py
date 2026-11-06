@@ -13,7 +13,10 @@ from __future__ import annotations
 import math
 import re
 
-KEYS_VERSION = "1"
+import idna
+
+# 2: Facebook, YouTube and Instagram pages keyed past prefixes like /p/ and /channel/; international hosts in ASCII
+KEYS_VERSION = "2"
 
 EARTH_RADIUS_MI = 3958.7613
 MILES_PER_DEGREE_LAT = EARTH_RADIUS_MI * math.pi / 180.0  # about 69.09
@@ -45,6 +48,20 @@ _PATH_PLATFORMS = {
     "squareup.com": 2, "wix.com": 0, "amazon.com": 0, "paypal.com": 0, "calendly.com": 1,
     "setmore.com": 0, "godaddy.com": 0,
 }
+# First path segments that don't name the business on their own, and how many segments do there
+# (0 = the URL can't identify a business): facebook.com/p/<name-id>, youtube.com/channel/<id>...
+_FACEBOOK_PREFIXES = {
+    "p": 2, "pg": 2, "people": 3, "pages": 3, "groups": 2, "events": 2, "watch": 0, "sharer": 0,
+    "sharer.php": 0, "share": 0, "share.php": 0, "dialog": 0, "login": 0, "login.php": 0, "plugins": 0,
+    "hashtag": 0, "search": 0, "home.php": 0, "story.php": 0, "permalink.php": 0, "photo.php": 0,
+}
+_PATH_PREFIXES = {
+    "facebook.com": _FACEBOOK_PREFIXES,
+    "fb.com": _FACEBOOK_PREFIXES,
+    "youtube.com": {"channel": 2, "c": 2, "user": 2, "watch": 0, "embed": 0, "shorts": 0, "playlist": 0,
+                    "results": 0, "feed": 0},
+    "instagram.com": {"p": 2, "reel": 2, "reels": 2, "tv": 2, "stories": 2, "explore": 0, "accounts": 0},
+}
 # Platforms where each business gets its own subdomain: only the full host names a business.
 _SUBDOMAIN_PLATFORMS = frozenset(
     "business.site wixsite.com godaddysites.com square.site weebly.com wordpress.com blogspot.com "
@@ -56,23 +73,42 @@ _SUBDOMAIN_PLATFORMS = frozenset(
 )
 
 _URL_RE = re.compile(
-    r"^\s*(?:[a-z][a-z0-9+.\-]*://|//)?(?:[^@/?#\s]*@)?(\[[^\]/]*\]|[^:/?#\s]+)(?::\d*)?(/[^?#\s]*)?",
+    r"^\s*(?:[a-z][a-z0-9+.\-]*://|//)?(?:[^@/?#\s]*@)?(\[[^\]/]*\]|[^:/?#\s]+)(?::\d*)?(/[^?#\s]*)?(?:\?([^#\s]*))?",
     re.IGNORECASE,
 )
 _WWW_RE = re.compile(r"^www\d*\.")
 
 
-def _parse(url: str | None) -> tuple[str | None, str]:
-    """(lowercase host without 'www.', path) of a URL or bare host, or (None, '')."""
+def _ascii_host(host: str) -> str:
+    """'café.com' -> 'xn--caf-dma.com', as the reader and httpx write it; ASCII or invalid names as they are."""
+    if host.isascii():
+        return host
+    try:
+        return idna.encode(host).decode("ascii")
+    except (idna.IDNAError, UnicodeError, ValueError):
+        return host
+
+
+def _parse(url: str | None) -> tuple[str | None, str, str]:
+    """(lowercase host without 'www.', path, query) of a URL or bare host, or (None, '', '').
+    International hosts are in their ASCII form."""
     m = _URL_RE.match(url or "")
     if not m:
-        return None, ""
-    host = m.group(1).strip(".").lower()
+        return None, "", ""
+    host = _ascii_host(m.group(1).strip(".").lower())
     if host.startswith("www"):
         host = _WWW_RE.sub("", host)
     if not host or "." not in host and not host.startswith("["):
-        return None, ""
-    return host, m.group(2) or ""
+        return None, "", ""
+    return host, m.group(2) or "", m.group(3) or ""
+
+
+def _query_value(query: str, name: str) -> str:
+    for part in query.split("&"):
+        key, _, value = part.partition("=")
+        if key.lower() == name:
+            return value.strip()
+    return ""
 
 
 def host_of(url_or_host: str | None) -> str | None:
@@ -90,11 +126,18 @@ def registrable_domain(host: str) -> str:
     return ".".join(labels[-2:])
 
 
-def _page_key(host: str, reg: str, path: str) -> str | None:
+def _page_key(host: str, reg: str, path: str, query: str = "") -> str | None:
     """'linktr.ee/smiledental' for a page on a path platform; None if the URL names no page."""
     platform = host if host in _PATH_PLATFORMS else reg
     n = _PATH_PLATFORMS[platform]
     segments = [p.lower() for p in path.split("/") if p and p not in (".", "..")]
+    if n and segments and platform in _PATH_PREFIXES:
+        if platform in ("facebook.com", "fb.com") and segments[0] == "profile.php":
+            page_id = _query_value(query, "id")  # facebook.com/profile.php?id=100063...: the id is the page
+            return f"{platform}/profile.php?id={page_id}" if page_id.isdigit() else None
+        n = _PATH_PREFIXES[platform].get(segments[0], n)
+        if segments[:2] == ["pages", "category"]:
+            n = 4  # facebook.com/pages/category/<category>/<name-id>
     if n == 0 or len(segments) < n:
         return None
     return f"{platform}/{'/'.join(segments[:n])}"
@@ -112,14 +155,14 @@ def website_keys(url: str | None) -> frozenset[str]:
     ({'linktr.ee/smiledental'}, {'smile.business.site'}); a URL that names no business gives
     nothing ('https://google.com/maps').
     """
-    host, path = _parse(url)
+    host, path, query = _parse(url)
     if not host:
         return frozenset()
     reg = registrable_domain(host)
     if reg in _SUBDOMAIN_PLATFORMS:
         return frozenset({host}) if host != reg else frozenset()
     if _is_path_platform(host, reg):
-        page = _page_key(host, reg, path)
+        page = _page_key(host, reg, path, query)
         return frozenset({page}) if page else frozenset()
     return frozenset({host, reg})
 
@@ -127,14 +170,14 @@ def website_keys(url: str | None) -> frozenset[str]:
 def dedupe_key(url: str | None) -> str | None:
     """The key two listings of one business share: the site's host ('smile.com',
     'hubcapdave.bandzoogle.com'), or the page on a shared platform ('facebook.com/smiledental')."""
-    host, path = _parse(url)
+    host, path, query = _parse(url)
     if not host:
         return None
     reg = registrable_domain(host)
     if reg in _SUBDOMAIN_PLATFORMS:
         return host if host != reg else None
     if _is_path_platform(host, reg):
-        return _page_key(host, reg, path)
+        return _page_key(host, reg, path, query)
     return host
 
 
@@ -142,7 +185,7 @@ def exclusion_keys(entry: str | None) -> frozenset[str]:
     """How a do-not-contact domain entry is compared: 'WWW.Smile.com' -> {'smile.com'};
     'linktr.ee/smiledental' -> {'linktr.ee/smiledental'}; a bare platform such as 'linktr.ee'
     stays {'linktr.ee'}, which matches no page on that platform."""
-    host, path = _parse(entry)
+    host, path, _query = _parse(entry)
     if not host:
         return frozenset()
     if path.strip("/"):

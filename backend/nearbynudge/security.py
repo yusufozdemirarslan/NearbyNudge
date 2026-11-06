@@ -20,7 +20,8 @@ def new_token(nbytes: int = 32) -> str:
 def csrf_ok(cookie_value: str | None, header_value: str | None) -> bool:
     if not cookie_value or not header_value:
         return False
-    return hmac.compare_digest(cookie_value, header_value)
+    # compared as bytes: compare_digest refuses non-ASCII text, and an odd header must be a refusal, not an error
+    return hmac.compare_digest(cookie_value.encode("utf-8"), header_value.encode("utf-8"))
 
 
 # ---------- rate limiting ----------

@@ -63,16 +63,17 @@ export function PrivacyPage() {
           </table>
           <List>
             <li>
-              NearbyNudge has no sign-in. Everyone who can open this copy of
-              the app sees the same campaigns, lists and settings.
+              Each copy of NearbyNudge has one account, protected by a password
+              when the copy is online. Everyone who uses that copy sees the same
+              campaigns, lists and settings.
             </li>
             <li>
               You can export your Do not contact list, and each campaign, as a
               spreadsheet at any time.
             </li>
             <li>
-              Cookies only protect your forms and remember whether the sidebar
-              is open. There are no analytics, advertising or tracking cookies,
+              Cookies only keep you signed in, protect your forms and remember
+              whether the sidebar is open. There are no analytics, advertising or tracking cookies,
               and the app loads nothing from other companies&rsquo; servers.
             </li>
           </List>

@@ -37,7 +37,7 @@
 .dark {
   --paper: #000000;
   --ink: #ffffff;
-  --ink-soft: #9a9a9a; /* 7.5:1 on black */
+  --ink-soft: #a6a6a6; /* 8.6:1 on black */
   --edge: #ff5c61; /* 7.0:1 on black */
   --edge-ink: #000000;
   --tint: #161616;
@@ -45,6 +45,16 @@
   --hairline: #333333;
   --shadow-color: rgb(0 0 0 / 0.9);
   --backdrop: rgb(0 0 0 / 0.72);
+}
+
+/* -------- The One Step mark (brand concept 04) on the same inks --------
+   The mark's fills read these, so it follows the theme the app applies: an explicit
+   light or dark choice, or the system's. */
+:root,
+.dark {
+  --nn-paper: var(--paper);
+  --nn-ink: var(--ink);
+  --nn-edge: var(--edge);
 }
 
 /* -------- Component library roles (shadcn) mapped onto the inks -------- */
@@ -181,6 +191,16 @@
   letter-spacing: 0.004em;
 }
 
+/* The name beside the One Step mark: Archivo 800 at 62.5% width, caps, set tight. 28px beside the 32px mark. */
+@utility brand-name {
+  font-size: var(--brand-name-size, 28px);
+  line-height: 1;
+  font-weight: 800;
+  font-stretch: 62.5%;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+}
+
 /* Section head (h2): condensed, sentence case. */
 @utility section-head {
   font-size: var(--text-head);
@@ -212,9 +232,10 @@
   border-bottom: 2px dotted var(--leader);
 }
 
+/* A new row arrives under a halftone of ink that fades: no red wash (the brand keeps red to the small square's meaning). */
 @keyframes nn-row-new {
   from {
-    background-color: color-mix(in srgb, var(--edge) 14%, var(--paper));
+    background-color: var(--tint);
   }
   to {
     background-color: transparent;
@@ -277,9 +298,10 @@
     @apply bg-paper text-ui text-ink;
     caret-color: var(--edge);
   }
+  /* Selected text is printed in reverse, ink for paper: never a pink tint. */
   ::selection {
-    background-color: color-mix(in srgb, var(--edge) 24%, var(--paper));
-    color: var(--ink);
+    background-color: var(--ink);
+    color: var(--paper);
   }
   * {
     scrollbar-width: thin;
@@ -331,6 +353,14 @@
 }
 [data-slot="command-input-wrapper"]:has(:focus-visible) {
   border-bottom-color: var(--edge);
+}
+
+/* High contrast (forced colors): SVG fills aren't replaced, so the mark draws itself in the system text colour. */
+@media (forced-colors: active) {
+  .nn-mark {
+    --nn-ink: CanvasText;
+    --nn-edge: CanvasText;
+  }
 }
 
 /* Live updates paused (WCAG 2.2.2): nothing moves. */

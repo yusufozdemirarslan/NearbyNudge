@@ -96,6 +96,32 @@ def test_house_number_is_not_a_zip(gaz):
     assert hit is not None and hit.kind == "city" and hit.label == "Fairfax, VA"
 
 
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Suite 100, 10001 Main St, Springfield, IL", "Springfield, IL"),  # a house number after a suite
+        ("10001 Highland, Arlington, VA", "Arlington, VA"),  # a house number with no street word
+        ("Springfield, IL 10001", "Springfield, IL"),  # a ZIP from another state: the typed city wins
+        ("Springfield IL 10001", "Springfield, IL"),
+    ],
+)
+def test_a_number_that_cant_be_the_zip_of_the_typed_place_is_ignored(gaz, text, expected):
+    assert label(gaz, text) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Arlington, VA 22201", "ZIP 22201"),
+        ("New York 10001", "ZIP 10001"),  # "New York" may be the city, so there's no state to contradict
+        ("Washington 20001", "ZIP 20001"),  # the city, not Washington state
+        ("10001", "ZIP 10001"),
+    ],
+)
+def test_a_zip_that_fits_the_typed_place_still_wins(gaz, text, expected):
+    assert label(gaz, text) == expected
+
+
 def test_zip_without_map_area_uses_nearby_zcta(gaz):
     hit = gaz.resolve("20013")  # a PO-box ZIP: no ZCTA
     assert hit is not None and hit.kind == "zip" and hit.label == "ZIP 20013"

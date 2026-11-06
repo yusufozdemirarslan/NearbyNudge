@@ -22,17 +22,31 @@ import { SentPage, validateSentSearch } from "@/features/sent/SentPage"
 import { usePreferences } from "@/hooks/use-account"
 import { CommandsProvider } from "@/hooks/use-commands"
 import { ShortcutsProvider } from "@/hooks/use-shortcuts"
-import { meQuery } from "@/lib/api/queries"
-import { queryClient } from "./query-client"
+import { isApiError } from "@/lib/api/client"
+import { meQuery, sessionQuery } from "@/lib/api/queries"
+import { safeRedirect } from "@/lib/redirect"
+import { queryClient, setSignedOutHandler } from "./query-client"
 
 export interface RouterContext {
   queryClient: QueryClient
 }
 
-async function currentUser(context: RouterContext) {
-  const me = await context.queryClient.ensureQueryData(meQuery())
-  return me.user
+/** The workspace; a browser that isn't signed in goes to the sign-in page first, and comes back here after. */
+async function currentUser(context: RouterContext, from: string) {
+  // Known to be signed out: straight to sign-in, without a request the server would refuse.
+  const session = await context.queryClient.ensureQueryData(sessionQuery())
+  if (session.enabled && !session.signed_in) throw redirect({ to: "/login", search: { redirect: from } })
+  try {
+    const me = await context.queryClient.ensureQueryData(meQuery())
+    return me.user
+  } catch (error) {
+    if (isApiError(error, "auth_required")) throw redirect({ to: "/login", search: { redirect: from } })
+    throw error
+  }
 }
+
+/** Pages anyone may read: a request refused there for want of a session sends no one to sign in. */
+const OPEN_PATHS = new Set(["/login", "/bot", "/data-sources", "/terms", "/privacy"])
 
 // ---------------------------------------------------------------------------
 // Root
@@ -56,6 +70,7 @@ function RootError({ error }: { error: unknown }) {
     <StandalonePage>
       <CalmError
         title="We couldn't open this page"
+        pageHeading
         error={error}
         onRetry={() => void router.invalidate()}
         action={
@@ -128,18 +143,40 @@ const setupLayout = createRoute({ getParentRoute: () => rootRoute, id: "setup", 
 const onboardingRoute = createRoute({
   getParentRoute: () => setupLayout,
   path: "/onboarding",
-  beforeLoad: async ({ context }) => {
-    const user = await currentUser(context)
+  beforeLoad: async ({ context, location }) => {
+    const user = await currentUser(context, location.href)
     if (user.onboarded) throw redirect({ to: "/" })
   },
   component: lazyRouteComponent(() => import("@/features/onboarding/OnboardingPage"), "OnboardingPage"),
 })
 
-/** Links from before sign-in was removed (/signin, /signup?invite=…, /recover) open the app. */
+/**
+ * Sign-in for the one account, when this copy asks for it. A signed-in browser, or a copy without sign-in,
+ * goes straight on to `redirect` (or campaigns).
+ */
+const loginRoute = createRoute({
+  getParentRoute: () => setupLayout,
+  path: "/login",
+  // The key is always returned: the router keeps a raw search value the validator leaves out.
+  validateSearch: (search: Record<string, unknown>): { redirect?: string } => ({ redirect: safeRedirect(search.redirect) }),
+  beforeLoad: async ({ context, search }) => {
+    const session = await context.queryClient.fetchQuery({ ...sessionQuery(), staleTime: 0 })
+    if (!session.enabled || session.signed_in) throw redirect({ href: safeRedirect(search.redirect) ?? "/" })
+  },
+  component: lazyRouteComponent(() => import("@/features/auth/LoginPage"), "LoginPage"),
+})
+
+/** Old links: /signin goes to the sign-in page; /signup?invite=… and /recover (removed with passkeys) open the app. */
 function openTheApp(): never {
   throw redirect({ to: "/" })
 }
-const oldSignInRoute = createRoute({ getParentRoute: () => rootRoute, path: "/signin", beforeLoad: openTheApp })
+const oldSignInRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/signin",
+  beforeLoad: () => {
+    throw redirect({ to: "/login" })
+  },
+})
 const oldSignUpRoute = createRoute({ getParentRoute: () => rootRoute, path: "/signup", beforeLoad: openTheApp })
 const oldRecoverRoute = createRoute({ getParentRoute: () => rootRoute, path: "/recover", beforeLoad: openTheApp })
 
@@ -150,8 +187,8 @@ const oldRecoverRoute = createRoute({ getParentRoute: () => rootRoute, path: "/r
 const appLayout = createRoute({
   getParentRoute: () => rootRoute,
   id: "app",
-  beforeLoad: async ({ context }) => {
-    const user = await currentUser(context)
+  beforeLoad: async ({ context, location }) => {
+    const user = await currentUser(context, location.href)
     if (!user.onboarded) throw redirect({ to: "/onboarding" })
   },
   component: AppShell,
@@ -206,7 +243,7 @@ const adminRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   publicLayout.addChildren([botRoute, dataSourcesRoute, termsRoute, privacyRoute]),
-  setupLayout.addChildren([onboardingRoute]),
+  setupLayout.addChildren([onboardingRoute, loginRoute]),
   oldSignInRoute,
   oldSignUpRoute,
   oldRecoverRoute,
@@ -229,6 +266,14 @@ export const router = createRouter({
   defaultPreloadStaleTime: 0,
   defaultPendingMs: 600,
   defaultNotFoundComponent: NotFound,
+})
+
+// A session that ends mid-visit (it ran out, or another tab signed out) leads to the sign-in page, then back here.
+setSignedOutHandler(() => {
+  const { pathname, href } = router.state.location
+  if (OPEN_PATHS.has(pathname)) return
+  queryClient.removeQueries({ queryKey: meQuery().queryKey })
+  void router.navigate({ to: "/login", search: { redirect: safeRedirect(href) }, replace: true })
 })
 
 declare module "@tanstack/react-router" {

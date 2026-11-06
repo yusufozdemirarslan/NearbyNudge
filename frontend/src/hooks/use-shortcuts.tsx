@@ -79,10 +79,13 @@ function inOverlay(target: EventTarget | null): boolean {
 export function comboFromEvent(event: KeyboardEvent): string {
   const key = event.key
   if (key === "?") return "?"
+  // A typed digit or symbol already carries Shift: many layouts need it for "/" (Turkish,
+  // German) or for digits (French AZERTY). Shift only counts for letters and named keys.
+  const symbol = key.length === 1 && key !== " " && key.toLowerCase() === key.toUpperCase()
   const parts: string[] = []
   if (event.ctrlKey || event.metaKey) parts.push("mod")
   if (event.altKey) parts.push("alt")
-  if (event.shiftKey) parts.push("shift")
+  if (event.shiftKey && !symbol) parts.push("shift")
   const name =
     key === " " ? "space" : key === "Esc" ? "escape" : key.length === 1 ? key.toLowerCase() : key.toLowerCase()
   parts.push(name)
@@ -181,18 +184,17 @@ export function useShortcuts(
   const enabled = options.enabled ?? true
   const group = options.group ?? "General"
   const mapRef = React.useRef<ShortcutMap>(map)
-  const orderRef = React.useRef<number>(0)
-  if (orderRef.current === 0) orderRef.current = nextOrder++
+  // Numbered at first render, so the order follows the order hooks first rendered in.
+  const [id] = React.useState(() => nextOrder++)
 
   React.useLayoutEffect(() => {
     mapRef.current = map
   })
 
   React.useEffect(() => {
-    const id = orderRef.current
     register(id, { order: id, group, enabled, map: mapRef })
     return () => unregister(id)
-  }, [enabled, group, register, unregister])
+  }, [id, enabled, group, register, unregister])
 }
 
 /** Registry access for the shortcut sheet and for showing or hiding key hints. */

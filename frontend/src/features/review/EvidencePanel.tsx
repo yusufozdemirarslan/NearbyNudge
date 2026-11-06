@@ -24,13 +24,14 @@ export interface EvidencePanelProps {
 
 /** Contact, the facts the email uses, the site check and a one-line summary. */
 export function EvidencePanel({ lead, numbers, aligned, onCopyAddress, onWrongFact, className }: EvidencePanelProps) {
-  const [showAll, setShowAll] = React.useState(false)
+  // "Show all" belongs to one lead: it closes again when another lead is shown.
+  const [showAllFor, setShowAllFor] = React.useState<string | null>(null)
+  const showAll = showAllFor === lead.id
   const used = usedFacts(lead.email, lead.facts)
   const usedIds = new Set(used.map((fact) => fact.id))
   const others = lead.facts.filter((fact) => !usedIds.has(fact.id))
   const problems = claimProblems(lead.email)
 
-  React.useEffect(() => setShowAll(false), [lead.id])
 
   return (
     <aside aria-labelledby="evidence-heading" className={cn("space-y-7", className)} data-slot="evidence">
@@ -75,7 +76,7 @@ export function EvidencePanel({ lead, numbers, aligned, onCopyAddress, onWrongFa
               size="xs"
               className="h-auto px-0"
               aria-expanded={showAll}
-              onClick={() => setShowAll((v) => !v)}
+              onClick={() => setShowAllFor(showAll ? null : lead.id)}
             >
               {showAll ? "Show fewer facts" : `Show all ${lead.facts.length}`}
             </Button>
@@ -208,10 +209,7 @@ function AlignedFacts({
   const ids = facts.map((fact) => fact.id).join("|")
 
   React.useLayoutEffect(() => {
-    if (!aligned) {
-      setLayout(null)
-      return
-    }
+    if (!aligned) return
     const compute = () => {
       const box = boxRef.current
       if (!box) return
@@ -247,12 +245,14 @@ function AlignedFacts({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aligned, ids, lead.email?.version_id, firstSentence, desk.layoutTick])
 
+  // Out of the three-column layout the facts stack; the last measurement waits for the next alignment.
+  const placed = aligned ? layout : null
   return (
     <ul
       ref={boxRef}
-      className={cn("relative", !layout && "space-y-2")}
-      style={layout ? { height: layout.height } : undefined}
-      data-aligned={layout ? "true" : "false"}
+      className={cn("relative", !placed && "space-y-2")}
+      style={placed ? { height: placed.height } : undefined}
+      data-aligned={placed ? "true" : "false"}
     >
       {facts.map((fact) => (
         <FactItem
@@ -264,7 +264,7 @@ function AlignedFacts({
           fact={fact}
           number={numbers.get(fact.id) ?? null}
           onWrongFact={onWrongFact}
-          style={layout ? { position: "absolute", top: layout.tops[fact.id] ?? 0, left: 0, right: 0 } : undefined}
+          style={placed ? { position: "absolute", top: placed.tops[fact.id] ?? 0, left: 0, right: 0 } : undefined}
         />
       ))}
     </ul>

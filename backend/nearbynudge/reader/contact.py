@@ -70,6 +70,63 @@ _NO_HARVEST_RE = re.compile(
     r"|unsolicited\s+commercial\s+e-?mail\s+(?:is|are)\s+(?:prohibited|not\s+permitted)",
     re.IGNORECASE,
 )
+# "No sales or marketing inquiries", "No vendor or sales calls, please".
+_SALES_KIND = r"(?:sales|marketing|vendor|advertising|seo|telemarketing)"
+_NO_SALES_RE = re.compile(
+    rf"\bno\s+{_SALES_KIND}(?:\s*(?:,(?:\s*(?:or|and)\b)?|/|or\b|and\b)\s*{_SALES_KIND})*\s+"
+    r"(?:calls|inquiries|enquiries|pitches|e-?mails|messages|requests|offers|visits|reps|representatives)\b",
+    re.IGNORECASE,
+)
+# Other wordings are caught a sentence at a time: a word like "solicit" or "unsolicited" close to a refusal
+# ("We do not accept unsolicited sales calls", "Solicitations of any kind are not welcome", "Unsolicited
+# emails will be ignored"), unless the sentence only disclaims ("This site is not a solicitation") or makes a
+# promise of the business's own ("We will never solicit your password", "We do not send unsolicited email").
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?;])\s+|\n+")
+_REFUSAL_WORDS = frozenset(
+    {
+        "no", "not", "never", "nor", "cannot", "prohibited", "forbidden", "unwelcome", "ignored", "deleted",
+        "discarded", "disregarded", "declined", "refuse", "refused", "refrain",
+    }
+)
+_REFUSAL_REACH = 5  # words between the refusal and the solicitation word
+_NOT_A_REFUSAL_RE = re.compile(
+    r"\bnot\s+(?:(?:intended|meant)\s+(?:as|to\s+be)\s+|(?:to\s+)?be\s+(?:construed|considered|taken)\s+as\s+"
+    r"|considered\s+)?an?\s+(?:offer|solicitation)\b"
+    r"|\bconstitut\w*\s+(?:an?\s+)?(?:offer|solicitation)|\bnor\s+(?:an?\s+)?solicitation"
+    r"|\b(?:will|would|shall)\s+(?:never|not)\s+(?:ask\s+for|request|solicit|send|share|sell|rent)\b"
+    r"|\b(?:won't|wouldn't)\s+(?:ever\s+)?(?:ask\s+for|request|solicit|send|share|sell|rent)\b"
+    r"|\b(?:we|i)\s+(?:never|don't|do\s+not)\s+(?:send|share|sell|rent|solicit)\b",
+    re.IGNORECASE,
+)
+
+
+def _refuses_solicitations(sentence: str) -> bool:
+    last_ask = last_refusal = None
+    for i, word in enumerate(re.findall(r"[a-z']+", sentence.lower())):
+        if word.startswith(("solicit", "unsolicit")):
+            if last_refusal is not None and i - last_refusal <= _REFUSAL_REACH:
+                return True
+            last_ask = i
+        if word in _REFUSAL_WORDS or word.endswith("n't"):
+            if last_ask is not None and i - last_ask <= _REFUSAL_REACH:
+                return True
+            last_refusal = i
+    return False
+
+
+def says_no_solicitations(text: str) -> bool:
+    """True when the page asks not to be sold to: "No solicitations", "We do not accept unsolicited
+    sales calls or emails", "No sales or marketing inquiries"... A notice that only forbids using the
+    page's addresses for marketing is a harvest notice (_NO_HARVEST_RE), not a refusal."""
+    text = (text or "").replace("\N{RIGHT SINGLE QUOTATION MARK}", "'")  # don’t -> don't
+    if _NO_SOLICIT_RE.search(text) or _NO_SALES_RE.search(text):
+        return True
+    for sentence in _SENTENCE_SPLIT_RE.split(text):
+        if "solicit" not in sentence.lower() or _NO_HARVEST_RE.search(sentence) or _NOT_A_REFUSAL_RE.search(sentence):
+            continue
+        if _refuses_solicitations(sentence):
+            return True
+    return False
 
 
 @dataclass
@@ -157,7 +214,7 @@ def clean_email(raw: str | None) -> str | None:
         return None
     if local in _JUNK_LOCALS or local.startswith(_JUNK_LOCAL_PREFIXES):
         return None
-    if domain in _JUNK_DOMAINS or domain.endswith((".godaddy.com", ".sentry.io", "wixpress.com")) or "sentry" in domain:
+    if domain in _JUNK_DOMAINS or domain.endswith((".godaddy.com", ".sentry.io", "wixpress.com")):
         return None
     if re.fullmatch(r"[0-9a-f]{16,}", local):  # tracking keys, not people
         return None
@@ -286,7 +343,7 @@ def find_contact(*, listing_emails: list[str], website: str | None, pages: list[
     for order, doc in enumerate(docs):
         page = doc.page
         label = page_label(page.final_url or page.url, page.title)
-        no_solicit = bool(_NO_SOLICIT_RE.search(doc.text))
+        no_solicit = says_no_solicitations(doc.text)
         no_harvest = bool(_NO_HARVEST_RE.search(doc.text))
         if no_solicit and label == "Contact page":
             contact_page_says_no = True

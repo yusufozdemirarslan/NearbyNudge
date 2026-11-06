@@ -18,7 +18,11 @@ export interface ActionOutcome {
   /** Plain sentence to show in place when ok is false. */
   message?: string
   code?: string
+  /** A repeat (double-click, double key press) of an action still running: nothing was sent. */
+  ignored?: boolean
 }
+
+const IGNORED: ActionOutcome = { ok: false, ignored: true }
 
 const failure = (error: unknown): ActionOutcome => ({
   ok: false,
@@ -52,9 +56,33 @@ export function useLeadActions(options: LeadActionOptions = {}) {
   React.useLayoutEffect(() => {
     optionsRef.current = options
   })
+  // Results that arrive after the screen closed (an Undo pressed in a toast on another
+  // screen, a slow request) don't move a screen that's gone.
+  React.useEffect(
+    () => () => {
+      optionsRef.current = {}
+    },
+    []
+  )
+  const undoing = React.useRef(new Set<string>())
+  // One action per lead at a time: a second click or key press while the first is on its
+  // way would be refused by the server and show a false error.
+  const acting = React.useRef(new Set<string>())
+  const once = React.useCallback(async (leadId: string, fn: () => Promise<ActionOutcome>): Promise<ActionOutcome> => {
+    if (acting.current.has(leadId)) return IGNORED
+    acting.current.add(leadId)
+    try {
+      return await fn()
+    } finally {
+      acting.current.delete(leadId)
+    }
+  }, [])
 
   const undo = React.useCallback(
     async (actionId: string): Promise<ActionOutcome> => {
+      // The same undo twice (a double press) would fail the second time: send it once.
+      if (undoing.current.has(actionId)) return IGNORED
+      undoing.current.add(actionId)
       try {
         const result = await api.undoAction(actionId)
         writeLead(queryClient, result.lead)
@@ -71,10 +99,14 @@ export function useLeadActions(options: LeadActionOptions = {}) {
         optionsRef.current.onSelect?.(result.lead)
         return { ok: true }
       } catch (error) {
+        // Gone or already undone (another tab, a newer action): it can never be undone from here.
+        if (isApiError(error) && (error.status === 404 || error.status === 409)) desk?.dropUndo(actionId)
         const outcome = failure(error)
         notify({ title: "Couldn't undo", description: outcome.message, type: "warning" })
         announce(`Couldn't undo. ${outcome.message}`)
         return outcome
+      } finally {
+        undoing.current.delete(actionId)
       }
     },
     [announce, desk, queryClient]
@@ -97,75 +129,80 @@ export function useLeadActions(options: LeadActionOptions = {}) {
   )
 
   const approve = React.useCallback(
-    async (lead: AnyLead): Promise<ActionOutcome> => {
-      try {
-        const result = await api.approveLead(lead.id)
-        after(lead, result, "Approved", `${lead.name}. Send it from your own email account.`, "Undo approval")
-        return { ok: true }
-      } catch (error) {
-        return failure(error)
-      }
-    },
-    [after]
+    (lead: AnyLead): Promise<ActionOutcome> =>
+      once(lead.id, async () => {
+        try {
+          const result = await api.approveLead(lead.id)
+          after(lead, result, "Approved", `${lead.name}. Send it from your own email account.`, "Undo approval")
+          return { ok: true }
+        } catch (error) {
+          return failure(error)
+        }
+      }),
+    [after, once]
   )
 
   const skip = React.useCallback(
-    async (lead: AnyLead, reason: string, advance = true): Promise<ActionOutcome> => {
-      try {
-        const result = await api.skipLead(lead.id, { reason })
-        after(lead, result, "Skipped", `${lead.name}: ${reason}`, "Undo skip")
-        if (advance) optionsRef.current.onAdvance?.(lead.id)
-        return { ok: true }
-      } catch (error) {
-        return failure(error)
-      }
-    },
-    [after]
+    (lead: AnyLead, reason: string, advance = true): Promise<ActionOutcome> =>
+      once(lead.id, async () => {
+        try {
+          const result = await api.skipLead(lead.id, { reason })
+          after(lead, result, "Skipped", `${lead.name}: ${reason}`, "Undo skip")
+          if (advance) optionsRef.current.onAdvance?.(lead.id)
+          return { ok: true }
+        } catch (error) {
+          return failure(error)
+        }
+      }),
+    [after, once]
   )
 
   const doNotContact = React.useCallback(
-    async (lead: AnyLead, reason?: string): Promise<ActionOutcome> => {
-      try {
-        const result = await api.dncLead(lead.id, reason ? { reason } : {})
-        after(lead, result, "Won't contact again", `${lead.name} is on your do-not-contact list.`, "Undo do not contact")
-        optionsRef.current.onAdvance?.(lead.id)
-        return { ok: true }
-      } catch (error) {
-        return failure(error)
-      }
-    },
-    [after]
+    (lead: AnyLead, reason?: string): Promise<ActionOutcome> =>
+      once(lead.id, async () => {
+        try {
+          const result = await api.dncLead(lead.id, reason ? { reason } : {})
+          after(lead, result, "Won't contact again", `${lead.name} is on your do-not-contact list.`, "Undo do not contact")
+          optionsRef.current.onAdvance?.(lead.id)
+          return { ok: true }
+        } catch (error) {
+          return failure(error)
+        }
+      }),
+    [after, once]
   )
 
   const markSent = React.useCallback(
-    async (lead: AnyLead, advance = true): Promise<ActionOutcome> => {
-      try {
-        const result = await api.markSent(lead.id)
-        after(lead, result, "Marked as sent", `${lead.name}. Sent today: ${result.sending.sent_today} of ${result.sending.daily_cap}.`, "Undo mark as sent")
-        if (advance) optionsRef.current.onAdvance?.(lead.id)
-        return { ok: true }
-      } catch (error) {
-        if (isApiError(error, "daily_cap_reached")) {
-          void queryClient.invalidateQueries({ queryKey: ["account"] })
+    (lead: AnyLead, advance = true): Promise<ActionOutcome> =>
+      once(lead.id, async () => {
+        try {
+          const result = await api.markSent(lead.id)
+          after(lead, result, "Marked as sent", `${lead.name}. Sent today: ${result.sending.sent_today} of ${result.sending.daily_cap}.`, "Undo mark as sent")
+          if (advance) optionsRef.current.onAdvance?.(lead.id)
+          return { ok: true }
+        } catch (error) {
+          if (isApiError(error, "daily_cap_reached")) {
+            void queryClient.invalidateQueries({ queryKey: ["account"] })
+          }
+          return failure(error)
         }
-        return failure(error)
-      }
-    },
-    [after, queryClient]
+      }),
+    [after, once, queryClient]
   )
 
   const replied = React.useCallback(
-    async (lead: AnyLead, outcome: ReplyOutcome): Promise<ActionOutcome> => {
-      try {
-        const result = await api.markReplied(lead.id, { outcome })
-        const extra = outcome === "no_thanks" ? " Added to your do-not-contact list." : ""
-        after(lead, result, "Reply logged", `${lead.name}: ${REPLY_LABEL[outcome]}.${extra}`, "Undo reply")
-        return { ok: true }
-      } catch (error) {
-        return failure(error)
-      }
-    },
-    [after]
+    (lead: AnyLead, outcome: ReplyOutcome): Promise<ActionOutcome> =>
+      once(lead.id, async () => {
+        try {
+          const result = await api.markReplied(lead.id, { outcome })
+          const extra = outcome === "no_thanks" ? " Added to your do-not-contact list." : ""
+          after(lead, result, "Reply logged", `${lead.name}: ${REPLY_LABEL[outcome]}.${extra}`, "Undo reply")
+          return { ok: true }
+        } catch (error) {
+          return failure(error)
+        }
+      }),
+    [after, once]
   )
 
   /** Undo the newest action in this session (Z). */

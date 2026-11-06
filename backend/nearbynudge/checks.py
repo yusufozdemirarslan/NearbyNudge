@@ -1,7 +1,8 @@
 """Release check (PRD section 3): the code connects only to the AI API, businesses' own websites and open data.
 
 Backend: every file that can open a network connection must be on the list below, with its purpose,
-and web addresses in code (not docstrings or comments) must point to an allowed host.
+and web addresses in code (not docstrings or comments) must point to an allowed host. Hosted on Vercel, the app
+also reaches its own database and Vercel's job queue: that's the hosting, not an outside service.
 Dashboard: the built files may contain web addresses only as documentation strings (license
 banners, error-help links, XML namespaces); the browser's Content-Security-Policy
 (`default-src 'self'`) blocks any connection beyond our own server at run time.
@@ -19,7 +20,7 @@ URL_RE = re.compile(r"https?://([A-Za-z0-9.\-]+)")
 NETWORK_CALL_RE = re.compile(
     r"\b(httpx2?\.(?:AsyncClient|Client|get|post|request|stream)|urllib\.request|requests\.(?:get|post|Session)|"
     r"aiohttp|socket\.create_connection|AsyncAnthropic|Anthropic\(|getaddrinfo|INSTALL httpfs|read_parquet\(|"
-    r"urlopen|open_connection)"
+    r"urlopen|open_connection|QueueClient)"
 )
 
 # Files allowed to open network connections, and why.
@@ -30,6 +31,7 @@ NETWORK_FILES = {
     "listings/sql.py": "Overture Maps open data (the parquet read used by the loader)",
     "listings/loader.py": "Overture Maps open data (metro loads)",
     "geo/gazetteer.py": "U.S. Census Gazetteer open data download (place and ZIP centers)",
+    "serverless.py": "hosting only: Vercel Queues, which runs the background jobs when the app is hosted on Vercel",
 }
 ALLOWED_HOSTS = {
     "api.anthropic.com", "overturemaps-us-west-2.s3.us-west-2.amazonaws.com", "overturemaps-us-west-2.s3.amazonaws.com",

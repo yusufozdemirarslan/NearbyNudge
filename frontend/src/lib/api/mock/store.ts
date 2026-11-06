@@ -81,6 +81,10 @@ export interface ActionRecord {
   >
   dncEntryId: string | null
   createdAt: string
+  /** The lead's status right after the action (undo needs it unchanged). */
+  afterStatus: LeadStatus
+  /** Set once undone; a repeat is refused, as by the server. */
+  undoneAt?: string
 }
 
 const ACTIVE: LeadStatus[] = ["reading", "choosing", "writing", "checking"]
@@ -905,7 +909,7 @@ export function rewrite(rec: LeadRecord, mode: RewriteMode, hookId?: string): vo
     email.paragraphs[claimIdx] = claimSentences(id, rec.profile, next, lead.facts)
     lead.hook = hookObject(id, rec.profile, next)
     lead.alternatives = rec.profile.hooks.map((_, i) => i).filter((i) => i !== next).map((i) => hookObject(id, rec.profile, i))
-    detail = `another_hook: ${spec.title}`
+    detail = `another hook: ${spec.title}`
   }
   email.version_id = uid("v")
   email.origin = "rewrite"
@@ -1423,7 +1427,7 @@ export function recordAction(
 ): string {
   const id = uid("a")
   const createdAt = nowIso()
-  db.actions.set(id, { id, leadId: rec.lead.id, action, before, dncEntryId, createdAt })
+  db.actions.set(id, { id, leadId: rec.lead.id, action, before, dncEntryId, createdAt, afterStatus: rec.lead.status })
   rec.actions.push(id)
   rec.lead.last_action = { action_id: id, action, created_at: createdAt }
   return id

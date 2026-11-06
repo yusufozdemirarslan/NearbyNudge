@@ -20,7 +20,7 @@ from typing import Any, TypeVar
 import anthropic
 from pydantic import BaseModel, ValidationError
 
-from .pricing import cost_usd
+from .pricing import WEB_SEARCH_PER_REQUEST, cost_usd
 
 log = logging.getLogger("nearbynudge.ai")
 
@@ -215,29 +215,29 @@ class AIClient:
         except anthropic.AuthenticationError as exc:
             err = AIPaused("The Anthropic API rejected the key.", code="auth", status=401)
             await self._record_error(ctx, started, err)
-            self.pause_control.pause("auth", seconds=None)
+            await self._pause("auth", seconds=None)
             raise err from exc
         except anthropic.PermissionDeniedError as exc:
             err = AIPaused("The Anthropic API key isn't allowed to do this.", code="auth", status=403)
             await self._record_error(ctx, started, err)
-            self.pause_control.pause("auth", seconds=None)
+            await self._pause("auth", seconds=None)
             raise err from exc
         except anthropic.NotFoundError as exc:
             err0 = AIPaused(f"The AI model {self.model} isn't available to this key.", code="config", status=404)
             await self._record_error(ctx, started, err0)
-            self.pause_control.pause("config", seconds=None)
+            await self._pause("config", seconds=None)
             raise err0 from exc
         except anthropic.RateLimitError as exc:
             err = AIUnavailable("The AI is rate limited right now.", code="rate_limited", status=429)
             await self._record_error(ctx, started, err)
-            self.pause_control.pause("rate_limited", seconds=_retry_after(exc) or self.outage_pause_s)
+            await self._pause("rate_limited", seconds=_retry_after(exc) or self.outage_pause_s)
             raise err from exc
         except anthropic.BadRequestError as exc:
             message = _message_of(exc)
             if "credit balance" in message.lower() or "billing" in message.lower():
                 err = AIPaused("The Anthropic account is out of credit.", code="balance", status=400)
                 await self._record_error(ctx, started, err)
-                self.pause_control.pause("balance", seconds=None)
+                await self._pause("balance", seconds=None)
                 raise err from exc
             err2 = AIRequestError(f"The AI rejected the request: {message}", code="bad_request", status=400)
             await self._record_error(ctx, started, err2)
@@ -247,12 +247,12 @@ class AIClient:
             if status == 402:
                 err = AIPaused("The Anthropic account is out of credit.", code="balance", status=402)
                 await self._record_error(ctx, started, err)
-                self.pause_control.pause("balance", seconds=None)
+                await self._pause("balance", seconds=None)
                 raise err from exc
             if status >= 500:
                 err3 = AIUnavailable(f"The AI service is busy ({status}).", code="down", status=status)
                 await self._record_error(ctx, started, err3)
-                self.pause_control.pause("down", seconds=self.outage_pause_s)
+                await self._pause("down", seconds=self.outage_pause_s)
                 raise err3 from exc
             err4 = AIRequestError(f"The AI rejected the request ({status}): {_message_of(exc)}", code="bad_request", status=status)
             await self._record_error(ctx, started, err4)
@@ -264,19 +264,12 @@ class AIClient:
         except anthropic.APIConnectionError as exc:
             err5 = AIUnavailable("The AI service didn't respond.", code="network")
             await self._record_error(ctx, started, err5)
-            self.pause_control.pause("down", seconds=self.outage_pause_s)
+            await self._pause("down", seconds=self.outage_pause_s)
             raise err5 from exc
 
         latency = int((time.monotonic() - started) * 1000)
         usage = _usage(msg)
-        cost = cost_usd(
-            getattr(msg, "model", self.model) or self.model,
-            input_tokens=usage["input_tokens"],
-            cache_write_tokens=usage["cache_write_tokens"],
-            cache_read_tokens=usage["cache_read_tokens"],
-            output_tokens=usage["output_tokens"],
-            web_searches=usage["web_searches"],
-        )
+        cost = _cost(msg, getattr(msg, "model", self.model) or self.model, usage)
         await self._record(ctx, latency, usage, cost, status="ok", error=None)
         content = list(msg.content or [])
         text = "".join(getattr(b, "text", "") for b in content if getattr(b, "type", None) == "text")
@@ -358,22 +351,52 @@ class AIClient:
         except Exception:  # noqa: BLE001 - accounting must never break the work
             log.exception("failed to record AI usage")
 
+    async def _pause(self, reason: str, *, seconds: float | None) -> None:
+        """Pause AI work; saving the pause is a database write, made off the event loop."""
+        await asyncio.to_thread(self.pause_control.pause, reason, seconds=seconds)
+
     async def _record_error(self, ctx: CallContext, started: float, err: AIError) -> None:
         latency = int((time.monotonic() - started) * 1000)
         zero = {"input_tokens": 0, "cache_write_tokens": 0, "cache_read_tokens": 0, "output_tokens": 0, "web_searches": 0}
         await self._record(ctx, latency, zero, 0.0, status="error", error=err)
 
 
+def _attempts(msg: Any) -> list[Any]:
+    """Every billed attempt of the request. With server-side fallback the top-level usage covers only the attempt
+    that answered; `usage.iterations` lists each attempt (a declined one too) with its own model and tokens."""
+    u = getattr(msg, "usage", None)
+    return list(getattr(u, "iterations", None) or []) or ([u] if u is not None else [])
+
+
 def _usage(msg: Any) -> dict[str, int]:
     u = getattr(msg, "usage", None)
     server = getattr(u, "server_tool_use", None) if u else None
+    attempts = _attempts(msg)
+
+    def total(field: str) -> int:
+        return sum(int(getattr(a, field, 0) or 0) for a in attempts)
     return {
-        "input_tokens": int(getattr(u, "input_tokens", 0) or 0),
-        "cache_write_tokens": int(getattr(u, "cache_creation_input_tokens", 0) or 0),
-        "cache_read_tokens": int(getattr(u, "cache_read_input_tokens", 0) or 0),
-        "output_tokens": int(getattr(u, "output_tokens", 0) or 0),
+        "input_tokens": total("input_tokens"),
+        "cache_write_tokens": total("cache_creation_input_tokens"),
+        "cache_read_tokens": total("cache_read_input_tokens"),
+        "output_tokens": total("output_tokens"),
         "web_searches": int(getattr(server, "web_search_requests", 0) or 0) if server else 0,
     }
+
+
+def _cost(msg: Any, model: str, usage: dict[str, int]) -> float:
+    """Each attempt at its own model's rates. A refusal before any output is billed only in some refusal categories,
+    which the usage doesn't say per attempt, so it's counted: the recorded spend is never less than the bill."""
+    attempts = _attempts(msg)
+    total = sum(
+        cost_usd(getattr(a, "model", None) or model,
+                 input_tokens=int(getattr(a, "input_tokens", 0) or 0),
+                 cache_write_tokens=int(getattr(a, "cache_creation_input_tokens", 0) or 0),
+                 cache_read_tokens=int(getattr(a, "cache_read_input_tokens", 0) or 0),
+                 output_tokens=int(getattr(a, "output_tokens", 0) or 0))
+        for a in attempts
+    )
+    return round(total + usage["web_searches"] * WEB_SEARCH_PER_REQUEST, 8)
 
 
 def _message_of(exc: anthropic.APIStatusError) -> str:

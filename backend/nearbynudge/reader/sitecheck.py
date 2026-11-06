@@ -90,10 +90,12 @@ def copyright_year(text: str) -> int | None:
 
 # ------------------------------------------------------------ online booking
 
+# Only ever searched: "[a-z0-9-]\.as\.me" finds the same Acuity "<name>.as.me" links as "[a-z0-9-]+\.as\.me",
+# without rescanning a long run of letters from every position (hours on a 2 MB page).
 _BOOKING_PROVIDERS_RE = re.compile(
     r"zocdoc\.com|localmed\.com|nexhealth\.com|modento\.io|flexbook\.me|opencare\.com|solutionreach\.com"
     r"|lh360\.com|lighthouse360\.com|lighthouse-360\.com|getweave\.com|yapiapp\.com|yapicentral\.com|yapi\.me"
-    r"|calendly\.com|acuityscheduling\.com|[a-z0-9-]+\.as\.me\b|squareup\.com/appointments|book\.squareup\.com"
+    r"|calendly\.com|acuityscheduling\.com|[a-z0-9-]\.as\.me\b|squareup\.com/appointments|book\.squareup\.com"
     r"|square\.site/book|setmore\.com|simplybook\.(?:me|it|net)|vagaro\.com|mindbodyonline\.com|mindbody\.io"
     r"|booksy\.com|schedulicity\.com|fresha\.com|housecallpro\.com|getjobber\.com|servicetitan\.com"
     r"|opentable\.com|resy\.com|exploretock\.com|youcanbook\.me|appointy\.com|demandforce\.com",

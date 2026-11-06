@@ -15,6 +15,8 @@ export interface CalmErrorProps {
   action?: React.ReactNode
   /** "panel" fills a pane; "inline" sits inside a section. */
   size?: "panel" | "inline"
+  /** The error is the whole page: its head becomes the page's heading. */
+  pageHeading?: boolean
   className?: string
 }
 
@@ -31,8 +33,10 @@ export function CalmError({
   retryLabel = "Try again",
   action,
   size = "panel",
+  pageHeading = false,
   className,
 }: CalmErrorProps) {
+  const Head = pageHeading ? "h1" : "p"
   const text =
     message ??
     (isApiError(error) ? error.message : "Something went wrong on our side. Your work is saved; please try again.")
@@ -46,7 +50,7 @@ export function CalmError({
         className
       )}
     >
-      <p className={size === "panel" ? "section-head" : "text-ui font-bold"}>{title}</p>
+      <Head className={size === "panel" ? "section-head" : "text-ui font-bold"}>{title}</Head>
       <p className="mt-2 text-ui">{text}</p>
       {(onRetry || action) && (
         <div className="mt-4 flex flex-wrap gap-2">

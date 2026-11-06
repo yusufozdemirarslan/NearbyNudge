@@ -21,6 +21,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=9.1", "pytest-asyncio>=1.4", "respx>=0.23"]
+# Hosting on Vercel (see ../pyproject.toml): the Postgres driver and the Vercel Queues SDK
+hosting = ["psycopg[binary]>=3.2", "vercel-queue>=0.10"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

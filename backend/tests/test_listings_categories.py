@@ -167,6 +167,48 @@ def test_website_keys_and_dedupe_keys():
     assert dedupe_key("") is None
 
 
+@pytest.mark.parametrize(
+    ("url", "key"),
+    [
+        ("https://www.facebook.com/p/Smile-Dental-100063123456789/", "facebook.com/p/smile-dental-100063123456789"),
+        ("https://www.facebook.com/profile.php?id=100063123456789", "facebook.com/profile.php?id=100063123456789"),
+        ("https://m.facebook.com/profile.php?ref=bookmarks&id=100063123456789#about", "facebook.com/profile.php?id=100063123456789"),
+        ("https://www.facebook.com/profile.php", None),
+        ("https://www.facebook.com/profile.php?id=", None),
+        ("https://www.facebook.com/people/Smile-Dental/100063123456789/", "facebook.com/people/smile-dental/100063123456789"),
+        ("https://www.facebook.com/pages/Smile-Dental/123456789", "facebook.com/pages/smile-dental/123456789"),
+        ("https://www.facebook.com/pages/category/Dentist/Smile-Dental-123/", "facebook.com/pages/category/dentist/smile-dental-123"),
+        ("https://www.facebook.com/pg/SmileDental/about/", "facebook.com/pg/smiledental"),
+        ("https://www.facebook.com/SmileDental/about", "facebook.com/smiledental"),
+        ("https://www.facebook.com/p/", None),
+        ("https://www.facebook.com/sharer/sharer.php?u=https://smile.com", None),
+        ("https://www.youtube.com/channel/UCabc123", "youtube.com/channel/ucabc123"),
+        ("https://www.youtube.com/c/SmileDental/videos", "youtube.com/c/smiledental"),
+        ("https://www.youtube.com/user/smiledental", "youtube.com/user/smiledental"),
+        ("https://www.youtube.com/@SmileDental", "youtube.com/@smiledental"),
+        ("https://www.youtube.com/watch?v=abc123", None),
+        ("https://www.instagram.com/p/C1x2y3/", "instagram.com/p/c1x2y3"),
+        ("https://www.instagram.com/smiledental/", "instagram.com/smiledental"),
+    ],
+)
+def test_platform_pages_are_keyed_by_the_page(url, key):
+    assert dedupe_key(url) == key
+    assert website_keys(url) == ({key} if key else set())
+
+
+def test_international_domains_are_keyed_in_ascii():
+    assert website_keys("https://www.café.com/menu") == {"xn--caf-dma.com"}
+    assert dedupe_key("https://www.café.com/") == dedupe_key("https://www.xn--caf-dma.com/") == "xn--caf-dma.com"
+    assert exclusion_keys("café.com") == exclusion_keys("xn--caf-dma.com") == {"xn--caf-dma.com"}
+    assert website_keys("https://😀.example/") == {"😀.example"}  # not a valid international name: as written
+
+
+def test_exclusion_keys_for_platform_pages():
+    assert exclusion_keys("https://www.facebook.com/p/Smile-Dental-100063/") == {"facebook.com/p/smile-dental-100063"}
+    assert exclusion_keys("facebook.com/profile.php?id=42") == {"facebook.com/profile.php?id=42"}
+    assert exclusion_keys("https://www.youtube.com/channel/UCabc123") == {"youtube.com/channel/ucabc123"}
+
+
 def test_exclusion_keys():
     assert exclusion_keys("WWW.Smile.com") == {"smile.com"}
     assert exclusion_keys("https://smile.com/contact") == {"smile.com"}

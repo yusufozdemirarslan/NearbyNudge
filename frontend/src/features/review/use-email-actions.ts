@@ -4,8 +4,9 @@ import { api } from "@/lib/api"
 import { isAbortError, isApiError } from "@/lib/api/client"
 import { qk } from "@/lib/api/queries"
 import type { Fact, Lead, RewriteMode } from "@/lib/api/types"
+import { composeBody } from "@/lib/email"
 import { useAnnounce } from "@/hooks/use-announce"
-import { useDesk } from "./desk-state"
+import { useDesk, type ChangeSnapshot } from "./desk-state"
 import { writeLead } from "./lead-cache"
 import type { ActionOutcome } from "./use-lead-actions"
 
@@ -108,12 +109,13 @@ export function useEmailActions() {
 
   /** Saves the email with some rewrite changes reverted, keeping the comparison open. */
   const applyReverts = React.useCallback(
-    async (lead: Lead, reverted: string[], subject: string, body: string): Promise<ActionOutcome> => {
-      const snapshot = desk.snapshots[lead.id]
+    async (lead: Lead, shown: ChangeSnapshot, reverted: string[], subject: string, body: string): Promise<ActionOutcome> => {
       try {
         const next = await api.updateEmail(lead.id, { subject, body })
         writeLead(queryClient, next)
-        if (snapshot) desk.setSnapshot(lead.id, { ...snapshot, reverted })
+        // Keep the comparison the user is looking at: after a reload it came from the lead's
+        // previous version, which this save replaces.
+        desk.setSnapshot(lead.id, { ...shown, reverted })
         announce(reverted.length === 0 ? "All new words kept." : `${reverted.length} ${reverted.length === 1 ? "change" : "changes"} reverted and saved.`)
         return { ok: true }
       } catch (error) {
@@ -126,10 +128,18 @@ export function useEmailActions() {
   /** Undo a rewrite: restore the version from before it. */
   const undoRewrite = React.useCallback(
     async (lead: Lead): Promise<ActionOutcome> => {
-      const versionId = desk.snapshots[lead.id]?.before.version_id ?? lead.previous_email?.version_id
-      if (!versionId) return { ok: false, message: "There is no earlier version to go back to." }
+      const before = desk.snapshots[lead.id]?.before ?? lead.previous_email
+      if (!before) return { ok: false, message: "There is no earlier version to go back to." }
       try {
-        const next = await api.restoreVersion(lead.id, versionId)
+        let next: Lead
+        try {
+          next = await api.restoreVersion(lead.id, before.version_id)
+        } catch (error) {
+          // Only the newest versions are kept and each change saved in Show changes is one, so the
+          // version from before the rewrite can be gone: put its words back instead.
+          if (!isApiError(error, "not_found")) throw error
+          next = await api.updateEmail(lead.id, { subject: before.subject, body: composeBody(before) })
+        }
         writeLead(queryClient, next)
         desk.setSnapshot(lead.id, null)
         announce("Restored the version from before the rewrite.")

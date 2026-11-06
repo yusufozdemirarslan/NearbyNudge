@@ -115,6 +115,32 @@ def _split_state(tokens: list[str]) -> tuple[str | None, list[str]]:
     return None, tokens
 
 
+def _address_tail(text: str) -> tuple[list[str], list[str]]:
+    """(address parts without ZIPs or a trailing country, the last part's words without "US"/"United States")."""
+    text = _ZIP_RE.sub(" ", text)
+    segments = [s for s in (part.strip() for part in text.split(",")) if _tokens(s, expand=False)]
+    while segments and " ".join(_tokens(segments[-1], expand=False)) in _COUNTRY_KEYS:
+        segments.pop()
+    if not segments:
+        return [], []
+    last = _tokens(segments[-1], expand=False)
+    while len(last) > 1 and last[-1] in ("us", "usa"):
+        last = last[:-1]
+    if len(last) > 2 and last[-2:] == ["united", "states"]:
+        last = last[:-2]
+    return segments, last
+
+
+def _typed_state(text: str) -> str | None:
+    """The state an address names after its city ("Springfield, IL", "Springfield IL 62701"), or None.
+    A state name with nothing before it ("Washington 20001", "New York") may be the city, so it isn't one."""
+    segments, last = _address_tail(text)
+    if not segments:
+        return None
+    state, rest = _split_state(last)
+    return state if state and (rest or len(segments) >= 2) else None
+
+
 # ---------------------------------------------------------------- Census place names
 
 _SUFFIX_RE = re.compile(
@@ -402,7 +428,9 @@ class Gazetteer:
         raw = " ".join((text or "").split())
         if not raw:
             return None
-        zips = self._zip_candidates(raw)
+        # A ZIP from another state than the one typed ("Springfield, IL 10001") is a typo or a house number.
+        typed = _typed_state(raw)
+        zips = [code for code in self._zip_candidates(raw) if not typed or state_for_zip(code) in ("", typed)]
         for code in reversed(zips):  # the last ZIP in an address is the postal code
             point = self._zcta.get(code)
             if point:
@@ -418,29 +446,23 @@ class Gazetteer:
 
     def _zip_candidates(self, text: str) -> list[str]:
         out: list[str] = []
-        first_segment_end = text.find(",") if "," in text else len(text)
         for m in _ZIP_RE.finditer(text):
-            if m.start() == 0 and m.end() < first_segment_end:
-                # "12000 Government Center Pkwy, Fairfax, VA": a house number, not a ZIP
-                words = _tokens(text[m.end() : first_segment_end], expand=False)
+            start = text.rfind(",", 0, m.start()) + 1
+            end = text.find(",", m.end())
+            end = len(text) if end == -1 else end
+            if not text[start : m.start()].strip() and m.end() < end:
+                # "12000 Government Center Pkwy, Fairfax, VA" or "Suite 100, 10001 Main St, ...": a house
+                # number at the start of an address part, not a ZIP
+                words = _tokens(text[m.end() : end], expand=False)
                 if len(words) >= 2 and any(w in _STREET_WORDS for w in words):
                     continue
             out.append(m.group(1))
         return out
 
     def _resolve_city(self, text: str) -> GeoResult | None:
-        text = _ZIP_RE.sub(" ", text)
-        segments = [s for s in (part.strip() for part in text.split(",")) if _tokens(s, expand=False)]
-        while segments and " ".join(_tokens(segments[-1], expand=False)) in _COUNTRY_KEYS:
-            segments.pop()
+        segments, last = _address_tail(text)
         if not segments:
             return None
-        last = _tokens(segments[-1], expand=False)
-        while len(last) > 1 and last[-1] in ("us", "usa"):
-            last = last[:-1]
-        if len(last) > 2 and last[-2:] == ["united", "states"]:
-            last = last[:-2]
-
         state, rest = _split_state(last)
         if state is None:
             alias = _NO_STATE_ALIASES.get(" ".join(_tokens(segments[-1])))

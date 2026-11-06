@@ -258,12 +258,14 @@ INSERT_FROM_STAGING = """
 
 # ------------------------------------------------------------------ derived columns
 
-# chain_count = places in the store sharing the normalized name, or the brand if larger.
+# chain_count = places in the store sharing the normalized name, or the brand if larger. A name with no
+# Latin letters or digits normalizes to '' and can't be compared, so it counts as its own place.
+CHAIN_RULES = "2"  # bump when the chain count rules change, so stores recompute it when opened
 COMPUTE_CHAIN_COUNTS = """
     CREATE OR REPLACE TEMP TABLE _chain AS
     SELECT place_id,
            greatest(
-               count(*) OVER (PARTITION BY name_norm),
+               CASE WHEN name_norm = '' THEN 1 ELSE count(*) OVER (PARTITION BY name_norm) END,
                CASE WHEN brand_norm IS NULL OR brand_norm = '' THEN 0
                     ELSE count(*) OVER (PARTITION BY brand_norm) END
            )::INTEGER AS n

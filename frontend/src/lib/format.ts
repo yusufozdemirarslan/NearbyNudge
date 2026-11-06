@@ -25,6 +25,15 @@ export function formatTime(value: string | Date): string {
   return toDate(value).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
 }
 
+/**
+ * When the daily send limit resets: "midnight" when that is midnight on this computer's clock,
+ * otherwise the time ("7:00 AM"), since the limit follows the time zone in the sender profile.
+ */
+export function formatResetTime(value: string | Date): string {
+  const date = toDate(value)
+  return date.getHours() === 0 && date.getMinutes() === 0 ? "midnight" : formatTime(date)
+}
+
 /** "just now", "5 minutes ago", "3 hours ago", "yesterday", then "Oct 20". */
 export function formatRelative(value: string | Date, now: Date = new Date()): string {
   const date = toDate(value)

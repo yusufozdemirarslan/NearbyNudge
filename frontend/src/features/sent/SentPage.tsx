@@ -28,7 +28,7 @@ import { leadQuery, sentQuery } from "@/lib/api/queries"
 import type { ReplyOutcome, SendingToday, SentItem } from "@/lib/api/types"
 import { copyText } from "@/lib/clipboard"
 import { api } from "@/lib/api"
-import { formatDate, formatTime, plural } from "@/lib/format"
+import { formatDate, formatResetTime, formatTime, plural } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { viewOfStatus } from "@/features/review/search"
 import { useLeadActions } from "@/features/review/use-lead-actions"
@@ -372,15 +372,17 @@ export function SentPage() {
     atCap,
     markSent: (item) => {
       patch(item.id, { busy: "sent", message: null })
-      void leadActions.markSent(item, false).then((outcome) =>
+      void leadActions.markSent(item, false).then((outcome) => {
+        if (outcome.ignored) return
         patch(item.id, { busy: null, message: outcome.ok ? null : (outcome.message ?? null) })
-      )
+      })
     },
     replied: (item, outcome) => {
       patch(item.id, { busy: "replied", message: null })
-      void leadActions.replied(item, outcome).then((result) =>
+      void leadActions.replied(item, outcome).then((result) => {
+        if (result.ignored) return
         patch(item.id, { busy: null, message: result.ok ? null : (result.message ?? null) })
-      )
+      })
     },
     copy: (item) => {
       const text = queryClient.fetchQuery(leadQuery(item.id)).then((lead) => lead.copy_text ?? "")
@@ -399,12 +401,12 @@ export function SentPage() {
       void queryClient
         .fetchQuery(leadQuery(item.id))
         .then((lead) => {
-          if (!lead.mailto_url) {
+          if (!lead.mailto_url?.startsWith("mailto:")) {
             patch(item.id, { message: "This lead has no email address to open. Copy the email instead." })
             return
           }
           void api.logLeadEvent(item.id, { kind: "opened_mailto" }).catch(() => undefined)
-          window.location.href = lead.mailto_url
+          window.location.assign(lead.mailto_url)
         })
         .catch(() => patch(item.id, { message: "We couldn't load this email. Try again." }))
     },
@@ -424,8 +426,8 @@ export function SentPage() {
         >
           <Mark name="lock" className="mt-1 text-edge" />
           <span>
-            You've marked {sending.daily_cap} emails as sent today, the daily limit. Sending unlocks at midnight (
-            {formatTime(sending.resets_at)}).
+            You've marked {sending.daily_cap} emails as sent today, the daily limit. Sending unlocks at{" "}
+            {formatResetTime(sending.resets_at)}.
           </span>
         </p>
       )}

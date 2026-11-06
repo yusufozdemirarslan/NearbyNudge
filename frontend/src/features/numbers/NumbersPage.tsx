@@ -53,8 +53,10 @@ function CountDelta({ now, before }: { now: number; before: number }) {
   )
 }
 
-function rate(f: FunnelData): number | null {
-  return f.sent > 0 ? f.replied / f.sent : null
+/** The week's reply rate: replies to the emails sent that week (from the server), not every reply logged that week. */
+function rate(week: FunnelData & { reply_rate?: number | null }): number | null {
+  if (week.reply_rate !== undefined) return week.reply_rate
+  return week.sent > 0 ? Math.min(1, week.replied / week.sent) : null
 }
 
 function RateDelta({ now, before }: { now: number | null; before: number | null }) {

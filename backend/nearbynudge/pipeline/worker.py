@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from ..ai.client import AIPaused, AIUnavailable
 from ..db import utcnow
-from ..models import Campaign, Lead
+from ..models import Campaign, Job, Lead
 from . import jobs, steps
 from .state import AppState
 
@@ -128,7 +128,7 @@ class Worker:
             return
         self._last_probe = time.monotonic()
         if await self.app.ai.probe():
-            self.app.pause.clear()
+            await asyncio.to_thread(self.app.pause.clear)
             log.info("AI account works again; resuming")
 
     async def _run_job(self, job: dict[str, Any]) -> None:
@@ -140,22 +140,30 @@ class Worker:
                 await steps.process_lead(self.app, job["lead_id"])
             await self.app.db.arun(lambda s: jobs.finish(s, job_id))
         except AIPaused as exc:
-            await self.app.db.arun(lambda s: jobs.requeue(s, job_id, delay_s=5, count_attempt=False, error=str(exc)))
+            # the message is copied out: the helpers run in a thread and `exc` ends with this block
+            paused = str(exc)
+
+            def wait_for_account(s: Session) -> None:
+                jobs.outage_over(s, job_id)
+                jobs.requeue(s, job_id, delay_s=5, count_attempt=False, error=paused)
+            await self.app.db.arun(wait_for_account)
         except AIUnavailable as exc:
-            # Rate limits and outages pause the work rather than failing it; give up only after a day.
-            if (utcnow() - job["created_at"]).total_seconds() > GIVE_UP_AFTER_S:
+            # Rate limits and outages pause the work rather than failing it; give up only after a day of them.
+            unavailable = str(exc)
+            since = await self.app.db.arun(lambda s: jobs.outage_began(s, job_id, _stage(s, job)))
+            if (utcnow() - since).total_seconds() > GIVE_UP_AFTER_S:
                 await self._give_up(job, "Couldn't finish: the AI wasn't reachable for a day. Retry when it's back.")
             else:
                 await self.app.db.arun(lambda s: jobs.requeue(
-                    s, job_id, delay_s=self.app.settings.retry_delay_s, count_attempt=False, error=str(exc)))
+                    s, job_id, delay_s=self.app.settings.retry_delay_s, count_attempt=False, error=unavailable))
         except asyncio.CancelledError:
             # stopped by a shutdown (re-queued) or by the user (the claim then sees the lead is done)
             await self.app.db.arun(lambda s: jobs.requeue(s, job_id, delay_s=0, count_attempt=False, error="stopped"))
             if self._stopping:
                 raise
         except Exception as exc:  # noqa: BLE001
-            self.app.log_error("pipeline", f"{job['kind']} job failed: {exc}", exc=exc,
-                               campaign_id=job.get("campaign_id"), lead_id=job.get("lead_id"))
+            await self.app.alog_error("pipeline", f"{job['kind']} job failed: {exc}", exc=exc,
+                                      campaign_id=job.get("campaign_id"), lead_id=job.get("lead_id"))
             await self._give_up(job, "Couldn't finish: something went wrong on our side. Retry, or review without site facts.")
         finally:
             self._running.pop(job_id, None)
@@ -167,8 +175,8 @@ class Worker:
         def fn(s: Session) -> None:
             jobs.finish(s, job_id, status="failed", error=message)
             if job["kind"] == "lead" and job.get("lead_id"):
-                lead = s.get(Lead, job["lead_id"])
-                if lead is not None and lead.status in ("queued", "reading", "choosing", "writing", "checking"):
+                lead = steps.claim_lead(s, job["lead_id"])  # only while it's still in progress (the user may have decided)
+                if lead is not None:
                     lead.status = "failed"
                     lead.error = message
                     lead.step = None
@@ -187,19 +195,36 @@ class Worker:
         await self.app.db.arun(fn)
 
 
+def _stage(s: Session, job: dict[str, Any]) -> str | None:
+    """How far the job's work has got (a lead's status), to tell an outage that stops progress from one that doesn't."""
+    if job["kind"] == "lead" and job.get("lead_id"):
+        lead = s.get(Lead, job["lead_id"])
+        return lead.status if lead is not None else None
+    return None
+
+
 def _claim(s: Session, per_user: dict[str, int], exclude: set[str]) -> dict[str, Any] | None:
     job = jobs.claim_next(s, per_user, exclude)
     if job is None:
         return None
-    # skip leads that no longer need work (skipped or deleted while queued)
+    return job_snapshot(job) if still_needed(s, job) else None
+
+
+def still_needed(s: Session, job: Job) -> bool:
+    """False (and the job is cancelled) for a lead that no longer needs work (skipped or deleted while queued), or a
+    campaign that was deleted."""
     if job.kind == "lead" and job.lead_id:
         lead = s.get(Lead, job.lead_id)
         if lead is None or lead.status not in ("queued", "reading", "choosing", "writing", "checking"):
             jobs.finish(s, job.id, status="cancelled")
-            return None
+            return False
     if job.kind == "discover" and job.campaign_id and s.get(Campaign, job.campaign_id) is None:
         jobs.finish(s, job.id, status="cancelled")
-        return None
+        return False
+    return True
+
+
+def job_snapshot(job: Job) -> dict[str, Any]:
     return {"id": job.id, "kind": job.kind, "user_id": job.user_id, "campaign_id": job.campaign_id,
             "lead_id": job.lead_id, "attempts": job.attempts, "created_at": job.created_at}
 
@@ -208,8 +233,6 @@ def queue_counts(s: Session) -> dict[str, int]:
     from datetime import timedelta
 
     from sqlalchemy import func
-
-    from ..models import Job
 
     rows = s.execute(select(Job.status, func.count()).group_by(Job.status)).all()
     by = {r[0]: r[1] for r in rows}

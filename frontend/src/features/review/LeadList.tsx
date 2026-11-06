@@ -2,6 +2,7 @@ import * as React from "react"
 import { Link } from "@tanstack/react-router"
 import { DownloadIcon, XIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { CalmError } from "@/components/CalmError"
 import { Checkbox } from "@/components/ui/checkbox"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Switch } from "@/components/ui/switch"
@@ -94,9 +95,17 @@ function useFinishDismissed(campaignId: string) {
 }
 
 export interface LeadListProps {
+  /** From the address, so it's known before the campaign loads. */
+  campaignId: string
   campaign: Campaign | undefined
   leads: LeadSummary[] | undefined
   loading: boolean
+  /** The leads couldn't be loaded (after retries); there are none to show. */
+  loadError: unknown
+  onRetryLoad: () => void
+  /** An export or bulk skip failed: shown under the toolbar until dismissed or the next try. */
+  listError: string | null
+  onDismissListError: () => void
   order: StableOrder
   view: DeskView
   sort: DeskSort
@@ -140,9 +149,11 @@ function TabCount({ value }: { value: number }) {
 /** The review desk's lead list column: the campaign's running head, the thumb index and the entries. */
 export function LeadList(props: LeadListProps) {
   const {
+    campaignId,
     campaign,
     leads,
     loading,
+    loadError,
     order,
     view,
     sort,
@@ -228,6 +239,7 @@ export function LeadList(props: LeadListProps) {
         {vertical && tabs}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <CampaignHeader
+            campaignId={campaignId}
             campaign={campaign}
             counts={counts}
             running={running}
@@ -279,6 +291,16 @@ export function LeadList(props: LeadListProps) {
             )}
           </div>
 
+          {props.listError && (
+            <div role="alert" className="flex items-start gap-2 border-b border-ink border-t-(length:--rule-heavy) border-t-edge px-4 py-2 text-ui">
+              <Mark name="asterisk" className="mt-1 text-edge" />
+              <span className="min-w-0 flex-1">{props.listError}</span>
+              <Button variant="ghost" size="icon-sm" onClick={props.onDismissListError} aria-label="Dismiss this message">
+                <XIcon aria-hidden="true" />
+              </Button>
+            </div>
+          )}
+
           <TabsContent
             value={view}
             className={cn("relative min-h-0 flex-1 overflow-y-auto", livePaused && "motion-paused")}
@@ -292,6 +314,14 @@ export function LeadList(props: LeadListProps) {
             )}
             {loading && !leads ? (
               <PlaceholderRows count={6} compact={compact} />
+            ) : !leads && loadError ? (
+              <CalmError
+                size="inline"
+                className="m-4"
+                title="We couldn't load the leads"
+                error={loadError}
+                onRetry={props.onRetryLoad}
+              />
             ) : rows.length > 0 ? (
               <div className="pb-6">
                 <ul ref={listRef}>
@@ -360,6 +390,7 @@ function PlaceholderRows({ count, compact }: { count: number; compact: boolean }
 }
 
 function CampaignHeader({
+  campaignId,
   campaign,
   counts,
   running,
@@ -369,6 +400,7 @@ function CampaignHeader({
   onReviewFirst,
   onExportAll,
 }: {
+  campaignId: string
   campaign: Campaign | undefined
   counts: ListCounts
   running: boolean
@@ -379,7 +411,7 @@ function CampaignHeader({
   onExportAll: () => void
 }) {
   const switchId = React.useId()
-  const [dismissed, dismiss] = useFinishDismissed(campaign?.id ?? "none")
+  const [dismissed, dismiss] = useFinishDismissed(campaignId)
   const eta = running ? formatEta(campaign?.eta_seconds) : null
   const summary = campaign?.status === "done" && campaign.finish_summary && !dismissed ? campaign.finish_summary : null
   return (

@@ -80,11 +80,13 @@ export function EmailPanel({
   const [error, setError] = React.useState<string | null>(null)
   const [busy, setBusy] = React.useState(false)
   const leadId = summary.id
-
-  React.useEffect(() => {
+  const [shownLeadId, setShownLeadId] = React.useState(leadId)
+  if (shownLeadId !== leadId) {
+    // Another lead: its messages and buttons start fresh.
+    setShownLeadId(leadId)
     setError(null)
     setBusy(false)
-  }, [leadId])
+  }
 
   if (!lead) {
     if (loadError) {
@@ -130,6 +132,8 @@ export function EmailPanel({
 
   const doRewrite = async (mode: RewriteMode, hookId?: string) => {
     setError(null)
+    // The rewrite replaces the email: an open edit of the old one is dropped.
+    onDraftChange(undefined)
     onModeChange("view")
     const outcome = await actions.rewrite(lead, mode, hookId)
     if (!outcome.ok && !outcome.cancelled && outcome.message) setError(`The rewrite didn't finish. ${outcome.message}`)
@@ -149,8 +153,8 @@ export function EmailPanel({
       {lead.status === "needs_review" && (
         <NeedsReviewBanner
           lead={lead}
-          onEdit={changeable ? () => onModeChange("edit") : null}
-          onAnotherHook={changeable && lead.alternatives.length > 0 ? () => void doRewrite("another_hook") : null}
+          onEdit={changeable && !pending ? () => onModeChange("edit") : null}
+          onAnotherHook={changeable && !pending && lead.alternatives.length > 0 ? () => void doRewrite("another_hook") : null}
         />
       )}
 
@@ -173,6 +177,7 @@ export function EmailPanel({
           onUndo={
             snapshot && changeable && !pending
               ? () => {
+                  onDraftChange(undefined)
                   onModeChange("view")
                   void withBusy(() => actions.undoRewrite(lead), "We couldn't undo the rewrite.")
                 }
@@ -227,8 +232,14 @@ export function EmailPanel({
         <ChangesView
           snapshot={snapshot}
           busy={busy || Boolean(pending)}
-          onApply={(reverted, subject, body) =>
-            void withBusy(() => actions.applyReverts(lead, reverted, subject, body), "We couldn't save that change.")
+          onApply={
+            changeable
+              ? (reverted, subject, body) =>
+                  void withBusy(
+                    () => actions.applyReverts(lead, snapshot, reverted, subject, body),
+                    "We couldn't save that change."
+                  )
+              : null
           }
         />
       ) : (
@@ -277,6 +288,17 @@ export function EmailPanel({
   )
 }
 
+/**
+ * "shorter", "another hook (Title)" from a rewrite's origin detail. The server writes "more direct"
+ * and "another hook: Title"; the words match the rewrite buttons either way.
+ */
+function rewriteLabel(detail: string | null | undefined): string {
+  const text = (detail ?? "rewritten").trim()
+  const hook = /^another[ _]hook(?::\s*(.*))?$/u.exec(text)
+  if (hook) return hook[1]?.trim() ? `another hook (${hook[1].trim()})` : "another hook"
+  return REWRITE_LABEL[text.replace(/ /gu, "_") as RewriteMode] ?? text
+}
+
 function VersionLine({
   lead,
   snapshot,
@@ -295,10 +317,7 @@ function VersionLine({
   const email = lead.email
   if (!email) return null
   if (snapshot) {
-    const detail = snapshot.after.origin_detail ?? "rewritten"
-    const label = detail.startsWith("another_hook")
-      ? `another hook${detail.includes(":") ? ` (${detail.split(":")[1].trim()})` : ""}`
-      : (REWRITE_LABEL[detail as RewriteMode] ?? detail)
+    const label = rewriteLabel(snapshot.after.origin_detail)
     return (
       <div className="ml-auto flex flex-wrap items-center gap-1.5 text-meta">
         <span className="italic">

@@ -30,10 +30,11 @@ def test_the_app_opens_without_signing_in(api: Api):
     assert api.post("/api/campaigns/plan", OFFER).status_code == 200
 
 
-def test_sign_in_endpoints_are_gone(api: Api):
+def test_the_old_passkey_sign_in_endpoints_are_gone(api: Api):
+    """Passkeys, invites and recovery codes were removed; sign-in is now one password account (test_auth.py)."""
     for path in ("/api/auth/me", "/api/admin/invites", "/api/admin/users"):
         assert api.get(path).status_code == 404, path
-    for path in ("/api/auth/login/options", "/api/auth/register/options", "/api/auth/recover", "/api/auth/logout",
+    for path in ("/api/auth/login/options", "/api/auth/register/options", "/api/auth/recover",
                  "/api/account/recovery-codes", "/api/account/passkeys/options", "/api/admin/invites", "/api/dev/login"):
         assert api.post(path).status_code == 404, path
 

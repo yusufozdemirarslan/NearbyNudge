@@ -1,7 +1,9 @@
 pytest_plugins = ["tests.conftest_sites"]
 
+import os  # noqa: E402
 import shutil  # noqa: E402
 import time  # noqa: E402
+import uuid  # noqa: E402
 from collections.abc import Iterator  # noqa: E402
 from pathlib import Path  # noqa: E402
 from typing import Any  # noqa: E402
@@ -134,8 +136,32 @@ def fake_ai() -> FakeAI:
     return FakeAI()
 
 
+#: A Postgres server to run the tests on instead of SQLite (the hosted database), e.g.
+#: NN_TEST_DB_URL=postgresql://postgres:@127.0.0.1:5432/postgres. Each test gets its own new database there.
+TEST_POSTGRES = os.environ.get("NN_TEST_DB_URL", "").strip()
+
+
 @pytest.fixture
-def settings(tmp_path: Path, business_sites: dict[str, str]) -> Settings:
+def database_url() -> Iterator[str]:
+    """"" (the test's own SQLite file), or a fresh Postgres database when NN_TEST_DB_URL is set."""
+    if not TEST_POSTGRES:
+        yield ""
+        return
+    import psycopg
+
+    admin = TEST_POSTGRES.replace("postgresql+psycopg://", "postgresql://")
+    name = "nn_test_" + uuid.uuid4().hex[:16]
+    with psycopg.connect(admin, autocommit=True) as con:
+        con.execute(f'CREATE DATABASE "{name}"')
+    try:
+        yield admin.rsplit("/", 1)[0] + "/" + name
+    finally:
+        with psycopg.connect(admin, autocommit=True) as con:
+            con.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
+
+
+@pytest.fixture
+def settings(tmp_path: Path, business_sites: dict[str, str], database_url: str) -> Settings:
     data = tmp_path / "data"
     (data / "gazetteer").mkdir(parents=True)
     for f in GEO_FIXTURES.iterdir():
@@ -146,6 +172,8 @@ def settings(tmp_path: Path, business_sites: dict[str, str]) -> Settings:
         NN_ENV="test", NN_DATA_DIR=data, NN_FRONTEND_DIST=tmp_path / "no-dist", NN_DEV_WORKSPACES=True,
         NN_READER_ALLOW_PRIVATE=True, NN_READER_MIN_INTERVAL_S=0.0, NN_WORKER_CONCURRENCY=3, NN_AI_RPM=10_000,
         NN_PUBLIC_URL="http://localhost:8000",
+        # whatever the project's .env says: tests run without sign-in (test_auth.py turns it on), on this computer
+        NN_LOGIN_EMAIL="", NN_LOGIN_PASSWORD_HASH="", NN_SESSION_SECRET="", NN_SERVERLESS=False, NN_DB_URL=database_url,
     )
 
 

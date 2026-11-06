@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import gzip
 import time
+import tracemalloc
+import zlib
 
 import httpcore
 import httpx
@@ -88,6 +91,19 @@ async def test_sends_honest_headers(web):
         assert request.headers["Accept"] == "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1"
         assert request.headers["Accept-Language"] == "en-US,en;q=0.8"
         assert "cookie" not in request.headers
+
+
+async def test_asks_only_for_compression_it_can_inflate(web, monkeypatch):
+    # httpx advertises Brotli and zstd when their packages are installed, but the reader bounds only
+    # gzip and deflate itself: a site answering in Brotli would read as "not a web page".
+    import httpx._client
+
+    monkeypatch.setattr(httpx._client, "ACCEPT_ENCODING", "gzip, deflate, br, zstd")
+    async with make_reader(web) as reader:
+        await reader.fetch_home("https://biz.test/", SiteBudget())
+    assert web.requests, "no requests sent"
+    for request in web.requests:
+        assert request.headers["Accept-Encoding"] == "gzip, deflate"
 
 
 # ------------------------------------------------------------------ robots.txt
@@ -738,3 +754,129 @@ async def test_pagresult_defaults_are_safe():
 async def test_reader_requires_a_user_agent():
     with pytest.raises(ValueError):
         Reader("  ")
+
+
+async def test_international_domains_read_their_inner_pages():
+    w = FakeWeb()
+    w.robots("https://www.café.com")
+    w.html("https://www.café.com/", "Café Home",
+           long_text() + '<a href="/about">About us</a> <a href="https://www.xn--caf-dma.com/menu">Menu</a>')
+    w.html("https://www.café.com/about", "About | Café")
+    w.html("https://www.café.com/menu", "Menu | Café")
+    async with make_reader(w) as reader:
+        budget = SiteBudget()
+        home = await reader.fetch_home("https://www.café.com/", budget)
+        about = await reader.fetch("https://www.café.com/about", site=home.final_url, budget=budget)
+        menu = await reader.fetch("https://www.xn--caf-dma.com/menu", site=home.final_url, budget=budget)
+    assert home.ok
+    assert [link.url for link in home.links] == ["https://www.café.com/about", "https://www.xn--caf-dma.com/menu"]
+    assert about.ok and about.title == "About | Café"
+    assert menu.ok and menu.title == "Menu | Café"
+
+
+# ------------------------------------------------------------------ compressed replies
+
+
+def _gzip_zeros(megabytes: int, *, wbits: int = 31) -> bytes:
+    """An HTML-ish body of zeros, compressed: a few KB on the wire that inflate to `megabytes` MB."""
+    c = zlib.compressobj(6, zlib.DEFLATED, wbits)
+    block = b"\0" * 1_000_000
+    parts = [c.compress(b"<html><body>")] + [c.compress(block) for _ in range(megabytes)]
+    return b"".join(parts + [c.flush()])
+
+
+async def _peak_mb(fetch) -> tuple[PageResult, float]:
+    tracemalloc.start()
+    try:
+        result = await fetch()
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    return result, peak / 1_000_000
+
+
+async def test_gzip_and_deflate_pages_are_read():
+    w = FakeWeb()
+    w.robots("https://biz.test")
+    html = page("Packed", long_text()).encode("utf-8")
+    raw_deflate = zlib.compressobj(6, zlib.DEFLATED, -zlib.MAX_WBITS)
+    raw_deflate = raw_deflate.compress(html) + raw_deflate.flush()
+    w.streamed("https://biz.test/gzip", gzip.compress(html), headers=[("Content-Encoding", "gzip")], chunk=100)
+    w.streamed("https://biz.test/xgzip", gzip.compress(html), headers=[("Content-Encoding", "x-gzip")])
+    w.streamed("https://biz.test/deflate", zlib.compress(html), headers=[("Content-Encoding", "deflate")])
+    w.streamed("https://biz.test/raw-deflate", raw_deflate, headers=[("Content-Encoding", "deflate")])
+    w.streamed("https://biz.test/identity", html, headers=[("Content-Encoding", "identity")], chunk=100)
+    w.streamed("https://biz.test/plain", html)
+    async with make_reader(w) as reader:
+        budget = SiteBudget(10)
+        results = {p: await reader.fetch(f"https://biz.test/{p}", site="https://biz.test/", budget=budget)
+                   for p in ("gzip", "xgzip", "deflate", "raw-deflate", "identity", "plain")}
+    for name, result in results.items():
+        assert result.ok and result.title == "Packed", (name, result.error)
+        assert "Our friendly team cares for families" in result.text, name
+
+
+async def test_a_corrupt_gzip_body_is_a_network_error():
+    w = FakeWeb()
+    w.robots("https://biz.test")
+    w.streamed("https://biz.test/", b"\x1f\x8b\x08\x00not really gzip", headers=[("Content-Encoding", "gzip")])
+    async with make_reader(w) as reader:
+        home = await reader.fetch_home("https://biz.test/", SiteBudget())
+    assert home.error == "network"
+
+
+async def test_a_compression_bomb_is_stopped_at_the_size_limit_without_inflating_it():
+    w = FakeWeb()
+    w.robots("https://biz.test")
+    w.streamed("https://biz.test/", _gzip_zeros(60), headers=[("Content-Encoding", "gzip")])  # ~60 KB -> 60 MB
+    async with make_reader(w) as reader:  # the default 2 MB limit
+        home, peak = await _peak_mb(lambda: reader.fetch_home("https://biz.test/", SiteBudget()))
+    assert home.error == "too_large"
+    assert peak < 16, f"inflating the reply used {peak:.0f} MB"
+
+
+async def test_a_body_just_under_the_limit_still_reads_when_compressed():
+    w = FakeWeb()
+    w.robots("https://biz.test")
+    html = page("Fits", long_text()).encode("utf-8")
+    w.streamed("https://biz.test/", gzip.compress(html), headers=[("Content-Encoding", "gzip")], chunk=7)
+    async with make_reader(w, max_bytes=len(html)) as reader:
+        home = await reader.fetch_home("https://biz.test/", SiteBudget())
+    async with make_reader(w, max_bytes=len(html) - 1) as reader:
+        over = await reader.fetch_home("https://biz.test/", SiteBudget())
+    assert home.ok and home.title == "Fits"
+    assert over.error == "too_large"
+
+
+async def test_stacked_compression_is_refused_unread():
+    w = FakeWeb()
+    w.robots("https://biz.test")
+    w.streamed("https://biz.test/", gzip.compress(_gzip_zeros(60)), headers=[("Content-Encoding", "gzip, gzip")])
+    twice = gzip.compress(gzip.compress(page("Twice", long_text()).encode()))
+    w.streamed("https://biz.test/split", twice, headers=[("Content-Encoding", "gzip"), ("Content-Encoding", "gzip")])
+    async with make_reader(w) as reader:
+        budget = SiteBudget(10)
+        home, peak = await _peak_mb(lambda: reader.fetch_home("https://biz.test/", budget))
+        split = await reader.fetch("https://biz.test/split", site="https://biz.test/", budget=budget)
+    assert home.error == split.error == "too_large"
+    assert peak < 16, f"inflating the reply used {peak:.0f} MB"
+
+
+async def test_an_encoding_we_cant_decode_is_not_read_as_html():
+    w = FakeWeb()
+    w.robots("https://biz.test")
+    w.streamed("https://biz.test/", b"\x8b\x01\x80hello\x03", headers=[("Content-Encoding", "br")])
+    async with make_reader(w) as reader:
+        home = await reader.fetch_home("https://biz.test/", SiteBudget())
+    assert home.error == "not_html"
+
+
+async def test_robots_compressed_twice_means_stay_out():
+    w = FakeWeb()
+    w.streamed("https://biz.test/robots.txt", gzip.compress(gzip.compress(b"User-agent: *\nAllow: /\n")),
+               content_type="text/plain", headers=[("Content-Encoding", "gzip, gzip")])
+    w.html("https://biz.test/", "Home")
+    async with make_reader(w) as reader:
+        home = await reader.fetch_home("https://biz.test/", SiteBudget())
+    assert home.error == "robots_unreadable"
+    assert w.page_requests() == []

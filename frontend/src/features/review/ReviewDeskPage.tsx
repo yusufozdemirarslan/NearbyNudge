@@ -21,7 +21,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { CalmError } from "@/components/CalmError"
 import { EmptyState } from "@/components/EmptyState"
-import { useAccount, usePreferences, useUpdatePreferences } from "@/hooks/use-account"
+import { useAccount, usePreferences, useSavePreference } from "@/hooks/use-account"
 import { useAnnounce } from "@/hooks/use-announce"
 import { useRegisterCommands, type Command } from "@/hooks/use-commands"
 import { useDocumentTitle } from "@/hooks/use-document-title"
@@ -30,7 +30,7 @@ import { useShortcuts, type ShortcutMap } from "@/hooks/use-shortcuts"
 import { api } from "@/lib/api"
 import { isApiError } from "@/lib/api/client"
 import { campaignLeadsQuery, campaignQuery, leadQuery } from "@/lib/api/queries"
-import type { Lead, LeadSummary, ReplyOutcome } from "@/lib/api/types"
+import type { Lead, LeadStatus, LeadSummary, ReplyOutcome } from "@/lib/api/types"
 import { saveBlob, slugify, toCsv } from "@/lib/download"
 import { factNumbers } from "@/lib/email"
 import { plural } from "@/lib/format"
@@ -51,6 +51,16 @@ import { useStableOrder } from "./use-stable-order"
 
 const route = getRouteApi("/app/campaigns/$campaignId")
 
+/** Statuses the server won't skip: the S key, the command menu and bulk skip leave them alone. */
+const UNSKIPPABLE: readonly LeadStatus[] = ["skipped", "dnc", "sent", "replied"]
+
+/** An unsaved edit, and the email version it started from. */
+interface Draft {
+  subject: string
+  body: string
+  versionId: string | null
+}
+
 /** The review desk (brief §3.2–3.4): /campaigns/$campaignId?view=&lead=&sort= */
 export function ReviewDeskPage() {
   const { campaignId } = route.useParams()
@@ -69,15 +79,17 @@ function Desk({ campaignId }: { campaignId: string }) {
   const desk = useDesk()
   const layout = useDeskLayout()
   const preferences = usePreferences()
-  const updatePreferences = useUpdatePreferences()
+  const savePreference = useSavePreference()
   const { data: account } = useAccount()
   const sending = account?.sending ?? null
   const livePaused = !preferences.live_updates
 
   // ---------------------------------------------------------------- data
-  const live = useCampaignLive(campaignId, livePaused)
   const campaignQ = useQuery({ ...campaignQuery(campaignId), refetchOnWindowFocus: !livePaused })
   const campaign = campaignQ.data
+  // No live updates for a campaign that doesn't exist (the stream would retry forever).
+  const missing = !campaign && isApiError(campaignQ.error) && campaignQ.error.status === 404
+  const live = useCampaignLive(campaignId, livePaused, !missing)
   const running = campaign ? campaign.status === "finding" || campaign.status === "researching" : false
   const leadsQ = useQuery({
     ...campaignLeadsQuery(campaignId),
@@ -87,10 +99,26 @@ function Desk({ campaignId }: { campaignId: string }) {
   const leads = leadsQ.data
 
   // ---------------------------------------------------------------- URL state
+  // Actions finish after a request, sometimes once the desk is gone (the user moved to
+  // another screen): those late results must not navigate.
+  const mounted = React.useRef(false)
+  React.useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   const setSearch = React.useCallback(
-    (patch: Partial<DeskSearch>, replace = false) =>
-      void navigate({ search: (prev) => ({ ...prev, ...patch }), replace }),
-    [navigate]
+    (patch: Partial<DeskSearch>, replace = false) => {
+      if (!mounted.current) return
+      void navigate({
+        to: "/campaigns/$campaignId",
+        params: { campaignId },
+        search: (prev) => ({ ...prev, ...patch }),
+        replace,
+      })
+    },
+    [campaignId, navigate]
   )
   const defaultView = React.useMemo<DeskView>(() => {
     if (search.lead || !leads) return "all"
@@ -109,9 +137,11 @@ function Desk({ campaignId }: { campaignId: string }) {
   const rows = order.rows
   const rowsRef = React.useRef(rows)
   const viewRef = React.useRef(view)
+  const selectedRef = React.useRef(selectedId)
   React.useLayoutEffect(() => {
     rowsRef.current = rows
     viewRef.current = view
+    selectedRef.current = selectedId
   })
 
   const leadQ = useQuery({ ...leadQuery(selectedId ?? "none"), enabled: Boolean(selectedId) })
@@ -176,6 +206,8 @@ function Desk({ campaignId }: { campaignId: string }) {
   /** Superhuman-style: after an action, open the next lead that still needs you. */
   const advanceFrom = React.useCallback(
     (fromId: string) => {
+      // The user already moved on (J/K) while the action ran: stay where they are.
+      if (selectedRef.current !== fromId) return
       const list = rowsRef.current
       const currentView = viewRef.current
       const index = list.findIndex((r) => r.id === fromId)
@@ -202,16 +234,47 @@ function Desk({ campaignId }: { campaignId: string }) {
   const [copied, setCopied] = React.useState(false)
   const [sentPrompt, setSentPrompt] = React.useState(false)
   const [mode, setMode] = React.useState<EmailMode>("view")
-  const drafts = React.useRef(new Map<string, { subject: string; body: string }>())
+  // Unsaved edits, kept when the user moves to another lead and back. Each remembers the
+  // email version it started from: after a rewrite or a restore it no longer applies.
+  const [drafts, setDrafts] = React.useState<Readonly<Record<string, Draft>>>({})
   const awaitingReturn = React.useRef<string | null>(null)
 
-  React.useEffect(() => {
+  // Another lead: close its panels and messages, and reopen the editor if it has a draft.
+  const [shownId, setShownId] = React.useState(selectedId)
+  if (shownId !== selectedId) {
+    setShownId(selectedId)
     setPanel("none")
     setError(null)
     setCopied(false)
     setSentPrompt(false)
-    setMode(selectedId && drafts.current.has(selectedId) ? "edit" : "view")
-  }, [selectedId])
+    setMode(selectedId && drafts[selectedId] ? "edit" : "view")
+  }
+
+  const saveDraft = React.useCallback((leadId: string, draft: Draft | undefined) => {
+    setDrafts((current) => {
+      const existing = current[leadId]
+      if (!draft) {
+        if (!existing) return current
+        const rest = { ...current }
+        delete rest[leadId]
+        return rest
+      }
+      const same =
+        existing?.subject === draft.subject && existing.body === draft.body && existing.versionId === draft.versionId
+      return same ? current : { ...current, [leadId]: draft }
+    })
+  }, [])
+  /** A rewrite or a wrong-fact removal replaces the email: an open edit of the old one is dropped. */
+  const dropDraft = () => {
+    if (selectedId) saveDraft(selectedId, undefined)
+  }
+  const storedDraft = selectedId ? drafts[selectedId] : undefined
+  const draft =
+    storedDraft && lead?.email && storedDraft.versionId === lead.email.version_id ? storedDraft : undefined
+
+  const changeable = canChangeEmail(lead)
+  const pending = selectedId ? desk.pending[selectedId] : undefined
+  const snapshot = useChangeSnapshot(lead)
 
   React.useEffect(() => {
     if (!copied) return
@@ -237,8 +300,13 @@ function Desk({ campaignId }: { campaignId: string }) {
     }
   }, [announce, selectedId])
 
+  // One desk action at a time. The busy state reaches the next render too late for a
+  // double-click or a double key press, so a ref holds it as well.
+  const busyRef = React.useRef<string | null>(null)
   const run = React.useCallback(
     async (name: string, fn: () => Promise<{ ok: boolean; message?: string }>) => {
+      if (busyRef.current) return { ok: false }
+      busyRef.current = name
       setBusy(name)
       setError(null)
       try {
@@ -249,6 +317,7 @@ function Desk({ campaignId }: { campaignId: string }) {
         }
         return outcome
       } finally {
+        busyRef.current = null
         setBusy(null)
       }
     },
@@ -266,11 +335,19 @@ function Desk({ campaignId }: { campaignId: string }) {
     },
     busy,
     error,
+    rewriting: Boolean(pending),
     approve: () => {
       if (!lead || busy || !isActionable(lead) || !lead.email) return
+      // A skip, do-not-contact or reply choice is open: finish or close it (Esc) first.
+      if (panel !== "none" && panel !== "approve-warnings") return
       if (mode === "edit") {
         setError("Save or cancel your edits before approving.")
         announce("Save or cancel your edits before approving.")
+        return
+      }
+      if (pending) {
+        setError("Wait for the rewrite to finish before approving.")
+        announce("Wait for the rewrite to finish before approving.")
         return
       }
       if (lead.warnings.length > 0 && panel !== "approve-warnings") {
@@ -281,7 +358,12 @@ function Desk({ campaignId }: { campaignId: string }) {
       void run("approve", () => leadActions.approve(lead)).then((o) => o.ok && setPanel("none"))
     },
     approveAnyway: () => {
-      if (!lead) return
+      if (!lead || busy) return
+      if (pending) {
+        setError("Wait for the rewrite to finish before approving.")
+        announce("Wait for the rewrite to finish before approving.")
+        return
+      }
       void run("approve", () => leadActions.approve(lead)).then((o) => o.ok && setPanel("none"))
     },
     skip: (reason) => {
@@ -318,7 +400,7 @@ function Desk({ campaignId }: { campaignId: string }) {
     },
     undoLast: () => {
       const actionId = lead?.last_action?.action_id
-      if (actionId) void run("undo", () => leadActions.undo(actionId))
+      if (actionId && !busy) void run("undo", () => leadActions.undo(actionId))
     },
     retryResearch: () => {
       if (!lead) return
@@ -335,22 +417,21 @@ function Desk({ campaignId }: { campaignId: string }) {
     copied,
     sentPrompt,
     webmail,
-    toggleWebmail: () => void updatePreferences({ webmail_mode: !webmail }),
+    toggleWebmail: () => savePreference({ webmail_mode: !webmail }),
   }
 
   const openEmailApp = () => {
-    if (!lead?.mailto_url || atCap) return
+    // Only ever hand the browser a mail link (the server builds it; this keeps it that way).
+    if (!lead?.mailto_url?.startsWith("mailto:") || atCap) return
     controller.noteOpened()
-    window.location.href = lead.mailto_url
+    window.location.assign(lead.mailto_url)
   }
 
-  const changeable = canChangeEmail(lead)
-  const pending = selectedId ? desk.pending[selectedId] : undefined
-  const snapshot = useChangeSnapshot(lead)
   const rewrite = (index: number) => {
     if (!lead || !changeable || pending || panel !== "none") return
     const item = REWRITE_KEYS[index]
     if (item.mode === "another_hook" && lead.alternatives.length === 0) return
+    dropDraft()
     setMode("view")
     void emailActions.rewrite(lead, item.mode).then((o) => {
       if (!o.ok && !("cancelled" in o && o.cancelled) && o.message) setError(`The rewrite didn't finish. ${o.message}`)
@@ -358,7 +439,12 @@ function Desk({ campaignId }: { campaignId: string }) {
   }
 
   const undoLatest = () => {
-    if (desk.undoStack.length > 0) void leadActions.undoLatest()
+    // One action at a time: an undo pressed while another action runs could undo the wrong one.
+    if (busy) {
+      announce("Wait for the current action to finish.")
+      return
+    }
+    if (desk.undoStack.length > 0) void run("undo", () => leadActions.undoLatest())
     else if (lead?.last_action) controller.undoLast()
     else announce("Nothing to undo.")
   }
@@ -373,17 +459,26 @@ function Desk({ campaignId }: { campaignId: string }) {
   }
 
   // ---------------------------------------------------------------- export / bulk
+  // Errors from list-wide actions show in the list: no lead may be open to show them.
+  const [listError, setListError] = React.useState<string | null>(null)
+  const listFailed = (message: string) => {
+    setListError(message)
+    announce(message)
+  }
+
   const exportAll = async () => {
+    setListError(null)
     try {
       saveBlob(await api.downloadCampaignCsv(campaignId), `${slugify(campaign?.name ?? "campaign")}.csv`)
       announce("Spreadsheet downloaded.")
     } catch (e) {
-      setError(isApiError(e) ? e.message : "We couldn't export the spreadsheet.")
+      listFailed(isApiError(e) ? e.message : "We couldn't export the spreadsheet.")
     }
   }
 
   const exportSelected = async () => {
     const ids = rows.filter((r) => desk.checked.has(r.id)).map((r) => r.id)
+    setListError(null)
     try {
       const full = await Promise.all(ids.map((id) => queryClient.fetchQuery(leadQuery(id))))
       const csv = toCsv([
@@ -404,20 +499,30 @@ function Desk({ campaignId }: { campaignId: string }) {
           l.sent_at,
         ]),
       ])
-      saveBlob(new Blob([csv], { type: "text/csv" }), `${slugify(campaign?.name ?? "campaign")}-selected.csv`)
+      // A byte-order mark so spreadsheet apps read accented names as UTF-8.
+      saveBlob(
+        new Blob(["﻿", csv], { type: "text/csv;charset=utf-8" }),
+        `${slugify(campaign?.name ?? "campaign")}-selected.csv`
+      )
       announce(`${plural(ids.length, "lead")} exported.`)
     } catch (e) {
-      setError(isApiError(e) ? e.message : "We couldn't export the selected leads.")
+      listFailed(isApiError(e) ? e.message : "We couldn't export the selected leads.")
     }
   }
 
   const [bulkBusy, setBulkBusy] = React.useState(false)
   const bulkSkip = async (reason: string) => {
-    const targets = rows.filter((r) => desk.checked.has(r.id))
-    if (targets.length === 0) return
+    const chosen = rows.filter((r) => desk.checked.has(r.id))
+    const targets = chosen.filter((r) => !UNSKIPPABLE.includes(r.status))
+    const unskippable = chosen.length - targets.length
+    setListError(null)
+    if (targets.length === 0) {
+      if (unskippable) listFailed("Those leads are already sent, skipped or blocked, so there's nothing to skip.")
+      return
+    }
     setBulkBusy(true)
     const done: { actionId: string; lead: LeadSummary }[] = []
-    let failed = 0
+    const failedIds: string[] = []
     for (const target of targets) {
       try {
         const result = await api.skipLead(target.id, { reason })
@@ -425,11 +530,16 @@ function Desk({ campaignId }: { campaignId: string }) {
         desk.pushUndo({ actionId: result.action_id, leadId: target.id, leadName: target.name, label: "Skipped" })
         done.push({ actionId: result.action_id, lead: target })
       } catch {
-        failed += 1
+        failedIds.push(target.id)
       }
     }
+    const failed = failedIds.length
     setBulkBusy(false)
-    desk.setChecked(new Set())
+    // The ones that failed stay selected, ready to try again.
+    desk.setChecked(new Set(failedIds))
+    const leftAlone = unskippable
+      ? ` ${plural(unskippable, "lead")} already sent, skipped or blocked ${unskippable === 1 ? "was" : "were"} left alone.`
+      : ""
     if (done.length > 0) {
       notify({
         title: `Skipped ${plural(done.length, "lead")}`,
@@ -444,26 +554,29 @@ function Desk({ campaignId }: { campaignId: string }) {
         },
       })
     }
-    if (failed) setError(`${plural(failed, "lead")} couldn't be skipped. Try them again.`)
+    if (failed) listFailed(`${plural(failed, "lead")} couldn't be skipped. They're still selected: try again.${leftAlone}`)
+    else if (leftAlone) listFailed(leftAlone.trim())
     if (selectedId && done.some((d) => d.lead.id === selectedId)) advanceFrom(selectedId)
   }
 
   // ---------------------------------------------------------------- keyboard
   const status = lead?.status ?? summary?.status
+  const skippable = Boolean(status && !UNSKIPPABLE.includes(status))
+  const choosing = panel !== "none" && panel !== "approve-warnings"
+  const edit = () => {
+    if (choosing) return
+    if (changeable && !pending) setMode("edit")
+    else if (lead?.status === "approved") announce("Undo the approval to change this email.")
+    else if (pending) announce("Wait for the rewrite to finish before editing.")
+  }
   const shortcuts: ShortcutMap = {
     j: { description: "Next lead", handler: () => step(1), repeat: true },
     k: { description: "Previous lead", handler: () => step(-1), repeat: true },
     a: { description: "Approve", handler: controller.approve },
-    e: {
-      description: "Edit the email",
-      handler: () => {
-        if (changeable && !pending) setMode("edit")
-        else if (lead?.status === "approved") announce("Undo the approval to change this email.")
-      },
-    },
+    e: { description: "Edit the email", handler: edit },
     s: {
       description: "Skip, with a reason",
-      handler: () => status && !["skipped", "dnc", "sent", "replied"].includes(status) && controller.setPanel("skip"),
+      handler: () => skippable && controller.setPanel("skip"),
     },
     "shift+d": {
       description: "Do not contact (asks first)",
@@ -506,7 +619,9 @@ function Desk({ campaignId }: { campaignId: string }) {
     ...(lead && isActionable(lead)
       ? [
           { id: "approve", label: "Approve", group: "Review desk", shortcut: "A", icon: CheckIcon, run: controller.approve },
-          { id: "edit", label: "Edit the email", group: "Review desk", shortcut: "E", icon: PencilLineIcon, run: () => setMode("edit") },
+          ...(changeable && !pending
+            ? [{ id: "edit", label: "Edit the email", group: "Review desk", shortcut: "E", icon: PencilLineIcon, run: edit }]
+            : []),
           ...REWRITE_KEYS.map((item, index) => ({
             id: `rewrite-${item.mode}`,
             label: `Rewrite: ${item.label.toLowerCase()}`,
@@ -527,11 +642,11 @@ function Desk({ campaignId }: { campaignId: string }) {
     ...(lead && lead.status === "sent"
       ? [{ id: "replied", label: "Log a reply", group: "Review desk", shortcut: "R", icon: MessageSquareIcon, run: () => controller.setPanel("replied") }]
       : []),
+    ...(summary && skippable
+      ? [{ id: "skip", label: "Skip this lead", group: "Review desk", shortcut: "S", icon: SkipForwardIcon, run: () => controller.setPanel("skip") }]
+      : []),
     ...(summary && status !== "dnc"
-      ? [
-          { id: "skip", label: "Skip this lead", group: "Review desk", shortcut: "S", icon: SkipForwardIcon, run: () => controller.setPanel("skip") },
-          { id: "dnc", label: `Never contact ${summary.name}`, group: "Review desk", shortcut: "shift+D", icon: CircleMinusIcon, run: () => controller.setPanel("dnc") },
-        ]
+      ? [{ id: "dnc", label: `Never contact ${summary.name}`, group: "Review desk", shortcut: "shift+D", icon: CircleMinusIcon, run: () => controller.setPanel("dnc") }]
       : []),
     { id: "undo", label: "Undo the latest action", group: "Review desk", shortcut: "Z", icon: Undo2Icon, run: undoLatest },
     ...(running
@@ -541,7 +656,7 @@ function Desk({ campaignId }: { campaignId: string }) {
             label: livePaused ? "Resume live updates" : "Pause live updates",
             group: "Review desk",
             icon: PauseIcon,
-            run: () => void updatePreferences({ live_updates: livePaused }),
+            run: () => savePreference({ live_updates: livePaused }),
           },
         ]
       : []),
@@ -565,10 +680,10 @@ function Desk({ campaignId }: { campaignId: string }) {
 
   // ---------------------------------------------------------------- render
   if (campaignQ.isError && !campaign) {
-    const missing = isApiError(campaignQ.error) && campaignQ.error.status === 404
     return (
       <CalmError
         title={missing ? "We couldn't find this campaign" : "We couldn't load this campaign"}
+        pageHeading
         message={missing ? "It may have been deleted." : undefined}
         error={campaignQ.error}
         onRetry={missing ? undefined : () => void campaignQ.refetch()}
@@ -584,9 +699,14 @@ function Desk({ campaignId }: { campaignId: string }) {
   const numbers = factNumbers(lead?.email)
   const list = (
     <LeadList
+      campaignId={campaignId}
       campaign={campaign}
       leads={leads}
       loading={leadsQ.isPending}
+      loadError={leads ? null : leadsQ.error}
+      onRetryLoad={() => void leadsQ.refetch()}
+      listError={listError}
+      onDismissListError={() => setListError(null)}
       order={order}
       view={view}
       sort={sort}
@@ -596,7 +716,7 @@ function Desk({ campaignId }: { campaignId: string }) {
       compact={preferences.compact_rows}
       livePaused={livePaused}
       liveWaiting={live.waiting}
-      onLivePausedChange={(paused) => void updatePreferences({ live_updates: !paused })}
+      onLivePausedChange={(paused) => savePreference({ live_updates: !paused })}
       onViewChange={(next) => setSearch({ view: next })}
       onSortChange={(next) => setSearch({ sort: next }, true)}
       onOpenLead={(id) => {
@@ -625,11 +745,10 @@ function Desk({ campaignId }: { campaignId: string }) {
         numbers={numbers}
         mode={mode}
         onModeChange={setMode}
-        draft={drafts.current.get(selectedId)}
-        onDraftChange={(draft) => {
-          if (draft) drafts.current.set(selectedId, draft)
-          else drafts.current.delete(selectedId)
-        }}
+        draft={draft}
+        onDraftChange={(next) =>
+          saveDraft(selectedId, next && { ...next, versionId: lead?.email?.version_id ?? null })
+        }
         livePaused={livePaused}
         onPrev={selectedIndex > 0 ? () => step(-1) : null}
         onNext={selectedIndex >= 0 && selectedIndex < rows.length - 1 ? () => step(1) : null}
@@ -640,6 +759,7 @@ function Desk({ campaignId }: { campaignId: string }) {
         onWrongFact={
           lead && changeable && !pending
             ? (fact, note) => {
+                dropDraft()
                 setMode("view")
                 void emailActions.removeWrongFact(lead, fact, note).then((o) => {
                   if (!o.ok && !("cancelled" in o && o.cancelled) && o.message) setError(`We couldn't remove the fact. ${o.message}`)

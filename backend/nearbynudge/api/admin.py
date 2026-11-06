@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import random
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, Response
@@ -11,13 +11,14 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .. import schemas
-from ..db import iso, utcnow
+from ..db import iso, serialized, utcnow
 from ..models import AiCall, AppSetting, AuditVerdict, Campaign, ErrorLog, Fact, Lead, OptOut, User
 from ..pipeline import serialize
+from ..pipeline.limits import local_day_bounds, user_tz
 from ..pipeline.state import AppState
 from ..pipeline.worker import queue_counts
-from ..reader import registrable_domain
-from .deps import ApiError, current_user, get_app, get_db
+from ..reader import is_domain, registrable_domain
+from .deps import ApiError, current_user, get_app, get_db, is_email
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -28,23 +29,28 @@ def _sum_cost(db: Session, since: datetime) -> float:
     return float(db.scalar(select(func.coalesce(func.sum(AiCall.cost_usd), 0.0)).where(AiCall.created_at >= since)) or 0.0)
 
 
-def overview(db: Session, app: AppState) -> dict[str, Any]:
+def overview(db: Session, app: AppState, user: User) -> dict[str, Any]:
     now = utcnow()
-    day0 = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    day0, _ = local_day_bounds(user)  # "today" is the workspace's own day, as everywhere else on the dashboard
+    tz = user_tz(user)
     state, reason, _msg = app.ai_state()
     pause = app.pause.state() or {}
     by_skill_rows = db.execute(
         select(AiCall.skill, func.count(), func.coalesce(func.sum(AiCall.cost_usd), 0.0), func.avg(AiCall.latency_ms))
         .where(AiCall.created_at >= now - timedelta(days=30)).group_by(AiCall.skill)
     ).all()
-    daily_rows = db.execute(
-        select(func.date(AiCall.created_at), func.coalesce(func.sum(AiCall.cost_usd), 0.0), func.count())
-        .where(AiCall.created_at >= now - timedelta(days=30)).group_by(func.date(AiCall.created_at))
-    ).all()
-    daily_map = {str(r[0]): (float(r[1]), int(r[2])) for r in daily_rows}
+    # the last 30 days, by the workspace's local date
+    today = datetime.now(tz).date()
+    first = today - timedelta(days=29)
+    since = datetime(first.year, first.month, first.day, tzinfo=tz).astimezone(UTC).replace(tzinfo=None)
+    daily_map: dict[str, tuple[float, int]] = {}
+    for at, cost in db.execute(select(AiCall.created_at, AiCall.cost_usd).where(AiCall.created_at >= since)).all():
+        d = at.replace(tzinfo=UTC).astimezone(tz).date().isoformat()
+        total, n = daily_map.get(d, (0.0, 0))
+        daily_map[d] = (total + float(cost or 0.0), n + 1)
     daily = []
     for i in range(29, -1, -1):
-        d = (now - timedelta(days=i)).date().isoformat()
+        d = (today - timedelta(days=i)).isoformat()
         cost, n = daily_map.get(d, (0.0, 0))
         daily.append({"date": d, "cost": round(cost, 4), "requests": n})
     counted = db.scalar(select(func.count()).select_from(Lead).where(Lead.counted.is_(True))) or 0
@@ -95,12 +101,12 @@ def overview(db: Session, app: AppState) -> dict[str, Any]:
 
 
 @router.get("/overview", response_model=schemas.AdminOverview)
-def get_overview(_: User = Depends(current_user), db: Session = Depends(get_db, scope="function"), app: AppState = Depends(get_app)) -> dict:
-    return overview(db, app)
+def get_overview(user: User = Depends(current_user), db: Session = Depends(get_db, scope="function"), app: AppState = Depends(get_app)) -> dict:
+    return overview(db, app, user)
 
 
 @router.put("/balance", response_model=schemas.AdminOverview)
-def set_balance(body: schemas.SetBalanceRequest, _: User = Depends(current_user), db: Session = Depends(get_db, scope="function"),
+def set_balance(body: schemas.SetBalanceRequest, user: User = Depends(current_user), db: Session = Depends(get_db, scope="function"),
                 app: AppState = Depends(get_app)) -> dict:
     row = db.get(AppSetting, BALANCE_KEY)
     value = {"amount": body.amount, "as_of": iso(utcnow())}
@@ -109,15 +115,15 @@ def set_balance(body: schemas.SetBalanceRequest, _: User = Depends(current_user)
     else:
         row.value = value
     db.flush()
-    return overview(db, app)
+    return overview(db, app, user)
 
 
 @router.post("/resume", response_model=schemas.AdminOverview)
-def resume(_: User = Depends(current_user), db: Session = Depends(get_db, scope="function"), app: AppState = Depends(get_app)) -> dict:
+def resume(user: User = Depends(current_user), db: Session = Depends(get_db, scope="function"), app: AppState = Depends(get_app)) -> dict:
     app.pause.clear()
     if app.worker:
         app.worker.wake()
-    return overview(db, app)
+    return overview(db, app, user)
 
 
 @router.get("/errors", response_model=list[schemas.ErrorEntry])
@@ -162,12 +168,15 @@ def audit_fact(fact_id: str, body: schemas.AuditVerdictRequest, user: User = Dep
                db: Session = Depends(get_db, scope="function")) -> dict:
     if db.get(Fact, fact_id) is None:
         raise ApiError(404, "not_found", "That fact wasn't found.")
-    existing = db.scalars(select(AuditVerdict).where(AuditVerdict.fact_id == fact_id)).first()
-    if existing:
-        existing.verdict = body.verdict
-        existing.reviewer_id = user.id
-    else:
-        db.add(AuditVerdict(fact_id=fact_id, reviewer_id=user.id, verdict=body.verdict))
+    with serialized(db, "verdict"):  # one audit verdict per fact, even when two saves arrive together
+        existing = db.scalars(select(AuditVerdict).where(AuditVerdict.fact_id == fact_id)
+                              .order_by(AuditVerdict.created_at)).first()
+        if existing:
+            existing.verdict = body.verdict
+            existing.reviewer_id = user.id
+        else:
+            db.add(AuditVerdict(fact_id=fact_id, reviewer_id=user.id, verdict=body.verdict))
+        db.commit()  # the next save sees this verdict before the lock is released
     return {"ok": True}
 
 
@@ -182,20 +191,26 @@ def optouts(_: User = Depends(current_user), db: Session = Depends(get_db, scope
 
 def add_optout(db: Session, app: AppState, domain: str, contact: str | None, note: str | None) -> OptOut:
     d = registrable_domain(domain.strip().lower())
-    if not d or "." not in d:
+    if not is_domain(d):
         raise ApiError(422, "validation", "Enter a website domain, such as example.com.", {"domain": "Not valid."})
-    row = db.scalars(select(OptOut).where(OptOut.domain == d)).first()
-    if row is None:
-        row = OptOut(domain=d, contact_email=(contact or "").strip()[:320] or None, note=(note or "").strip()[:1000] or None)
-        db.add(row)
-        db.flush()
+    with serialized(db, "optout"):  # the same domain sent twice at once is added once
+        row = db.scalars(select(OptOut).where(OptOut.domain == d)).first()
+        if row is None:
+            row = OptOut(domain=d, contact_email=(contact or "").strip()[:320] or None,
+                         note=(note or "").strip()[:1000] or None)
+            db.add(row)
+        db.commit()  # the next request sees this row before the lock is released
     return row
 
 
 @router.post("/optouts", response_model=schemas.OptOutOut)
 def create_optout(body: schemas.CreateOptOutRequest, _: User = Depends(current_user), db: Session = Depends(get_db, scope="function"),
                   app: AppState = Depends(get_app)) -> dict:
-    row = add_optout(db, app, body.domain, body.contact_email, body.note)
+    contact = (body.contact_email or "").strip().lower() or None
+    if contact and not is_email(contact):
+        raise ApiError(422, "validation", "Enter an email address like owner@example.com, or leave it empty.",
+                       {"contact_email": "Not valid."})
+    row = add_optout(db, app, body.domain, contact, body.note)
     db.commit()
     app.optouts.refresh()
     return optout_out(row)

@@ -17,28 +17,65 @@ from .urls import is_file_url, normalize_url, registrable_domain
 log = logging.getLogger(__name__)
 
 MIN_MAIN_TEXT_CHARS = 200
+# A real footer has a few dozen lines; these bound the work (and the text) on pages with endless ones.
+MAX_FOOTER_LINES = 1000  # footer lines compared with the main text
+MAX_FOOTER_EXTRA = 200  # footer lines added to it
 
 # ------------------------------------------------------------------ decoding
 
 _HTTP_CHARSET_RE = re.compile(r"charset\s*=\s*[\"']?\s*([A-Za-z0-9._:-]+)", re.IGNORECASE)
 _META_CHARSET_RE = re.compile(rb"<meta[^>]+charset\s*=\s*[\"']?\s*([A-Za-z0-9._:-]+)", re.IGNORECASE)
 _XML_DECL_RE = re.compile(r"^\s*<\?xml[^>]*\?>", re.IGNORECASE)
-# WHATWG: these labels mean windows-1252 in browsers.
+# WHATWG Encoding Standard: the encodings browsers decode pages with, as Python codec names. Any other
+# label, Python's bytes-to-bytes codecs (base64, rot13, zlib...) included, is ignored, so the page reads as UTF-8.
+_WEB_CODECS = frozenset(
+    {
+        "utf-8", "utf-16-le", "utf-16-be", "cp866", "iso8859-2", "iso8859-3", "iso8859-4", "iso8859-5", "iso8859-6",
+        "iso8859-7", "iso8859-8", "iso8859-10", "iso8859-13", "iso8859-14", "iso8859-15", "iso8859-16", "koi8-r",
+        "koi8-u", "mac-roman", "mac-cyrillic", "cp874", "cp1250", "cp1251", "cp1252", "cp1253", "cp1254", "cp1255",
+        "cp1256", "cp1257", "cp1258", "gbk", "gb18030", "big5hkscs", "euc_jp", "iso2022_jp", "cp932", "cp949",
+    }
+)
+# WHATWG labels that browsers read differently from Python (mostly as a superset), or that Python lacks.
 _ENCODING_ALIASES = {
     "iso-8859-1": "cp1252", "iso8859-1": "cp1252", "latin1": "cp1252", "latin-1": "cp1252", "l1": "cp1252",
     "us-ascii": "cp1252", "ascii": "cp1252", "windows-1252": "cp1252", "x-cp1252": "cp1252",
-    "utf8": "utf-8", "unicode-1-1-utf-8": "utf-8",
+    "utf8": "utf-8", "unicode-1-1-utf-8": "utf-8", "unicode20utf8": "utf-8", "x-unicode20utf8": "utf-8",
+    "utf-16": "utf-16-le", "unicode": "utf-16-le", "ucs-2": "utf-16-le", "csunicode": "utf-16-le",
+    "iso-10646-ucs-2": "utf-16-le", "unicodefeff": "utf-16-le", "unicodefffe": "utf-16-be",
+    "iso-8859-9": "cp1254", "iso8859-9": "cp1254", "iso_8859-9": "cp1254", "iso88599": "cp1254", "latin5": "cp1254",
+    "l5": "cp1254", "csisolatin5": "cp1254", "iso-ir-148": "cp1254",
+    "iso-8859-11": "cp874", "iso8859-11": "cp874", "iso885911": "cp874", "tis-620": "cp874", "dos-874": "cp874",
+    "gb2312": "gbk", "gb_2312": "gbk", "gb_2312-80": "gbk", "chinese": "gbk", "csgb2312": "gbk",
+    "csiso58gb231280": "gbk", "iso-ir-58": "gbk", "x-gbk": "gbk",
+    "big5": "big5hkscs", "big5-hkscs": "big5hkscs", "cn-big5": "big5hkscs", "csbig5": "big5hkscs",
+    "x-x-big5": "big5hkscs",
+    "shift_jis": "cp932", "shift-jis": "cp932", "sjis": "cp932", "x-sjis": "cp932", "ms932": "cp932",
+    "ms_kanji": "cp932", "windows-31j": "cp932", "csshiftjis": "cp932",
+    "euc-kr": "cp949", "euc_kr": "cp949", "korean": "cp949", "ks_c_5601-1987": "cp949", "ks_c_5601-1989": "cp949",
+    "ksc5601": "cp949", "ksc_5601": "cp949", "windows-949": "cp949", "cseuckr": "cp949", "csksc56011987": "cp949",
+    "iso-ir-149": "cp949",
+    "x-euc-jp": "euc_jp", "cseucpkdfmtjapanese": "euc_jp", "csiso2022jp": "iso2022_jp",
+    "x-mac-cyrillic": "mac-cyrillic", "x-mac-ukrainian": "mac-cyrillic", "x-mac-roman": "mac-roman",
+    "mac": "mac-roman", "csmacintosh": "mac-roman", "koi": "koi8-r", "koi8": "koi8-r", "koi8_r": "koi8-r",
+    "cskoi8r": "koi8-r", "koi8-ru": "koi8-u",
+    "iso-8859-8-i": "iso8859-8", "iso-8859-8-e": "iso8859-8", "csiso88598i": "iso8859-8", "csiso88598e": "iso8859-8",
+    "logical": "iso8859-8", "visual": "iso8859-8", "iso-8859-6-i": "iso8859-6", "iso-8859-6-e": "iso8859-6",
+    "csiso88596i": "iso8859-6", "csiso88596e": "iso8859-6", "asmo-708": "iso8859-6", "ecma-114": "iso8859-6",
+    "x-cp1250": "cp1250", "x-cp1251": "cp1251", "x-cp1253": "cp1253", "x-cp1254": "cp1254", "x-cp1255": "cp1255",
+    "x-cp1256": "cp1256", "x-cp1257": "cp1257", "x-cp1258": "cp1258",
 }
 
 
 def _codec(label: str | None) -> str | None:
     if not label:
         return None
-    name = _ENCODING_ALIASES.get(label.strip().strip("\"'").lower(), label.strip().strip("\"'").lower())
+    clean = label.strip().strip("\"'").lower()
     try:
-        return codecs.lookup(name).name
+        name = codecs.lookup(_ENCODING_ALIASES.get(clean, clean)).name
     except LookupError:
         return None
+    return name if name in _WEB_CODECS else None
 
 
 def decode_body(body: bytes, content_type: str | None = None) -> str:
@@ -54,7 +91,10 @@ def decode_body(body: bytes, content_type: str | None = None) -> str:
         codec = _codec(meta.group(1).decode("ascii", "ignore")) if meta else None
         if codec and codec.startswith("utf-16"):  # a meta tag read as ASCII cannot be UTF-16
             codec = "utf-8"
-    return body.decode(codec or "utf-8", "replace")
+    try:
+        return body.decode(codec or "utf-8", "replace")
+    except (LookupError, UnicodeError):  # a decoder that fails even with "replace"
+        return body.decode("utf-8", "replace")
 
 
 def looks_like_html(body: bytes) -> bool:
@@ -151,27 +191,35 @@ def document_text(root) -> str:
 _FOOTER_ATTR_RE = re.compile(r"(?:^|[\s_-])(?:footer|colophon)(?:$|[\s_-])", re.IGNORECASE)
 
 
+def _is_footer(el, tag: str) -> bool:
+    attrs = f"{el.get('id') or ''} {el.get('class') or ''}"
+    return (
+        tag in ("footer", "address")
+        or (el.get("role") or "").lower() == "contentinfo"
+        or (tag in ("div", "section", "aside") and bool(_FOOTER_ATTR_RE.search(attrs)))
+    )
+
+
 def footer_text(root) -> str:
     """Visible text of footers and <address> blocks (where small sites keep address, hours and ©)."""
     if root is None:
         return ""
-    selected: list = []  # keeping references keeps lxml's element proxies (and identities) stable
-    chosen: set = set()
-    for el in root.iter():
+    selected: list = []
+    # Depth first in document order, never inside a block already chosen (it is read whole). Each element
+    # stays referenced until its children are done: lxml frees an element's proxy cheaply only while its
+    # parent still has one, and otherwise climbs every ancestor (minutes on a page nested 40,000 deep).
+    stack: list[tuple[object, bool]] = [(root, False)]
+    while stack:
+        el, done = stack.pop()
+        if done:
+            continue
         tag = _tag(el)
-        if tag is None or tag in _SKIP_TAGS:
+        if tag is not None and tag not in _SKIP_TAGS and _is_footer(el, tag):
+            selected.append(el)
             continue
-        attrs = f"{el.get('id') or ''} {el.get('class') or ''}"
-        if not (
-            tag in ("footer", "address")
-            or (el.get("role") or "").lower() == "contentinfo"
-            or (tag in ("div", "section", "aside") and _FOOTER_ATTR_RE.search(attrs))
-        ):
-            continue
-        if any(anc in chosen for anc in el.iterancestors()):
-            continue
-        chosen.add(el)
-        selected.append(el)
+        stack.append((el, True))
+        for child in reversed(el):
+            stack.append((child, False))
     return "\n".join(t for t in (visible_text(el) for el in selected) if t)
 
 
@@ -296,7 +344,7 @@ def _jsonld_fallback(root) -> list:
         for candidate in (raw, _TRAILING_COMMA_RE.sub(r"\1", raw)):
             try:
                 data = json.loads(candidate, strict=False)
-            except ValueError:
+            except (ValueError, RecursionError):  # broken, or nested too deep to parse
                 continue
             items.extend(data if isinstance(data, list) else [data])
             break
@@ -417,11 +465,14 @@ def main_text(html: str, url: str, root, full_text: str | None = None) -> str:
         return fallback if len(fallback) > len(text) else text
     seen = _norm_line(text)
     extra: list[str] = []
-    for line in footer_text(root).split("\n"):
+    added: list[str] = []
+    for line in footer_text(root).split("\n")[:MAX_FOOTER_LINES]:
         key = _norm_line(line)
-        if key and key not in seen:
+        if key and key not in seen and not any(key in a for a in added):
             extra.append(line.strip())
-            seen += "\n" + key
+            added.append(key)
+            if len(extra) >= MAX_FOOTER_EXTRA:
+                break
     if extra:
         text = text + "\n" + "\n".join(extra)
     return text

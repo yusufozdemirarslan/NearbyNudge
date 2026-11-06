@@ -66,7 +66,8 @@ def split_sentences(text: str) -> list[str]:
     text = " ".join(text.split())
     if not text:
         return []
-    parts = re.split(r"(?<=[.!?])[\"”’)]?\s+(?=[\"“(]?[A-Z0-9])", text)
+    # a closing quote or bracket after the full stop stays with its sentence
+    parts = re.split(r"(?<=[.!?][\"”’)])\s+(?=[\"“(]?[A-Z0-9])|(?<=[.!?])\s+(?=[\"“(]?[A-Z0-9])", text)
     out: list[str] = []
     for part in parts:
         if out:

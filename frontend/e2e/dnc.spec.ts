@@ -110,6 +110,17 @@ test.describe("do not contact", () => {
     await expectNoAxeViolations(page, "/dnc with entries")
   })
 
+  test("/ focuses the search, also on keyboards where / needs Shift", async ({ page }) => {
+    await page.goto("/dnc")
+    await expect(page.getByRole("heading", { level: 1, name: "Do not contact" })).toBeVisible()
+    const search = page.getByRole("searchbox", { name: "Search the list" })
+    // Turkish and German layouts type "/" with Shift+7: the key event says "/" with Shift held.
+    await page.evaluate(() =>
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "/", code: "Digit7", shiftKey: true, bubbles: true }))
+    )
+    await expect(search).toBeFocused()
+  })
+
   test("removing keeps Undo on the row and in a message", async ({ page }) => {
     await seed(page, [
       { business_name: "Ballston Pediatric Dentistry", reason: "Not a fit" },

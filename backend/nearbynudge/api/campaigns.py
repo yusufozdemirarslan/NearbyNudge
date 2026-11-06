@@ -5,25 +5,26 @@ from __future__ import annotations
 import asyncio
 import csv
 import io
+import unicodedata
 from datetime import timedelta
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import emailtext, schemas
 from ..ai.client import AIError, AIPaused, AIUnavailable, CallContext
-from ..db import iso, utcnow
+from ..db import iso, serialized, utcnow
 from ..listings.categories import label_for
 from ..listings.keys import display_phone
 from ..models import Campaign, CampaignPlanRow, EmailVersion, Lead, User
-from ..pipeline import jobs, serialize, steps
+from ..pipeline import jobs, limits, serialize, steps
 from ..pipeline.events import sse
 from ..pipeline.state import AppState
 from ..roles import planner
-from .account import usage
 from .deps import ApiError, current_user, get_app, get_db, require_onboarded, workspace_id
 
 router = APIRouter(prefix="/api", tags=["campaigns"])
@@ -100,9 +101,10 @@ async def plan_campaign(body: schemas.CampaignInput, user: User = Depends(requir
     else:
         cats = await asyncio.to_thread(store.all_categories, 3000)
         scope = "all"
-        task = asyncio.ensure_future(steps.ensure_area(app, geo.lat, geo.lon, body.radius_mi))  # start loading now
-        app.background_tasks.add(task)
-        task.add_done_callback(lambda t: (app.background_tasks.discard(t), _log_task_error(app, t)))
+        if not app.settings.serverless:  # hosted, nothing runs after the response: the campaign's first job loads it
+            task = asyncio.ensure_future(steps.ensure_area(app, geo.lat, geo.lon, body.radius_mi))  # start loading now
+            app.background_tasks.add(task)
+            task.add_done_callback(lambda t: (app.background_tasks.discard(t), _log_task_error(app, t)))
     if not cats:
         raise ApiError(503, "listings_missing", "Business listings aren't loaded yet. An admin needs to load them.")
     inp = body.model_dump()
@@ -133,8 +135,7 @@ async def plan_campaign(body: schemas.CampaignInput, user: User = Depends(requir
                                         exclude_place_ids=frozenset(places), exclude_domains=frozenset(domains), limit=500)
         candidate_count = len([f for f in found if steps.name_key(f.name) not in names])
         if candidate_count < body.lead_target:
-            wider = min(25, int(body.radius_mi * 2))
-            warnings.append(f"Only {candidate_count} businesses match. Try a {wider}-mile radius or a broader industry.")
+            warnings.append(f"Only {candidate_count} businesses match. {steps.wider_hint(body.radius_mi)}")
     if not out.include:
         warnings.append("We couldn't match that industry to our listings. Try a more common name for it.")
     if out.warning and out.warning not in warnings:
@@ -162,49 +163,48 @@ async def plan_campaign(body: schemas.CampaignInput, user: User = Depends(requir
 @router.post("/campaigns", response_model=schemas.Campaign)
 def create_campaign(body: schemas.CreateCampaignRequest, user: User = Depends(require_onboarded),
                     db: Session = Depends(get_db, scope="function"), app: AppState = Depends(get_app)) -> dict:
-    row = db.get(CampaignPlanRow, body.plan_id)
-    if row is None or row.user_id != user.id or row.expires_at <= utcnow():
-        raise ApiError(409, "plan_expired", "This plan has expired. Review the plan again to start.")
-    planned = row.input
-    inp = body.input.model_dump()
-    for key in ("location", "radius_mi", "industry"):
-        if str(planned.get(key)) != str(inp.get(key)):
-            raise ApiError(409, "plan_changed", "The location, radius or industry changed. Review the plan again to start.")
-    plan = row.plan
-    include = [c["key"] for c in plan.get("categories", [])]
-    question = plan.get("question")
-    if body.answer == "yes" and question:
-        include += [c["key"] for c in question.get("categories", [])]
-    if not include:
-        raise ApiError(422, "validation", "We couldn't match that industry to our listings. Try a more common name for it.")
-    used = usage(db, user, app.settings.monthly_lead_limit)
-    reserved = db.scalar(select(func.count()).select_from(Lead).where(
-        Lead.user_id == user.id, Lead.counted.is_(False), Lead.status.in_(serialize.IN_PROGRESS))) or 0
-    remaining = used["limit"] - used["used"] - int(reserved)
-    if remaining < 5:
-        busy = f" ({reserved} more are being researched now)" if reserved else ""
-        raise ApiError(409, "usage_limit", f"You've used {used['used']} of {used['limit']} leads this month{busy}. "
-                                           "Your allowance resets next month.")
-    target = min(inp["lead_target"], remaining)
-    loc = plan["location"]
-    name = f"{inp['industry'].strip().capitalize()} within {inp['radius_mi']:g} mi of {loc['label']}"
-    categories = plan.get("categories", [])
-    if body.answer == "yes" and question:
-        categories = categories + question.get("categories", [])
-    c = Campaign(
-        user_id=user.id, name=name[:300], location_label=loc["label"], lat=loc["lat"], lon=loc["lon"],
-        radius_mi=float(inp["radius_mi"]), industry=inp["industry"], input={**inp, "lead_target": target},
-        restatement=plan.get("restatement", ""), categories=categories, include_keys=include,
-        question=question, answer=body.answer if question else None, status="finding",
-        status_detail=f"Finding businesses near {loc['label']}…", lead_target=target, notices=[],
-    )
-    if target < inp["lead_target"]:
-        c.notices = [f"Your monthly allowance has {remaining} leads left, so this campaign looks for {target}."]
-    db.add(c)
-    db.flush()
-    jobs.enqueue(db, kind="discover", user_id=user.id, campaign_id=c.id)
-    db.delete(row)
-    db.flush()
+    # check-then-start for a plan (and the monthly allowance) happens one request at a time
+    with serialized(db, "start"):
+        row = db.get(CampaignPlanRow, body.plan_id)
+        if row is None or row.user_id != user.id or row.expires_at <= utcnow():
+            raise ApiError(409, "plan_expired", "This plan has expired. Review the plan again to start.")
+        planned = row.input
+        inp = body.input.model_dump()
+        for key in ("location", "radius_mi", "industry"):
+            if str(planned.get(key)) != str(inp.get(key)):
+                raise ApiError(409, "plan_changed", "The location, radius or industry changed. Review the plan again to start.")
+        plan = row.plan
+        include = [c["key"] for c in plan.get("categories", [])]
+        question = plan.get("question")
+        if body.answer == "yes" and question:
+            include += [c["key"] for c in question.get("categories", [])]
+        if not include:
+            raise ApiError(422, "validation", "We couldn't match that industry to our listings. Try a more common name for it.")
+        # leads still being researched, and campaigns still finding theirs, hold their share of the allowance
+        used, held, remaining = limits.leads_left(db, user, app.settings.monthly_lead_limit)
+        if remaining < 5:
+            raise ApiError(409, "usage_limit", limits.limit_message(used, held))
+        target = min(inp["lead_target"], remaining)
+        loc = plan["location"]
+        industry = inp["industry"].strip()  # the user's own capitals ("HVAC"); only the first letter is raised
+        name = f"{industry[:1].upper() + industry[1:]} within {inp['radius_mi']:g} mi of {loc['label']}"
+        categories = plan.get("categories", [])
+        if body.answer == "yes" and question:
+            categories = categories + question.get("categories", [])
+        c = Campaign(
+            user_id=user.id, name=name[:300], location_label=loc["label"], lat=loc["lat"], lon=loc["lon"],
+            radius_mi=float(inp["radius_mi"]), industry=inp["industry"], input={**inp, "lead_target": target},
+            restatement=plan.get("restatement", ""), categories=categories, include_keys=include,
+            question=question, answer=body.answer if question else None, status="finding",
+            status_detail=f"Finding businesses near {loc['label']}…", lead_target=target, notices=[],
+        )
+        if target < inp["lead_target"]:
+            c.notices = [f"Your monthly allowance has {remaining} leads left, so this campaign looks for {target}."]
+        db.add(c)
+        db.flush()
+        jobs.enqueue(db, kind="discover", user_id=user.id, campaign_id=c.id)
+        db.delete(row)
+        db.commit()  # the plan is used up before the next request can look at it
     if app.worker:
         app.worker.wake()
     return _full(db, c, app)
@@ -240,15 +240,24 @@ def campaign_leads(campaign_id: str, user: User = Depends(current_user), db: Ses
 async def campaign_events(campaign_id: str, request: Request, app: AppState = Depends(get_app)) -> StreamingResponse:
     # A short-lived session only: a stream can stay open for hours and must not hold a database connection.
     workspace = workspace_id(request)
+    if app.settings.serverless:
+        from .. import serverless
+
+        return await serverless.campaign_stream(app, request, campaign_id, workspace)
 
     def load(s: Session) -> dict[str, Any] | None:
         c = s.get(Campaign, campaign_id)
         return _summary(s, c, app) if c and c.user_id == workspace else None
 
-    snapshot = await app.db.arun(load)
+    queue = app.broker.subscribe(campaign_id)  # before the snapshot, so a change saved while it loads isn't missed
+    try:
+        snapshot = await app.db.arun(load)
+    except BaseException:
+        app.broker.unsubscribe(campaign_id, queue)
+        raise
     if snapshot is None:
+        app.broker.unsubscribe(campaign_id, queue)
         raise ApiError(404, "not_found", "That campaign wasn't found.")
-    queue = app.broker.subscribe(campaign_id)
 
     async def stream():
         try:
@@ -298,6 +307,10 @@ def export_campaign(campaign_id: str, user: User = Depends(current_user), db: Se
             emailtext.full_text(v.greeting, v.paragraphs or [], v.signoff, footer) if v else None,
             ld.status, iso(ld.approved_at), iso(ld.sent_at), iso(ld.replied_at), ld.reply_outcome, ld.skip_reason,
         ]])
-    filename = "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in c.name.lower())[:60].strip("-") or "campaign"
+    readable = "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in c.name.lower())[:60].strip("-") or "campaign"
+    # header values must be ASCII: a plain-letters name for every browser, and the real one in filename* (RFC 6266)
+    plain = unicodedata.normalize("NFKD", readable).encode("ascii", "ignore").decode()
+    plain = "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in plain).strip("-") or "campaign"
+    disposition = f"attachment; filename=\"{plain}.csv\"; filename*=UTF-8''{quote(readable + '.csv', safe='')}"
     return Response(content="﻿" + buf.getvalue(), media_type="text/csv; charset=utf-8",
-                    headers={"Content-Disposition": f'attachment; filename="{filename}.csv"'})
+                    headers={"Content-Disposition": disposition})

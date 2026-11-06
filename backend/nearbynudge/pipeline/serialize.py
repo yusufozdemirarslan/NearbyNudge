@@ -175,8 +175,10 @@ def lead_warnings(lead: Lead, email: dict[str, Any] | None, editor: dict[str, An
         for c in editor.get("checks", []):
             if not c.get("passed"):
                 warnings.append(f"Editor: {c.get('label')}{' - ' + c['note'] if c.get('note') else ''}")
+    seen = {w.rstrip(".") for w in warnings}  # the same warning from the edit checks ends with a full stop
     for w in lead.warnings or []:
-        if w not in warnings:
+        if w.rstrip(".") not in seen:
+            seen.add(w.rstrip("."))
             warnings.append(w)
     return warnings
 

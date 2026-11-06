@@ -16,6 +16,7 @@ from .deps import (
     ensure_workspace,
     get_app,
     get_db,
+    is_email,
     rate_limit,
     user_out,
 )
@@ -39,7 +40,7 @@ def public_optout(body: schemas.PublicOptOutRequest, request: Request, db: Sessi
                   app: AppState = Depends(get_app)) -> dict:
     rate_limit(f"optout:{client_ip(request)}", 5, 3600)
     email = body.email.strip().lower()
-    if "@" not in email:
+    if not is_email(email):
         raise ApiError(422, "validation", "Enter an email address we can reach you at.", {"email": "Not valid."})
     add_optout(db, app, body.domain, email, body.note)
     db.commit()

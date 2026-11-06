@@ -8,8 +8,8 @@ import { LockedFooter } from "./EmailBody"
 
 export interface ChangesViewProps {
   snapshot: ChangeSnapshot
-  /** Save the email with these changes reverted (PUT /email). */
-  onApply: (reverted: string[], subject: string, body: string) => void
+  /** Save the email with these changes reverted (PUT /email); null once the email can't change (approved or sent). */
+  onApply: ((reverted: string[], subject: string, body: string) => void) | null
   busy: boolean
 }
 
@@ -31,6 +31,7 @@ export function ChangesView({ snapshot, onApply, busy }: ChangesViewProps) {
   const total = changeCount(subjectHunks) + changeCount(bodyHunks)
 
   const toggle = (key: string) => {
+    if (!onApply) return
     const next = new Set(reverted)
     if (next.has(key)) next.delete(key)
     else next.add(key)
@@ -44,16 +45,16 @@ export function ChangesView({ snapshot, onApply, busy }: ChangesViewProps) {
       <p className="border-b border-hairline py-3 aside">
         {total === 0
           ? "The rewrite didn't change any words."
-          : `${total} ${total === 1 ? "change" : "changes"}. Removed words are struck through, new words are underlined. Select a change to revert it; select it again to keep the new words.`}
+          : `${total} ${total === 1 ? "change" : "changes"}. Removed words are struck through, new words are underlined.${onApply ? " Select a change to revert it; select it again to keep the new words." : ""}`}
       </p>
       <div className="flex items-baseline gap-3 border-b border-hairline py-3.5">
         <span className="shrink-0 aside">Subject</span>
         <span className="min-w-0 text-lead font-bold whitespace-pre-wrap">
-          <Hunks hunks={subjectHunks} prefix="subject" reverted={reverted} onToggle={toggle} busy={busy} />
+          <Hunks hunks={subjectHunks} prefix="subject" reverted={reverted} onToggle={toggle} busy={busy} locked={!onApply} />
         </span>
       </div>
       <div className="max-w-measure py-5 text-body whitespace-pre-wrap">
-        <Hunks hunks={bodyHunks} prefix="body" reverted={reverted} onToggle={toggle} busy={busy} />
+        <Hunks hunks={bodyHunks} prefix="body" reverted={reverted} onToggle={toggle} busy={busy} locked={!onApply} />
       </div>
       <LockedFooter footer={snapshot.after.footer} />
     </div>
@@ -66,19 +67,27 @@ function Hunks({
   reverted,
   onToggle,
   busy,
+  locked,
 }: {
   hunks: Hunk[]
   prefix: "subject" | "body"
   reverted: ReadonlySet<string>
   onToggle: (key: string) => void
   busy: boolean
+  /** The email can't change any more: the changes are shown, not offered. */
+  locked: boolean
 }) {
-  let number = 0
+  // Changes are numbered in reading order; unchanged runs don't count.
+  const numbers: number[] = []
+  let count = 0
+  for (const hunk of hunks) {
+    if (hunk.kind !== "same") count += 1
+    numbers.push(count)
+  }
   return (
     <>
       {hunks.map((hunk, index) => {
         if (hunk.kind === "same") return <React.Fragment key={index}>{hunk.tokens.join("")}</React.Fragment>
-        number += 1
         const key = `${prefix}:${hunk.id}`
         const isReverted = reverted.has(key)
         const removed = hunk.removed.join("").trim()
@@ -92,10 +101,14 @@ function Hunks({
             key={index}
             type="button"
             aria-pressed={isReverted}
-            aria-label={`${label} ${isReverted ? "Reverted to the old words. Select to keep the new ones." : "Select to revert."}`}
-            disabled={busy}
+            aria-label={
+              locked
+                ? `${label}${isReverted ? " Reverted to the old words." : ""}`
+                : `${label} ${isReverted ? "Reverted to the old words. Select to keep the new ones." : "Select to revert."}`
+            }
+            disabled={busy || locked}
             onClick={() => onToggle(key)}
-            data-change={number}
+            data-change={numbers[index]}
             className={cn(
               "group/change mx-px inline px-0.5 text-left align-baseline transition-colors duration-(--dur-fast) [box-decoration-break:clone] hover:bg-tint disabled:text-ink-soft",
               isReverted && "bg-tint"

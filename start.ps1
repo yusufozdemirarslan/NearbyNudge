@@ -42,7 +42,7 @@ if (-not (Test-Path (Join-Path $frontend "dist\index.html"))) {
 Push-Location $backend
 & $py -m nearbynudge status
 Write-Host ""
-Write-Host "Open http://localhost:8000 in your browser. No sign-in needed." -ForegroundColor Green
+Write-Host "Open http://localhost:8000 in your browser (the Address line above says whether it asks you to sign in)." -ForegroundColor Green
 Write-Host "Press Ctrl+C to stop."
 & $py -m nearbynudge serve --port 8000
 Pop-Location

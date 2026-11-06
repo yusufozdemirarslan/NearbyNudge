@@ -2,18 +2,16 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Request, Response
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import emailtext, schemas
-from ..models import Campaign, Lead, User
-from ..pipeline import jobs
-from ..pipeline.actions import sending_today, user_tz
+from ..models import Campaign, User
+from ..pipeline import jobs, limits
+from ..pipeline.limits import month_bounds, sending_today  # noqa: F401 - month_bounds is imported from here too
 from ..pipeline.state import AppState
 from .deps import ApiError, current_user, ensure_workspace, get_app, get_db, user_out
 
@@ -22,22 +20,9 @@ router = APIRouter(prefix="/api", tags=["account"])
 DEFAULT_PREFS = schemas.Preferences().model_dump()
 
 
-def month_bounds(user: User) -> tuple[datetime, datetime, str]:
-    tz = user_tz(user)
-    now = datetime.now(tz)
-    start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    nxt = (start + timedelta(days=32)).replace(day=1)
-    utc = ZoneInfo("UTC")
-    return (start.astimezone(utc).replace(tzinfo=None), nxt.astimezone(utc).replace(tzinfo=None), start.strftime("%B %Y"))
-
-
 def usage(db: Session, user: User, limit: int) -> dict[str, Any]:
-    start, end, label = month_bounds(user)
-    used = db.scalar(
-        select(func.count()).select_from(Lead).where(Lead.user_id == user.id, Lead.counted.is_(True),
-                                                     Lead.counted_at >= start, Lead.counted_at < end)
-    ) or 0
-    return {"used": int(used), "limit": limit, "month_label": label}
+    """This month's drafted leads against the allowance (kept when campaigns or all data are deleted)."""
+    return limits.monthly_usage(db, user, limit)
 
 
 def account_out(db: Session, user: User, app: AppState) -> dict[str, Any]:

@@ -17,9 +17,10 @@ const SUMMARY_EVERY_MS = 15_000
  * Subscribes to the campaign's live events and merges them into the query
  * cache. While `paused` (Preferences.live_updates = false, WCAG 2.2.2) events
  * are held back and applied on resume. Screen readers hear at most one short
- * summary every 15 seconds ("3 more leads ready").
+ * summary every 15 seconds ("3 more leads ready"). With `enabled` false (the campaign
+ * doesn't exist) nothing connects.
  */
-export function useCampaignLive(campaignId: string, paused: boolean) {
+export function useCampaignLive(campaignId: string, paused: boolean, enabled = true) {
   const queryClient = useQueryClient()
   const announce = useAnnounce()
   const pausedRef = React.useRef(paused)
@@ -91,6 +92,7 @@ export function useCampaignLive(campaignId: string, paused: boolean) {
   }, [applyCampaign, applyLead, campaignId, queryClient])
 
   React.useEffect(() => {
+    if (!enabled) return
     const unsubscribe = api.subscribeCampaign(campaignId, {
       onLead: (summary) => {
         if (pausedRef.current) {
@@ -102,9 +104,11 @@ export function useCampaignLive(campaignId: string, paused: boolean) {
         if (pausedRef.current) heldCampaign.current = summary
         else applyCampaign(summary)
       },
-      onOpen: ({ reconnected }) => {
+      onOpen: () => {
         setConnected(true)
-        if (reconnected && !pausedRef.current) {
+        // Every open, the first included: a change made just before the stream connected
+        // isn't sent on it, so the list is read again.
+        if (!pausedRef.current) {
           void queryClient.invalidateQueries({ queryKey: qk.campaignLeads(campaignId), exact: true })
           void queryClient.invalidateQueries({ queryKey: qk.campaign(campaignId), exact: true })
         }
@@ -112,7 +116,7 @@ export function useCampaignLive(campaignId: string, paused: boolean) {
       onError: () => setConnected(false),
     })
     return unsubscribe
-  }, [applyCampaign, applyLead, campaignId, queryClient])
+  }, [applyCampaign, applyLead, campaignId, enabled, queryClient])
 
   React.useEffect(() => {
     const was = pausedRef.current

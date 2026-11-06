@@ -34,11 +34,9 @@ function legacyCopy(value: string): boolean {
   area.style.opacity = "0"
   document.body.appendChild(area)
   area.select()
-  let ok = false
   try {
-    ok = document.execCommand("copy")
+    return document.execCommand("copy")
   } finally {
     area.remove()
   }
-  return ok
 }

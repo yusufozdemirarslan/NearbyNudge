@@ -9,7 +9,7 @@ import { SenderProfileForm } from "@/features/settings/SenderProfileForm"
 /**
  * First-run sender profile (AC1, WR2): name, title, company, postal address,
  * default tone and time zone, with a live preview of the locked footer.
- * It is the only set-up step (there is no sign-in). Saving marks the
+ * It is the only set-up step (the one account needs no sign-up). Saving marks the
  * workspace onboarded and continues to New campaign.
  */
 export function OnboardingPage() {

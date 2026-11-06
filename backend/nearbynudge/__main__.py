@@ -19,8 +19,10 @@ def cmd_serve(args: argparse.Namespace) -> None:
     if args.reload:
         import uvicorn
 
+        from .netserve import SHUTDOWN_GRACE_S
+
         uvicorn.run("nearbynudge.app:create_app", factory=True, host=args.host, port=args.port, reload=True,
-                    log_level="info", proxy_headers=False)
+                    log_level="info", proxy_headers=False, timeout_graceful_shutdown=SHUTDOWN_GRACE_S)
         return
     from .netserve import serve
 
@@ -80,7 +82,22 @@ def cmd_status(_: argparse.Namespace) -> None:
     print(f"Listings: {s.listings_file} (exists: {s.listings_file.exists()})")
     print(f"Location files: {(s.data_dir / 'gazetteer').exists()}")
     print(f"Dashboard build: {(s.frontend_dist / 'index.html').exists()}")
-    print(f"Address: {s.public_url} (no sign-in: everyone who opens it uses the one workspace)")
+    if s.login_enabled:
+        print(f"Address: {s.public_url} (sign-in on, as {s.login_email.strip().lower()})")
+    else:
+        print(f"Address: {s.public_url} (sign-in off: everyone who opens it uses the one workspace)")
+
+
+def cmd_hash_password(_: argparse.Namespace) -> None:
+    """Reads a password from stdin (never from the command line, where it would stay in the shell history) and
+    prints the value for NN_LOGIN_PASSWORD_HASH."""
+    from .auth import hash_password
+
+    password = sys.stdin.readline().rstrip("\r\n")
+    if len(password) < 10:
+        print("Use a password of at least 10 characters.", file=sys.stderr)
+        sys.exit(1)
+    print(hash_password(password))
 
 
 def cmd_check_connections(_: argparse.Namespace) -> None:
@@ -113,6 +130,8 @@ def main(argv: list[str] | None = None) -> None:
     sp.set_defaults(fn=cmd_load_listings)
     sub.add_parser("purge", help="apply retention rules now").set_defaults(fn=cmd_purge)
     sub.add_parser("status", help="show configuration").set_defaults(fn=cmd_status)
+    sub.add_parser("hash-password", help="read a password from stdin and print its NN_LOGIN_PASSWORD_HASH").set_defaults(
+        fn=cmd_hash_password)
     sub.add_parser("check-connections", help="release check: outside connections in the code").set_defaults(fn=cmd_check_connections)
     args = p.parse_args(argv)
     args.fn(args)

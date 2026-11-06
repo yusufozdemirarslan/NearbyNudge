@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from .. import schemas
@@ -71,10 +71,12 @@ async def _ai_action(coro):
 
 
 @router.post("/leads/{lead_id}/rewrite", response_model=schemas.Lead)
-async def rewrite(lead_id: str, body: schemas.RewriteRequest, user: User = Depends(current_user),
+async def rewrite(lead_id: str, body: schemas.RewriteRequest, request: Request, user: User = Depends(current_user),
                   app: AppState = Depends(get_app)) -> dict:
     await app.db.arun(lambda s: _owned(s, lead_id, user))
-    await _ai_action(actions.rewrite(app, lead_id, user.id, body.mode, hook_id=body.hook_id))
+    # Cancel in the dashboard closes the request: the rewrite then isn't saved
+    await _ai_action(actions.rewrite(app, lead_id, user.id, body.mode, hook_id=body.hook_id,
+                                     cancelled=request.is_disconnected))
     return await app.db.arun(lambda s: lead_out(s, s.get(Lead, lead_id), user, app))
 
 
@@ -156,7 +158,7 @@ def retry(lead_id: str, body: schemas.RetryRequest, user: User = Depends(current
 
 
 @router.post("/facts/{fact_id}/wrong", response_model=schemas.Lead)
-async def wrong_fact(fact_id: str, body: schemas.WrongFactRequest, user: User = Depends(current_user),
+async def wrong_fact(fact_id: str, body: schemas.WrongFactRequest, request: Request, user: User = Depends(current_user),
                      app: AppState = Depends(get_app)) -> dict:
     def check(s: Session) -> None:
         f = s.get(Fact, fact_id)
@@ -164,7 +166,7 @@ async def wrong_fact(fact_id: str, body: schemas.WrongFactRequest, user: User = 
             raise ApiError(404, "not_found", "That fact wasn't found.")
         _owned(s, f.lead_id, user)
     await app.db.arun(check)
-    lead_id = await _ai_action(actions.wrong_fact(app, fact_id, user.id, body.note))
+    lead_id = await _ai_action(actions.wrong_fact(app, fact_id, user.id, body.note, cancelled=request.is_disconnected))
     return await app.db.arun(lambda s: lead_out(s, s.get(Lead, lead_id), user, app))
 
 

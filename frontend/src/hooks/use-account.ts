@@ -1,8 +1,10 @@
 import * as React from "react"
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api"
-import { accountQuery, meQuery, qk, statusQuery } from "@/lib/api/queries"
+import { accountQuery, meQuery, qk, sessionQuery, statusQuery } from "@/lib/api/queries"
+import { isApiError } from "@/lib/api/client"
 import type { Account, Preferences, SendingToday } from "@/lib/api/types"
+import { notify } from "@/lib/toast"
 
 /** Defaults used until the account loads. */
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -13,9 +15,15 @@ export const DEFAULT_PREFERENCES: Preferences = {
   live_updates: true,
 }
 
-/** The workspace's account: sender profile, preferences, usage and the sending meter. */
+/**
+ * The workspace's account: sender profile, preferences, usage and the sending meter.
+ * It loads once the session is known and allows it (sign-in off, or this browser
+ * signed in), so the sign-in and public pages never ask for it.
+ */
 export function useAccount() {
-  return useQuery(accountQuery())
+  const { data: session } = useQuery(sessionQuery())
+  const allowed = session !== undefined && (!session.enabled || session.signed_in)
+  return useQuery({ ...accountQuery(), enabled: allowed })
 }
 
 /** The workspace from GET /api/me (sender name, onboarded), or null while it loads. */
@@ -56,6 +64,27 @@ export function useUpdatePreferences() {
       return mutation.mutateAsync({ ...current, ...patch })
     },
     [mutation, queryClient]
+  )
+}
+
+/**
+ * Returns `save(patch)` for a preference switched outside Settings (a menu, the desk): if
+ * the save fails the switch flips back and a message says why. Settings shows its own errors
+ * and uses useUpdatePreferences.
+ */
+export function useSavePreference() {
+  const update = useUpdatePreferences()
+  return React.useCallback(
+    (patch: Partial<Preferences>) => {
+      update(patch).catch((error: unknown) => {
+        notify({
+          title: "We couldn't save that preference",
+          description: isApiError(error) ? error.message : "Check your connection and try again.",
+          type: "warning",
+        })
+      })
+    },
+    [update]
   )
 }
 

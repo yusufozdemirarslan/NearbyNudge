@@ -45,8 +45,9 @@ export function removeSummary(queryClient: QueryClient, campaignId: string, lead
 
 /**
  * Writes a lead returned by an action into every cache that shows it: the
- * lead itself, its campaign's list, and (lazily) the Sent screen and the
- * campaigns home.
+ * lead itself, its campaign's list, and (lazily) the Sent screen, the
+ * campaigns home and the do-not-contact list (do not contact, a "No thanks"
+ * reply and their undos change it).
  */
 export function writeLead(queryClient: QueryClient, lead: Lead) {
   queryClient.setQueryData(qk.lead(lead.id), lead)
@@ -54,4 +55,5 @@ export function writeLead(queryClient: QueryClient, lead: Lead) {
   void queryClient.invalidateQueries({ queryKey: qk.sentAll() })
   void queryClient.invalidateQueries({ queryKey: qk.campaigns(), exact: true })
   void queryClient.invalidateQueries({ queryKey: qk.stats() })
+  void queryClient.invalidateQueries({ queryKey: qk.dncAll() })
 }

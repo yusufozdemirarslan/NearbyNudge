@@ -17,7 +17,7 @@ import { SourceTag } from "@/components/SourceTag"
 import { isInProgress } from "@/components/StatusBadge"
 import { useShortcuts } from "@/hooks/use-shortcuts"
 import type { Lead, LeadSummary, ReplyOutcome, SendingToday } from "@/lib/api/types"
-import { formatDate, formatTime } from "@/lib/format"
+import { formatDate, formatResetTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { SkipReasons } from "./SkipReasons"
 
@@ -32,6 +32,8 @@ export interface DeskController {
   busy: string | null
   /** Plain sentence shown in place when an action failed. */
   error: string | null
+  /** An AI rewrite of this lead's email is running: approving waits for it. */
+  rewriting: boolean
   approve: () => void
   approveAnyway: () => void
   skip: (reason: string) => void
@@ -114,7 +116,7 @@ export function ActionBar({ summary, lead, sending, controller, compact, align =
           <Button
             size={large}
             onClick={c.approve}
-            disabled={c.busy !== null || !lead?.email}
+            disabled={c.busy !== null || c.rewriting || !lead?.email}
             aria-keyshortcuts="A"
             className={cn(compact && "flex-1")}
           >
@@ -501,8 +503,8 @@ function SendingPreview({
       {atCap && sending && (
         <p role="status" className="flex items-start gap-2 border border-t-(length:--rule-heavy) border-ink border-t-edge px-3 py-2 text-ui">
           <Mark name="barred" className="mt-1 text-edge" />
-          You've marked {sending.daily_cap} emails as sent today, the daily limit. Sending unlocks at midnight (
-          {formatTime(sending.resets_at)}).
+          You've marked {sending.daily_cap} emails as sent today, the daily limit. Sending unlocks at{" "}
+          {formatResetTime(sending.resets_at)}.
         </p>
       )}
       <div className={cn(compact ? "grid grid-cols-2 gap-2 [&>*:first-child]:col-span-2" : "flex flex-wrap items-center gap-2")}>

@@ -12,7 +12,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command"
 import { keyLabel } from "@/components/KeyHint"
-import { usePreferences, useUpdatePreferences } from "@/hooks/use-account"
+import { usePreferences, useSavePreference } from "@/hooks/use-account"
 import { useCommandMenu, type Command as CommandEntry } from "@/hooks/use-commands"
 import { useShortcuts } from "@/hooks/use-shortcuts"
 import { NAV_ITEMS } from "./nav"
@@ -26,7 +26,7 @@ export function CommandMenu() {
   const { open, setOpen, list } = useCommandMenu()
   const navigate = useNavigate()
   const preferences = usePreferences()
-  const updatePreferences = useUpdatePreferences()
+  const savePreference = useSavePreference()
   const sheet = useShortcutSheet()
   const campaigns = useQuery({ ...campaignsQuery(), enabled: open })
 
@@ -115,17 +115,17 @@ export function CommandMenu() {
             </CommandItem>
             <CommandItem
               value="Turn single-key shortcuts on off"
-              onSelect={() => run(() => void updatePreferences({ shortcuts_enabled: !preferences.shortcuts_enabled }))}
+              onSelect={() => run(() => savePreference({ shortcuts_enabled: !preferences.shortcuts_enabled }))}
             >
               <span>{preferences.shortcuts_enabled ? "Turn off single-key shortcuts" : "Turn on single-key shortcuts"}</span>
             </CommandItem>
-            <CommandItem value="Theme match my computer system" onSelect={() => run(() => void updatePreferences({ theme: "system" }))}>
+            <CommandItem value="Theme match my computer system" onSelect={() => run(() => savePreference({ theme: "system" }))}>
               <span>Theme: match my computer</span>
             </CommandItem>
-            <CommandItem value="Theme light" onSelect={() => run(() => void updatePreferences({ theme: "light" }))}>
+            <CommandItem value="Theme light" onSelect={() => run(() => savePreference({ theme: "light" }))}>
               <span>Theme: light</span>
             </CommandItem>
-            <CommandItem value="Theme dark" onSelect={() => run(() => void updatePreferences({ theme: "dark" }))}>
+            <CommandItem value="Theme dark" onSelect={() => run(() => savePreference({ theme: "dark" }))}>
               <span>Theme: dark</span>
             </CommandItem>
           </CommandGroup>

@@ -303,6 +303,9 @@ function BriefForm({
   const createMutation = useMutation({
     mutationFn: (request: CreateCampaignRequest) => api.createCampaign(request),
   })
+  // Both clicks of a double-click arrive before isPending reaches this render, so a ref
+  // holds the start until it fails (a started campaign uses the plan up).
+  const startingRef = React.useRef(false)
 
   const runReview = (data: CampaignFormValues) => {
     const input = toCampaignInput(data)
@@ -310,6 +313,7 @@ function BriefForm({
     setAnswer(null)
     setAnswerError(null)
     createMutation.reset()
+    startingRef.current = false
     announce("Reviewing your plan. This takes a few seconds.")
     planMutation.mutate(input, {
       onSuccess: (plan) => {
@@ -329,12 +333,14 @@ function BriefForm({
     handleSubmit(runReview)(event)
 
   const start = () => {
-    if (!planned || stale || createMutation.isPending) return
+    if (!planned || stale || createMutation.isPending || startingRef.current)
+      return
     if (planned.plan.question && !answer) {
       setAnswerError("Choose Yes or No to continue.")
       questionRef.current?.querySelector<HTMLElement>('[role="radio"]')?.focus()
       return
     }
+    startingRef.current = true
     createMutation.mutate(
       {
         plan_id: planned.plan.plan_id,
@@ -358,6 +364,7 @@ function BriefForm({
           })
         },
         onError: (error) => {
+          startingRef.current = false
           if (
             applyServerErrors(error, { setError, setFocus }, CAMPAIGN_FIELDS, {
               prefix: "input.",

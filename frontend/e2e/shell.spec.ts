@@ -85,6 +85,63 @@ test.describe("app shell", () => {
     await expect(page.locator("html")).not.toHaveClass(/dark/)
   })
 
+  test("the One Step brand: a named home link, a decorative mark drawn exactly, and icons that load", async ({ page }) => {
+    await page.goto("/sent")
+    const home = page.getByRole("link", { name: "NearbyNudge, campaigns" })
+    await expect(home).toBeVisible()
+    const mark = home.locator('[data-slot="brand-mark"]')
+    // Beside the readable name the mark is decorative, so the name isn't announced twice.
+    await expect(mark).toHaveAttribute("aria-hidden", "true")
+    await expect(mark).toHaveAttribute("viewBox", "0 0 16 16")
+    const squares = await mark
+      .locator("rect")
+      .evaluateAll((rects) => rects.map((r) => ["x", "y", "width", "height"].map((a) => r.getAttribute(a)).join(",")))
+    expect(squares).toEqual(["1,1,6,6", "9,9,6,6", "9,3,3,3"])
+    await expect(home.locator(".brand-name")).toHaveText("NearbyNudge")
+    const icons = await page
+      .locator('link[rel="icon"], link[rel="apple-touch-icon"]')
+      .evaluateAll((links) => links.map((l) => l.getAttribute("href") ?? ""))
+    expect(icons).toEqual([
+      "/brand/nearbynudge/favicon.ico",
+      "/brand/nearbynudge/favicon.svg",
+      "/brand/nearbynudge/apple-touch-icon.png",
+    ])
+    for (const href of [...icons, "/favicon.ico", "/brand/nearbynudge/icon-light-16.png", "/brand/nearbynudge/icon-light-32.png"]) {
+      const response = await page.request.get(href)
+      expect(response.status(), href).toBe(200)
+      expect(response.headers()["content-type"], href).toMatch(/^image\//)
+    }
+  })
+
+  test("the mark's inks follow an explicit theme over the system's", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "light" })
+    await page.goto("/sent")
+    const inks = () =>
+      page
+        .locator('[data-slot="top-bar"] [data-slot="brand-mark"] rect')
+        .evaluateAll((rects) => rects.map((r) => getComputedStyle(r).fill))
+    await page.getByRole("button", { name: /Options menu/ }).click()
+    await page.getByRole("menuitemradio", { name: "Light" }).click()
+    await expect.poll(inks).toEqual(["rgb(0, 0, 0)", "rgb(0, 0, 0)", "rgb(200, 16, 46)"])
+    await page.getByRole("button", { name: /Options menu/ }).click()
+    await page.getByRole("menuitemradio", { name: "Dark" }).click()
+    await expect.poll(inks).toEqual(["rgb(255, 255, 255)", "rgb(255, 255, 255)", "rgb(255, 92, 97)"])
+    // The browser's own bars follow the explicit choice too.
+    await expect(page.locator('meta[name="theme-color"]').first()).toHaveAttribute("content", "#000000")
+    await page.getByRole("button", { name: /Options menu/ }).click()
+    await page.getByRole("menuitemradio", { name: "Match my computer" }).click()
+    await expect.poll(inks).toEqual(["rgb(0, 0, 0)", "rgb(0, 0, 0)", "rgb(200, 16, 46)"])
+  })
+
+  test("public pages carry the brand in the header and the footer", async ({ page }) => {
+    await page.goto("/bot")
+    const home = page.getByRole("link", { name: "NearbyNudge home" })
+    await expect(home.locator('[data-slot="brand-mark"]')).toHaveAttribute("aria-hidden", "true")
+    const footer = page.getByRole("contentinfo")
+    await expect(footer.locator('[data-slot="brand"]')).toContainText("NearbyNudge")
+    await expect(footer.locator('[data-slot="brand-mark"]')).toHaveAttribute("width", "16")
+  })
+
   test("paused banner appears while research is paused", async ({ page }) => {
     test.skip(usingRealBackend, "Needs the mock's pause control")
     await mockSettings(page, { "nn-mock-paused": "1" })

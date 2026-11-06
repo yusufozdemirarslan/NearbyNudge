@@ -14,6 +14,7 @@ import ipaddress
 import logging
 import socket
 import time
+import zlib
 from dataclasses import dataclass
 from datetime import datetime
 from http.cookiejar import CookieJar, DefaultCookiePolicy
@@ -32,6 +33,8 @@ log = logging.getLogger(__name__)
 
 ACCEPT = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1"
 ACCEPT_LANGUAGE = "en-US,en;q=0.8"
+# Only what _read_limited inflates (with its size bound): httpx would add br and zstd if their packages were installed.
+ACCEPT_ENCODING = "gzip, deflate"
 ROBOTS_TOKEN = "NearbyNudgeBot"
 ROBOTS_MAX_BYTES = 500_000
 MAX_REDIRECTS = 5
@@ -42,10 +45,20 @@ _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 _HTML_TYPES = frozenset({"text/html", "application/xhtml+xml"})
 _ALLOWED_PORTS = frozenset({80, 443})
 _NAT64 = ipaddress.ip_network("64:ff9b::/96")
+# Content-codings we inflate ourselves (zlib wbits), so the size limit counts inflated bytes as they come.
+_INFLATE_WBITS = {"gzip": zlib.MAX_WBITS | 16, "x-gzip": zlib.MAX_WBITS | 16, "deflate": zlib.MAX_WBITS}
 
 
 class BlockedAddressError(Exception):
     """The guarded transport refused to connect to a non-public address or port."""
+
+
+class _UnreadableEncoding(Exception):
+    """The body is compressed in a way we won't inflate: stacked codings, or one we don't know."""
+
+    def __init__(self, codings: list[str]):
+        super().__init__(", ".join(codings))
+        self.stacked = len(codings) > 1
 
 
 async def resolve_host(host: str, port: int) -> list[str]:
@@ -189,15 +202,72 @@ def _origin(url: httpx.URL) -> str:
     return f"{url.scheme}://{url.netloc.decode('ascii').lower()}"
 
 
+def _codings(response: httpx.Response) -> list[str]:
+    """The reply's content-codings in the order they were applied, without "identity"."""
+    values = response.headers.get_list("content-encoding", split_commas=True)
+    return [v.strip().lower() for v in values if v.strip() and v.strip().lower() != "identity"]
+
+
+class _Inflater:
+    """One gzip or deflate layer, inflated no more than a given number of bytes at a time."""
+
+    def __init__(self, coding: str):
+        self._decompressor = zlib.decompressobj(_INFLATE_WBITS[coding])
+        self._may_be_raw_deflate = coding == "deflate"
+
+    def inflate(self, data: bytes, room: int) -> bytes:
+        """At most `room` bytes of output; input left over once `room` is reached is dropped."""
+        if self._decompressor.eof:
+            return b""
+        try:
+            out = self._decompressor.decompress(data, max(1, room))
+        except zlib.error as exc:
+            if self._may_be_raw_deflate:  # some servers send bare deflate data without the zlib wrapper
+                self._may_be_raw_deflate = False
+                self._decompressor = zlib.decompressobj(-zlib.MAX_WBITS)
+                return self.inflate(data, room)
+            raise httpx.DecodingError(str(exc)) from exc
+        self._may_be_raw_deflate = False
+        return out
+
+    def flush(self) -> bytes:
+        try:
+            return self._decompressor.flush()
+        except zlib.error as exc:
+            raise httpx.DecodingError(str(exc)) from exc
+
+
 async def _read_limited(response: httpx.Response, limit: int) -> tuple[bytes, bool]:
-    """Read the (decoded) body up to `limit` bytes; True in the second slot if it was longer."""
+    """Read the (decoded) body up to `limit` bytes; True in the second slot if it was longer.
+
+    gzip and deflate are inflated here, not by httpx: each step makes at most one byte more than
+    still fits, so a few compressed kilobytes can't balloon into gigabytes before the limit sees
+    them. Stacked or unknown codings raise _UnreadableEncoding without reading the body.
+    """
+    codings = _codings(response)
+    if len(codings) > 1 or (codings and codings[0] not in _INFLATE_WBITS):
+        raise _UnreadableEncoding(codings)
+    if response.is_stream_consumed:  # an in-memory reply (a mock transport) arrives read and decoded
+        body = response.content
+        return (body[:limit], True) if len(body) > limit else (body, False)
+    inflater = _Inflater(codings[0]) if codings else None
     chunks: list[bytes] = []
     total = 0
-    async for chunk in response.aiter_bytes():
-        total += len(chunk)
-        if total > limit:
+
+    def take(data: bytes) -> bool:
+        nonlocal total
+        if total + len(data) > limit:
+            chunks.append(data[: limit - total])
+            return False
+        chunks.append(data)
+        total += len(data)
+        return True
+
+    async for raw in response.aiter_raw():
+        if not take(raw if inflater is None else inflater.inflate(raw, limit - total + 1)):
             return b"".join(chunks), True
-        chunks.append(chunk)
+    if inflater is not None and not take(inflater.flush()):
+        return b"".join(chunks), True
     return b"".join(chunks), False
 
 
@@ -229,7 +299,8 @@ class Reader:
         self.robots_token = product[0] if product else ROBOTS_TOKEN
         self._client = httpx.AsyncClient(
             transport=transport if transport is not None else _default_transport(self.allow_private),
-            headers={"User-Agent": user_agent, "Accept": ACCEPT, "Accept-Language": ACCEPT_LANGUAGE},
+            headers={"User-Agent": user_agent, "Accept": ACCEPT, "Accept-Language": ACCEPT_LANGUAGE,
+                     "Accept-Encoding": ACCEPT_ENCODING},
             timeout=httpx.Timeout(self.timeout_s),
             follow_redirects=False,
             cookies=CookieJar(policy=DefaultCookiePolicy(allowed_domains=[])),  # stateless: keep no cookies
@@ -376,12 +447,18 @@ class Reader:
                 return out
             if kind == "robots":
                 if 200 <= status < 300:
-                    out.body, out.too_large = await _read_limited(response, ROBOTS_MAX_BYTES)
+                    try:
+                        out.body, out.too_large = await _read_limited(response, ROBOTS_MAX_BYTES)
+                    except _UnreadableEncoding:
+                        out.too_large = True  # unreadable means stay out
                 return out
             mime = out.content_type.split(";", 1)[0].strip().lower()
             if status >= 400:
                 if status in BOT_CHECK_STATUSES and (not mime or mime in _HTML_TYPES):
-                    out.body, _ = await _read_limited(response, min(self.max_bytes, ERROR_BODY_MAX_BYTES))
+                    try:
+                        out.body, _ = await _read_limited(response, min(self.max_bytes, ERROR_BODY_MAX_BYTES))
+                    except _UnreadableEncoding:
+                        pass  # nothing to look at
             elif 200 <= status < 300:
                 if mime and mime not in _HTML_TYPES:
                     out.error = "not_html"
@@ -390,7 +467,11 @@ class Reader:
                 if length.isdigit() and int(length) > self.max_bytes:
                     out.error = "too_large"
                     return out
-                out.body, too_large = await _read_limited(response, self.max_bytes)
+                try:
+                    out.body, too_large = await _read_limited(response, self.max_bytes)
+                except _UnreadableEncoding as exc:
+                    out.error = "too_large" if exc.stacked else "not_html"
+                    return out
                 if too_large:
                     out.body, out.error = b"", "too_large"
                     return out

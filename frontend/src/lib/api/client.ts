@@ -96,7 +96,7 @@ async function send(
 }
 
 async function toApiError(response: Response) {
-  let parsed: ApiErrorBody | null = null
+  let parsed: ApiErrorBody | null
   try {
     parsed = (await response.json()) as ApiErrorBody
   } catch {

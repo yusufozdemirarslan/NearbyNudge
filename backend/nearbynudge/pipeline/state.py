@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
+import time
 import traceback
 from dataclasses import dataclass, field
 from functools import partial
@@ -32,20 +33,28 @@ log = logging.getLogger("nearbynudge")
 
 
 class OptOutCache:
-    """Site owners who asked NearbyNudgeBot to stay away (by registrable domain)."""
+    """Site owners who asked NearbyNudgeBot to stay away (by registrable domain).
 
-    def __init__(self, db: Database):
+    Hosted, an opt-out can arrive at another instance, so with `refresh_after_s` the list is read again when it's
+    that old."""
+
+    def __init__(self, db: Database, *, refresh_after_s: float | None = None):
         self.db = db
         self._domains: set[str] = set()
         self._lock = threading.Lock()
+        self._refresh_after_s = refresh_after_s
+        self._refreshed_at = 0.0
         self.refresh()
 
     def refresh(self) -> None:
         domains = self.db.run(lambda s: {d for (d,) in s.execute(select(OptOut.domain)).all()})
         with self._lock:
             self._domains = {d.lower() for d in domains}
+            self._refreshed_at = time.monotonic()
 
     def contains(self, domain: str) -> bool:
+        if self._refresh_after_s is not None and time.monotonic() - self._refreshed_at >= self._refresh_after_s:
+            self.refresh()
         d = (domain or "").lower()
         with self._lock:
             return d in self._domains or any(d.endswith("." + x) for x in self._domains)
@@ -91,20 +100,31 @@ class AppState:
 
     # ---------- live events ----------
 
-    def publish_lead(self, db: Session, lead: Lead) -> None:
-        """Sends the lead's new state to open review desks once this transaction is saved."""
+    @staticmethod
+    def lead_event(db: Session, lead: Lead) -> dict[str, Any]:
+        """A lead as live updates send it (a replaced lead goes as failed, marked replaced)."""
         data = serialize.lead_summary(lead, serialize.subjects_for(db, [lead]).get(lead.id))
         if lead.status == "replaced":
             data["status"] = "failed"
             data["replaced"] = True
-        after_commit(db, partial(self.broker.publish, lead.campaign_id, "lead", data))
+        return data
+
+    def campaign_event(self, db: Session, campaign: Campaign) -> dict[str, Any]:
+        return serialize.campaign_summary(
+            db, campaign, paused_message=self.paused_message(), concurrency=self.settings.worker_concurrency
+        )
+
+    def publish_lead(self, db: Session, lead: Lead) -> None:
+        """Sends the lead's new state to open review desks once this transaction is saved."""
+        if self.settings.serverless:
+            return  # hosted, the live stream reads changes from the database (serverless.campaign_stream)
+        after_commit(db, partial(self.broker.publish, lead.campaign_id, "lead", self.lead_event(db, lead)))
 
     def publish_campaign(self, db: Session, campaign: Campaign) -> None:
         """Sends the campaign's new counts to open review desks once this transaction is saved."""
-        data = serialize.campaign_summary(
-            db, campaign, paused_message=self.paused_message(), concurrency=self.settings.worker_concurrency
-        )
-        after_commit(db, partial(self.broker.publish, campaign.id, "campaign", data))
+        if self.settings.serverless:
+            return
+        after_commit(db, partial(self.broker.publish, campaign.id, "campaign", self.campaign_event(db, campaign)))
 
     # ---------- errors ----------
 

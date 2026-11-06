@@ -22,6 +22,90 @@ export interface StableOrder {
   showHeld: () => void
 }
 
+/** What the list showed last time, and the inputs it was worked out from. */
+interface Placement {
+  leads: LeadSummary[] | undefined
+  view: DeskView
+  sort: DeskSort
+  selectedId: string | undefined
+  resort: number
+  /** The view, sort and re-sort count of the last full sort ("" before the first). */
+  placedKey: string
+  placed: string[]
+  rows: LeadSummary[]
+  held: LeadSummary[]
+  /** Every id shown since the last full sort. */
+  seen: ReadonlySet<string>
+  /** Ids that arrived in the latest update, after the first render of this view. */
+  fresh: ReadonlySet<string>
+}
+
+const NONE: ReadonlySet<string> = new Set()
+
+function place(
+  prev: Placement | null,
+  leads: LeadSummary[] | undefined,
+  view: DeskView,
+  sort: DeskSort,
+  selectedId: string | undefined,
+  resort: number
+): Placement {
+  const inputs = { leads, view, sort, selectedId, resort }
+  if (!leads) {
+    return {
+      placedKey: "",
+      placed: [],
+      seen: NONE,
+      ...prev,
+      ...inputs,
+      rows: [],
+      held: [],
+      fresh: NONE,
+    }
+  }
+  const key = `${view}|${sort}|${resort}`
+  const reset = !prev || key !== prev.placedKey
+  const byId = new Map(leads.map((lead) => [lead.id, lead]))
+  const cmp = comparator(sort)
+  const pool = leads.filter((lead) => inView(view, lead.status) || lead.id === selectedId)
+  const sorted = pool.slice().sort(cmp).map((lead) => lead.id)
+  const poolIds = new Set(sorted)
+  const previous = reset ? [] : prev.placed.filter((id) => poolIds.has(id))
+  const previousSet = new Set(previous)
+
+  let placed: string[]
+  const held: string[] = []
+  const selIndex = selectedId ? previous.indexOf(selectedId) : -1
+  if (previous.length === 0 || selIndex === -1) {
+    placed = sorted
+  } else {
+    const above = previous.slice(0, selIndex)
+    const aboveSet = new Set(above)
+    const selected = byId.get(selectedId!)!
+    const below: string[] = []
+    for (const id of sorted) {
+      if (id === selectedId || aboveSet.has(id)) continue
+      const isNew = !previousSet.has(id)
+      if (isNew && cmp(byId.get(id)!, selected) < 0) held.push(id)
+      else below.push(id)
+    }
+    placed = [...above, selectedId!, ...below]
+  }
+
+  // Rows that appear after the first render of this view get a soft tint.
+  const seen = reset ? new Set(placed) : new Set([...prev.seen, ...placed])
+  const fresh = reset ? NONE : new Set(placed.filter((id) => !prev.seen.has(id)))
+  return {
+    ...inputs,
+    placedKey: key,
+    placed,
+    rows: placed.map((id) => byId.get(id)!),
+    held: held.map((id) => byId.get(id)!),
+    seen,
+    fresh,
+  }
+}
+
 /**
  * Keeps rows from moving under the cursor (brief §3.4):
  * - rows above the selected lead never change position;
@@ -37,69 +121,29 @@ export function useStableOrder(
   sort: DeskSort,
   selectedId: string | undefined
 ): StableOrder {
-  const placedRef = React.useRef<string[]>([])
-  const keyRef = React.useRef("")
-  // First time each id was shown (0 = part of the first render of this view).
-  const seenRef = React.useRef<Map<string, number> | null>(null)
   const [resort, setResort] = React.useState(0)
-  const resortRef = React.useRef(0)
+  const [state, setState] = React.useState(() => place(null, leads, view, sort, selectedId, resort))
+  let current = state
+  if (
+    state.leads !== leads ||
+    state.view !== view ||
+    state.sort !== sort ||
+    state.selectedId !== selectedId ||
+    state.resort !== resort
+  ) {
+    // The order depends on what was shown before, so it's worked out here, from the last placement.
+    current = place(state, leads, view, sort, selectedId, resort)
+    setState(current)
+  }
 
-  const result = React.useMemo(() => {
-    if (!leads) return { rows: [] as LeadSummary[], held: [] as LeadSummary[], fresh: new Set<string>() }
-    const key = `${view}|${sort}`
-    const reset = key !== keyRef.current || resort !== resortRef.current
-    if (reset) {
-      placedRef.current = []
-      keyRef.current = key
-      resortRef.current = resort
-    }
-    const byId = new Map(leads.map((lead) => [lead.id, lead]))
-    const cmp = comparator(sort)
-    const pool = leads.filter((lead) => inView(view, lead.status) || lead.id === selectedId)
-    const sorted = pool.slice().sort(cmp).map((lead) => lead.id)
-    const poolIds = new Set(sorted)
-    const previous = placedRef.current.filter((id) => poolIds.has(id))
-    const previousSet = new Set(previous)
-
-    let placed: string[]
-    const held: string[] = []
-    const selIndex = selectedId ? previous.indexOf(selectedId) : -1
-    if (previous.length === 0 || selIndex === -1) {
-      placed = sorted
-    } else {
-      const above = previous.slice(0, selIndex)
-      const aboveSet = new Set(above)
-      const selected = byId.get(selectedId!)!
-      const below: string[] = []
-      for (const id of sorted) {
-        if (id === selectedId || aboveSet.has(id)) continue
-        const isNew = !previousSet.has(id)
-        if (isNew && cmp(byId.get(id)!, selected) < 0) held.push(id)
-        else below.push(id)
-      }
-      placed = [...above, selectedId!, ...below]
-    }
-    placedRef.current = placed
-
-    // Rows that appear after the first render of this view get a soft tint
-    // for about a second. Timestamps keep this stable across re-renders.
-    const now = Date.now()
-    if (seenRef.current === null || reset) seenRef.current = new Map(placed.map((id) => [id, 0]))
-    const fresh = new Set<string>()
-    for (const id of placed) {
-      const first = seenRef.current.get(id)
-      if (first === undefined) {
-        seenRef.current.set(id, now)
-        fresh.add(id)
-      } else if (first > 0 && now - first < 1200) fresh.add(id)
-    }
-    return {
-      rows: placed.map((id) => byId.get(id)!),
-      held: held.map((id) => byId.get(id)!),
-      fresh,
-    }
-  }, [leads, view, sort, selectedId, resort])
+  // New arrivals keep their tint for about a second; rows shown after that come in plain.
+  const fresh = current.fresh
+  React.useEffect(() => {
+    if (fresh.size === 0) return
+    const timer = window.setTimeout(() => setState((s) => (s.fresh === fresh ? { ...s, fresh: NONE } : s)), 1200)
+    return () => window.clearTimeout(timer)
+  }, [fresh])
 
   const showHeld = React.useCallback(() => setResort((n) => n + 1), [])
-  return { ...result, showHeld }
+  return { rows: current.rows, held: current.held, fresh, showHeld }
 }

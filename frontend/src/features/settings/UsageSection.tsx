@@ -1,6 +1,6 @@
 import { Meter } from "@/components/Meter"
 import type { Account } from "@/lib/api/types"
-import { formatNumber, formatTime, plural } from "@/lib/format"
+import { formatNumber, formatResetTime, plural } from "@/lib/format"
 import { Section } from "./form-kit"
 
 /** This month's lead allowance and today's sending count. */
@@ -38,7 +38,7 @@ export function UsageSection({ account }: { account: Account }) {
           />
           <p className="aside">
             NearbyNudge doesn't send email. This counts the emails you marked as sent, up to{" "}
-            {formatNumber(sending.daily_cap)} a day; it resets at {formatTime(sending.resets_at)}.
+            {formatNumber(sending.daily_cap)} a day; it resets at {formatResetTime(sending.resets_at)}.
           </p>
         </div>
       </div>

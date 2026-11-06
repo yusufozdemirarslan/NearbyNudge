@@ -10,16 +10,18 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from collections.abc import Iterable
 from datetime import date
 from typing import Any
 from urllib.parse import urlsplit
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from .. import emailtext
 from ..ai.client import AIPaused, AIRefusal, AIRequestError, AIUnavailable, CallContext, StructuredOutputError
 from ..db import iso, utcnow
+from ..listings import keys as listing_keys
 from ..models import Campaign, Candidate, DncEntry, EmailVersion, Fact, Lead, Page, User
 from ..reader import (
     PageResult,
@@ -39,7 +41,8 @@ from ..roles import scout as scout_role
 from ..roles import writer as writer_role
 from ..roles.outputs import EmailOut, HookOut, SentenceOut
 from ..roles.skills import PromptFact
-from . import jobs, serialize
+from ..schemas import MAX_RADIUS_MI
+from . import jobs, limits, serialize
 from .serialize import IN_PROGRESS
 from .state import AppState
 
@@ -110,6 +113,24 @@ def business_info(lead: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def claim_lead(s: Session, lead_id: str, expect: tuple[str, ...] | None = IN_PROGRESS, *,
+               version_id: str | None = None) -> Lead | None:
+    """The lead, locked for the rest of this transaction, while it's still in one of the `expect` states (and on the
+    email `version_id`, when given); otherwise None.
+
+    SQLite here opens a transaction only at the first write, so reading the lead and then writing isn't atomic: a skip
+    or do-not-contact saved in between would be overwritten. This conditional UPDATE takes the write lock and checks
+    the state in one step, so nothing else can change the lead until this transaction ends."""
+    stmt = update(Lead).where(Lead.id == lead_id)
+    if expect is not None:
+        stmt = stmt.where(Lead.status.in_(expect))
+    if version_id is not None:
+        stmt = stmt.where(Lead.email_version_id == version_id)
+    if not s.execute(stmt.values(updated_at=utcnow()).execution_options(synchronize_session=False)).rowcount:
+        return None
+    return s.get(Lead, lead_id, populate_existing=True)
+
+
 def update_lead(app: AppState, lead_id: str, *, expect: tuple[str, ...] | None = IN_PROGRESS,
                 **fields: Any) -> dict[str, Any] | None:
     """Apply fields to a lead, publish the change, and return a fresh snapshot.
@@ -118,8 +139,8 @@ def update_lead(app: AppState, lead_id: str, *, expect: tuple[str, ...] | None =
     was running (skip, do not contact, delete) is never overwritten; then None is returned and the run stops.
     """
     def fn(s: Session) -> dict[str, Any] | None:
-        lead = s.get(Lead, lead_id)
-        if lead is None or (expect is not None and lead.status not in expect):
+        lead = claim_lead(s, lead_id, expect)
+        if lead is None:
             return None
         for k, v in fields.items():
             setattr(lead, k, v)
@@ -139,11 +160,44 @@ async def guarded(app: AppState, lead_id: str, fn) -> tuple[bool, Any]:
     """Run fn(session, lead) in one transaction only while the lead is still in progress.
     Returns (ran, value). Not running means the user decided something meanwhile: stop."""
     def run(s: Session) -> tuple[bool, Any]:
-        lead = s.get(Lead, lead_id)
-        if lead is None or lead.status not in IN_PROGRESS:
+        lead = claim_lead(s, lead_id)
+        if lead is None:
             return False, None
         return True, fn(s, lead)
     return await app.db.arun(run)
+
+
+def wider_hint(radius_mi: float) -> str:
+    """What to try when too few businesses match: a wider radius (up to the maximum) or a broader industry."""
+    if radius_mi >= MAX_RADIUS_MI:
+        return "Try a broader industry."
+    return f"Try a {min(MAX_RADIUS_MI, int(radius_mi * 2))}-mile radius or a broader industry."
+
+
+def site_keys(url: str | None) -> frozenset[str]:
+    """What a do-not-contact domain entry is compared with for one website: an ordinary site's registrable domain
+    ("smile.com"), the page of a business on a shared platform ("facebook.com/smiledental", "smile.business.site"),
+    or nothing for an address that names no business ("https://google.com/maps"). A platform is never a key itself,
+    so blocking or drafting one Facebook-page business never holds back another."""
+    keys = listing_keys.website_keys(url)
+    host = listing_keys.host_of(url)
+    if host and listing_keys.registrable_domain(host) in keys:  # an ordinary site: its domain, as always
+        return frozenset({registrable_domain(url)})
+    return keys
+
+
+def dnc_domain(url: str | None) -> str | None:
+    """How a do-not-contact entry stores a website: its domain, or its page on a shared platform."""
+    keys = site_keys(url)
+    return min(keys) if keys else None
+
+
+def blocked_keys(entries: Iterable[str]) -> frozenset[str]:
+    """The site keys that do-not-contact domain entries block (an old entry naming only a platform blocks no page)."""
+    out: set[str] = set()
+    for entry in entries:
+        out |= listing_keys.exclusion_keys(entry)
+    return frozenset(out)
 
 
 def name_key(name: str | None) -> str:
@@ -169,18 +223,19 @@ def user_excludes(s: Session, user_id: str) -> tuple[set[str], set[str], set[str
         if e.business_name and not (e.place_id or e.domain or e.email):
             names.add(name_key(e.business_name))
     rows = s.execute(
-        select(Lead.place_id, Lead.domain).where(Lead.user_id == user_id, Lead.status.in_((*DRAFTED, *IN_PROGRESS)))
+        select(Lead.place_id, Lead.website).where(Lead.user_id == user_id, Lead.status.in_((*DRAFTED, *IN_PROGRESS)))
     ).all()
-    for place_id, domain in rows:
+    for place_id, website in rows:
         places.add(place_id)
+        domain = dnc_domain(website)  # the page, for a business on a shared platform
         if domain:
-            domains.add(domain.lower())
+            domains.add(domain)
     names.discard("")
     return places, domains, emails, names
 
 
-def is_dnc(s: Session, user_id: str, *, place_id: str | None, domain: str | None, email: str | None,
-           name: str | None = None) -> bool:
+def is_dnc(s: Session, user_id: str, *, place_id: str | None, websites: Iterable[str | None] | None,
+           email: str | None, name: str | None = None) -> bool:
     if name:
         key = name_key(name)
         for (bn,) in s.execute(select(DncEntry.business_name).where(
@@ -191,15 +246,20 @@ def is_dnc(s: Session, user_id: str, *, place_id: str | None, domain: str | None
     conds = []
     if place_id:
         conds.append(DncEntry.place_id == place_id)
-    if domain:
-        conds.append(DncEntry.domain == domain.lower())
     if email:
         conds.append(DncEntry.email == email.lower())
-    if not conds:
-        return False
-    from sqlalchemy import or_
+    if conds:
+        from sqlalchemy import or_
 
-    return s.scalars(q.where(or_(*conds)).limit(1)).first() is not None
+        if s.scalars(q.where(or_(*conds)).limit(1)).first() is not None:
+            return True
+    keys: set[str] = set()
+    for website in websites or ():
+        keys |= site_keys(website)
+    if not keys:
+        return False
+    entries = s.scalars(select(DncEntry.domain).where(DncEntry.user_id == user_id, DncEntry.domain.is_not(None))).all()
+    return bool(keys & blocked_keys(entries))
 
 
 def _address(listing: Any) -> str:
@@ -343,6 +403,12 @@ async def _finish_discovery(app: AppState, campaign_id: str, ranked: list[tuple[
         notices = list(c.notices or [])
         if notice:
             notices.append(notice)
+        # what the allowance has left now: other work may have used some since this campaign started
+        _usage, _held, left = limits.leads_left(s, s.get(User, c.user_id), app.settings.monthly_lead_limit,
+                                                except_campaign=c.id)
+        if left < c.lead_target:
+            c.lead_target = max(0, left)  # the request (c.input) stays as the user made it
+            notices.append(f"Your monthly allowance has {c.lead_target} leads left, so this campaign looks for {c.lead_target}.")
         promoted = 0
         for rank, (lst, score, reason) in enumerate(ranked, 1):
             cand = Candidate(campaign_id=c.id, place_id=lst.place_id, rank=rank, score=score, reason=reason,
@@ -358,8 +424,7 @@ async def _finish_discovery(app: AppState, campaign_id: str, ranked: list[tuple[
                 app.publish_lead(s, lead)
                 promoted += 1
         if ranked and promoted < c.lead_target:
-            wider = min(25, int(c.radius_mi * 2))
-            notices.append(f"We found {promoted} of {c.lead_target}. Try a {wider}-mile radius or a broader industry.")
+            notices.append(f"We found {promoted} of {c.lead_target}. {wider_hint(c.radius_mi)}")
         c.notices = notices
         if promoted:
             c.status = "researching"
@@ -387,14 +452,14 @@ def promote_next(app: AppState, s: Session, campaign: Campaign) -> Lead | None:
     if campaign.replacements_used >= campaign.lead_target:
         return None
     places, domains, _, names = user_excludes(s, campaign.user_id)
+    blocked = blocked_keys(domains)
     for cand in s.scalars(
         select(Candidate).where(Candidate.campaign_id == campaign.id, Candidate.status == "reserve").order_by(Candidate.rank)
     ).all():
         lst = listing_from_snapshot(cand.listing)
-        website = next((w for w in (lst.websites or []) if w), None)
-        dom = registrable_domain(website) if website else None
         cand.status = "promoted"
-        if lst.place_id in places or (dom and dom in domains) or name_key(lst.name) in names:
+        if (lst.place_id in places or name_key(lst.name) in names
+                or any(site_keys(w) & blocked for w in lst.websites or () if w)):
             continue
         campaign.replacements_used += 1
         lead = new_lead(campaign, lst, rank=cand.rank, score=cand.score, reason=cand.reason, candidate_id=cand.id)
@@ -469,7 +534,8 @@ async def process_lead(app: AppState, lead_id: str) -> None:
               "writing": writing_stage, "checking": editor_stage}
     try:
         blocked = await app.db.arun(lambda s: is_dnc(
-            s, lead["user_id"], place_id=lead["place_id"], domain=lead["domain"], email=None, name=lead["name"]))
+            s, lead["user_id"], place_id=lead["place_id"], websites=[lead["website"], *(lead["listing"].get("websites") or [])],
+            email=None, name=lead["name"]))
         if blocked:
             await _dnc_and_replace(app, lead)
             return
@@ -477,7 +543,7 @@ async def process_lead(app: AppState, lead_id: str) -> None:
         for _ in range(8):  # each stage saves before the next, so a lead resumes where it stopped
             if lead is None or lead["status"] not in IN_PROGRESS:
                 break
-            if lead["status"] not in ("queued", "reading") and await _over_cap(app, lead_id):
+            if await _over_cap(app, lead_id):  # before every stage, research (the costliest) included
                 await _fail(app, lead_id, COST_CAP_MESSAGE)
                 break
             lead = await stages[lead["status"]](app, lead)
@@ -519,8 +585,8 @@ async def _end_lead(app: AppState, lead_id: str, **fields: Any) -> None:
 
 async def _replace(app: AppState, lead: dict[str, Any], reason: str) -> None:
     def fn(s: Session) -> None:
-        ld = s.get(Lead, lead["id"])
-        if ld is None or ld.status not in IN_PROGRESS:
+        ld = claim_lead(s, lead["id"])
+        if ld is None:
             return
         ld.status = "replaced"
         ld.replaced_reason = reason
@@ -539,8 +605,8 @@ async def _replace(app: AppState, lead: dict[str, Any], reason: str) -> None:
 
 async def _fail_and_replace(app: AppState, lead: dict[str, Any], message: str) -> None:
     def fn(s: Session) -> None:
-        ld = s.get(Lead, lead["id"])
-        if ld is None or ld.status not in IN_PROGRESS:
+        ld = claim_lead(s, lead["id"])
+        if ld is None:
             return
         ld.status = "failed"
         ld.error = message
@@ -560,8 +626,8 @@ async def _fail_and_replace(app: AppState, lead: dict[str, Any], message: str) -
 async def _dnc_and_replace(app: AppState, lead: dict[str, Any], **fields: Any) -> None:
     """The business is on the user's do-not-contact list: never draft it, and bring in the next in line."""
     def fn(s: Session) -> None:
-        ld = s.get(Lead, lead["id"])
-        if ld is None or ld.status not in IN_PROGRESS:
+        ld = claim_lead(s, lead["id"])
+        if ld is None:
             return
         for k, v in fields.items():
             setattr(ld, k, v)
@@ -641,7 +707,11 @@ async def research_stage(app: AppState, lead: dict[str, Any]) -> dict[str, Any] 
         return None
     if await aupdate_lead(app, lead_id, pages_read=pages_read) is None:
         return None
-    links = pick_links(home, limit=20)
+    try:
+        links = await asyncio.to_thread(pick_links, home, limit=20)
+    except Exception as exc:  # noqa: BLE001 - a home page whose links can't be read still gets researched
+        await app.alog_error("reader", f"Reading the links of {lead['website']} failed: {exc}", exc=exc, lead_id=lead_id)
+        links = []
 
     read_pages: list[PageResult] = []
 
@@ -676,16 +746,17 @@ async def research_stage(app: AppState, lead: dict[str, Any]) -> dict[str, Any] 
         await _replace(app, lead, "Listed at a different address: " + (v.note or "the website shows another location"))
         return None
 
-    facts = build_research_facts(out, pages)
-    sc = site_check(home, pages[1:])
+    # page checks are plain Python over whole pages: off the event loop, so a slow page can't hold up the server
+    facts = await asyncio.to_thread(build_research_facts, out, pages)
+    sc = await asyncio.to_thread(site_check, home, pages[1:])
     facts += site_check_facts(sc, home)
     facts.append(_listing_fact(lead, rel))
-    contact = find_contact(
-        listing_emails=list(lead["listing"].get("emails") or []), website=lead["website"], pages=pages,
+    contact = await asyncio.to_thread(
+        find_contact, listing_emails=list(lead["listing"].get("emails") or []), website=lead["website"], pages=pages,
         listing_label=listing_label(rel),
     )
     contact_d = contact.to_dict()
-    blocked = await app.db.arun(lambda s: is_dnc(s, lead["user_id"], place_id=None, domain=None, email=contact.email))
+    blocked = await app.db.arun(lambda s: is_dnc(s, lead["user_id"], place_id=None, websites=None, email=contact.email))
     verification = {
         "status": "verified" if v.operating == "yes" else "unverified",
         "note": v.note or ("The website shows the business operating." if v.operating == "yes" else "The website didn't clearly show it operating."),
@@ -763,8 +834,8 @@ async def _research_by_search(app: AppState, lead: dict[str, Any], offer: dict[s
                       "url": r["url"], "source_label": f"Web search result: {(r.get('title') or r['url'])[:60]}",
                       "seen_at": utcnow(), "quote_found": False})
     facts.append(_listing_fact(lead, rel))
-    contact = find_contact(listing_emails=list(lead["listing"].get("emails") or []), website=None, pages=[],
-                           listing_label=listing_label(rel))
+    contact = await asyncio.to_thread(find_contact, listing_emails=list(lead["listing"].get("emails") or []),
+                                      website=None, pages=[], listing_label=listing_label(rel))
     return await _commit_research(
         app, lead_id, facts, status="choosing", step=2, stage_label="Choosing hook", contact=contact.to_dict(),
         verification={"status": "verified", "note": v.note or "A current web page mentions this business.", "url": facts[0]["url"] if facts and facts[0].get("url") else None},
@@ -1047,6 +1118,7 @@ async def editor_stage(app: AppState, lead: dict[str, Any]) -> dict[str, Any] | 
         if not ld.counted:
             ld.counted = True
             ld.counted_at = utcnow()
+            limits.record_lead(s, ld)
         refresh_derived(s, ld)
         ld.updated_at = utcnow()
         s.flush()

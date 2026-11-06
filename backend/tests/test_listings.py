@@ -275,6 +275,28 @@ def test_drops_chains_by_brand_or_wikidata(store):
     assert ids(find(store, radius=25)) == ["small"]
 
 
+NON_LATIN_NAMES = ["서울 치과", "金龍牙科", "Стоматология Улыбка", "שן טובה", "東京デンタル", "Smile Dental"]
+
+
+def test_names_without_latin_letters_are_not_one_chain(store):
+    store.insert_listings([make(f"p{i}", name, north=i * 0.3) for i, name in enumerate(NON_LATIN_NAMES)])
+    assert [store.get(f"p{i}").chain_count for i in range(6)] == [1] * 6
+    assert set(ids(find(store))) == {f"p{i}" for i in range(6)}
+
+
+def test_reopen_recomputes_chain_counts_from_older_rules(tmp_path):
+    path = tmp_path / "l.duckdb"
+    with ListingsStore(path) as s:
+        s.insert_listings([make(f"p{i}", name, north=i * 0.3) for i, name in enumerate(NON_LATIN_NAMES)])
+    con = duckdb.connect(str(path))  # a store written by the old rule, which grouped every empty name
+    con.execute("UPDATE places SET chain_count = 5 WHERE name_norm = ''")
+    con.execute("DELETE FROM store_meta WHERE key = 'chain_rules'")
+    con.close()
+    with ListingsStore(path) as s:
+        assert [s.get(f"p{i}").chain_count for i in range(6)] == [1] * 6
+        assert len(find(s)) == 6
+
+
 def test_chain_count_updates_as_data_grows(store):
     store.insert_listings([make(f"s{i}", "Sunrise Dental", north=i) for i in range(4)])
     assert ids(find(store, radius=25)) != []
@@ -372,6 +394,37 @@ def test_dedupe_never_merges_different_platform_pages(store):
         make("loc_b", websites=["https://bethesda.smilegroup.com"]),
     ])
     assert len(find(store)) == 8
+
+
+PLATFORM_PAGES = {
+    "fb_p1": "https://www.facebook.com/p/Smile-Dental-100063000000001/",
+    "fb_p2": "https://www.facebook.com/p/Bright-Teeth-100063000000002/",
+    "fb_id1": "https://www.facebook.com/profile.php?id=100063000000003",
+    "fb_id2": "https://www.facebook.com/profile.php?id=100063000000004",
+    "fb_people": "https://www.facebook.com/people/Gentle-Care/100063000000005/",
+    "yt_1": "https://www.youtube.com/channel/UCaaaaaaaaaaaaaaaaaaaaaa",
+    "yt_2": "https://www.youtube.com/channel/UCbbbbbbbbbbbbbbbbbbbbbb",
+}
+
+
+def test_unrelated_facebook_and_youtube_pages_are_different_businesses(store):
+    store.insert_listings([make(pid, websites=[url], north=i * 0.2) for i, (pid, url) in enumerate(PLATFORM_PAGES.items())])
+    assert set(ids(find(store))) == set(PLATFORM_PAGES)
+    blocked = find(store, exclude_domains={"facebook.com/p/smile-dental-100063000000001",
+                                           "https://www.facebook.com/profile.php?id=100063000000003"})
+    assert set(ids(blocked)) == set(PLATFORM_PAGES) - {"fb_p1", "fb_id1"}
+
+
+def test_reopen_rekeys_places_keyed_by_older_rules(tmp_path):
+    path = tmp_path / "l.duckdb"
+    with ListingsStore(path) as s:
+        s.insert_listings([make(pid, websites=[url], north=i * 0.2) for i, (pid, url) in enumerate(PLATFORM_PAGES.items())])
+    con = duckdb.connect(str(path))  # keys as the version-1 rules stored them: one key per platform prefix
+    con.execute("UPDATE places SET site_keys = ['facebook.com/p'], web_keys = ['facebook.com/p'] WHERE place_id LIKE 'fb_p%'")
+    con.execute("UPDATE store_meta SET value = '1' WHERE key = 'keys_version'")
+    con.close()
+    with ListingsStore(path) as s:
+        assert set(ids(find(s))) == set(PLATFORM_PAGES)
 
 
 def test_duplicates_of_a_drafted_business_stay_out(store):

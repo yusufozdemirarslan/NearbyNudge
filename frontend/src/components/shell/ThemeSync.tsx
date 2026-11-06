@@ -5,11 +5,20 @@ import type { Preferences } from "@/lib/api/types"
 const STORAGE_KEY = "nn-theme"
 const DARK_QUERY = "(prefers-color-scheme: dark)"
 
+/** The paper colours (index.css `--paper`), for the browser's own bars. */
+const PAPER = { light: "#ffffff", dark: "#000000" }
+
 /** Applies a theme now: adds or removes `.dark` on <html>. */
 export function applyTheme(theme: Preferences["theme"]) {
   const dark = theme === "dark" || (theme === "system" && window.matchMedia(DARK_QUERY).matches)
   document.documentElement.classList.toggle("dark", dark)
   document.documentElement.style.colorScheme = dark ? "dark" : "light"
+  // theme-color follows the page too: an explicit choice sets both media variants,
+  // "system" gives each variant its own paper back.
+  for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
+    const forDark = meta.media.includes("dark")
+    meta.content = theme === "system" ? PAPER[forDark ? "dark" : "light"] : PAPER[dark ? "dark" : "light"]
+  }
   try {
     window.localStorage.setItem(STORAGE_KEY, theme)
   } catch {

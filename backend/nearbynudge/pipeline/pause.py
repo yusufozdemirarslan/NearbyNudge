@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from datetime import datetime, timedelta
 
 from ..ai.client import PauseControl
@@ -25,20 +26,28 @@ MESSAGES = {
 
 
 class DbPause(PauseControl):
-    def __init__(self, db: Database):
+    """The pause, kept in memory and saved to the database.
+
+    One server process (this computer) reads the saved row once. Hosted, several instances share it, so with
+    `reload_after_s` each instance reads the row again when its copy is that old."""
+
+    def __init__(self, db: Database, *, reload_after_s: float | None = None):
         self.db = db
         self._lock = threading.Lock()
         self._state: dict | None = None
         self._loaded = False
+        self._reload_after_s = reload_after_s
+        self._loaded_at = 0.0
 
     def _load(self) -> None:
-        if self._loaded:
+        if self._loaded and (self._reload_after_s is None or time.monotonic() - self._loaded_at < self._reload_after_s):
             return
         def fn(s):
             row = s.get(AppSetting, KEY)
             return dict(row.value) if row and row.value else None
         self._state = self.db.run(fn)
         self._loaded = True
+        self._loaded_at = time.monotonic()
 
     def _save(self) -> None:
         state = self._state
@@ -77,7 +86,9 @@ class DbPause(PauseControl):
         log.info("AI work resumed")
 
     def state(self) -> dict | None:
-        """The active pause, or None. Timed pauses expire on their own."""
+        """The active pause, or None. Timed pauses expire on their own, and nothing is written then (the stored row
+        says until when, so a restart reads it as expired too): this is called inside open write transactions, where
+        a write on another connection would wait for that very transaction."""
         with self._lock:
             self._load()
             st = self._state
@@ -86,7 +97,6 @@ class DbPause(PauseControl):
             until = st.get("until")
             if until and _parse(until) <= utcnow():
                 self._state = None
-                self._save()
                 return None
             return dict(st)
 

@@ -61,16 +61,15 @@ export function useRegisterCommands(commands: Command[]) {
   if (!context) throw new Error("useRegisterCommands must be used inside <CommandsProvider>.")
   const { register, unregister } = context
   const ref = React.useRef<Command[]>(commands)
-  const idRef = React.useRef(0)
-  if (idRef.current === 0) idRef.current = nextId++
+  // Numbered at first render, so screens rendered later sort first.
+  const [id] = React.useState(() => nextId++)
   React.useLayoutEffect(() => {
     ref.current = commands
   })
   React.useEffect(() => {
-    const id = idRef.current
     register(id, ref)
     return () => unregister(id)
-  }, [register, unregister])
+  }, [id, register, unregister])
 }
 
 /** Open state and the command list, for the menu itself. */

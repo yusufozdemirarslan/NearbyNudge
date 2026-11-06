@@ -7,6 +7,7 @@ import type { SentFilter } from "./api"
  * prefix, e.g. `queryClient.invalidateQueries({ queryKey: qk.campaigns() })`.
  */
 export const qk = {
+  session: () => ["session"] as const,
   me: () => ["me"] as const,
   account: () => ["account"] as const,
   status: () => ["status"] as const,
@@ -32,6 +33,10 @@ export const qk = {
     optOuts: () => ["admin", "optouts"] as const,
   },
 }
+
+/** Whether this copy asks for sign-in and whether this browser is signed in. */
+export const sessionQuery = () =>
+  queryOptions({ queryKey: qk.session(), queryFn: () => api.getSession(), staleTime: 60_000 })
 
 /** The workspace (`onboarded`, sender name). Used by the route guards. */
 export const meQuery = () =>

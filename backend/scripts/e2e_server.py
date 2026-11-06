@@ -2,6 +2,8 @@
 
 Default (no cost, no network): fixture business websites, seeded Arlington listings and a fake Claude API.
 --live: the real Claude API from .env, the real listings file and real business websites (costs a little).
+--login: sign-in on, for the sign-in tests: E2E_LOGIN_EMAIL (default owner@example.org) with the password in
+E2E_LOGIN_PASSWORD.
 Either way it uses a fresh temporary app database, so your real data is never touched, and the test-only
 workspace switch (POST /api/dev/workspace) is on, so each test can work in its own workspace.
 
@@ -33,6 +35,7 @@ def main() -> None:
     p.add_argument("--port", type=int, default=8100)
     p.add_argument("--live", action="store_true", help="real Claude API, real listings and real websites")
     p.add_argument("--dist", type=Path, default=None, help="dashboard build to serve (default: frontend/dist)")
+    p.add_argument("--login", action="store_true", help="sign-in on, with E2E_LOGIN_EMAIL and E2E_LOGIN_PASSWORD")
     args = p.parse_args()
     dist = (args.dist if args.dist is None or args.dist.is_absolute() else ROOT / args.dist) or ROOT / "frontend" / "dist"
 
@@ -41,7 +44,19 @@ def main() -> None:
     data.mkdir(parents=True)
     sites: dict[str, str] = {}
     common = dict(NN_DATA_DIR=data, NN_FRONTEND_DIST=dist, NN_DEV_WORKSPACES=True,
-                  NN_PUBLIC_URL=f"http://localhost:{args.port}")
+                  NN_PUBLIC_URL=f"http://localhost:{args.port}", NN_SERVERLESS=False, NN_DB_URL="",
+                  NN_LOGIN_EMAIL="", NN_LOGIN_PASSWORD_HASH="", NN_SESSION_SECRET="")
+    if args.login:
+        import os
+        import secrets
+
+        from nearbynudge.auth import hash_password
+
+        password = os.environ.get("E2E_LOGIN_PASSWORD", "")
+        if len(password) < 10:
+            sys.exit("--login needs E2E_LOGIN_PASSWORD (at least 10 characters)")
+        common.update(NN_LOGIN_EMAIL=os.environ.get("E2E_LOGIN_EMAIL", "owner@example.org"),
+                      NN_LOGIN_PASSWORD_HASH=hash_password(password), NN_SESSION_SECRET=secrets.token_urlsafe(32))
     http_client = None
     if args.live:
         shutil.copytree(ROOT / "data" / "gazetteer", data / "gazetteer")

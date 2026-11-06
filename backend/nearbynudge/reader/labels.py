@@ -220,7 +220,7 @@ def page_label(url: str, title: str = "") -> str:
 # ----------------------------------------------------------------- pick_links
 
 
-def _excluded(url: str, text: str) -> bool:
+def _excluded(url: str, text: str, *, nested: bool = False) -> bool:
     segments = _segments(url)
     for i, seg in enumerate(segments):
         phrase = _words(seg)
@@ -239,7 +239,9 @@ def _excluded(url: str, text: str) -> bool:
         key = key.lower()
         if key in _EXCLUDE_QUERY_KEYS or (key in ("page", "paged") and value.isdigit()):
             return True
-        if key in ("page", "p", "section") and value and _excluded("/" + value, ""):
+        # "?page=privacy-policy" names its page in the value; look one level down only, since a value can
+        # hold another "?page=..." and so on (8 KB links like that exist).
+        if not nested and key in ("page", "p", "section") and value and _excluded("/" + value, "", nested=True):
             return True
     words = _words(text)
     if words and (set(words.split()) & _EXCLUDE_WORDS or any(p in words for p in _EXCLUDE_PHRASES)):

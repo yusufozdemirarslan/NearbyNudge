@@ -14,7 +14,7 @@ from .labels import page_label, pick_links
 from .sitecheck import SiteCheckResult, site_check
 from .textutil import mask_contacts, quote_in_text, text_fragment_url
 from .types import READER_ERRORS, Link, PageResult, SiteBudget
-from .urls import normalize_url, registrable_domain
+from .urls import is_domain, normalize_url, registrable_domain
 
 __all__ = [
     "READER_ERRORS",
@@ -25,6 +25,7 @@ __all__ = [
     "SiteBudget",
     "SiteCheckResult",
     "find_contact",
+    "is_domain",
     "mask_contacts",
     "normalize_url",
     "page_label",

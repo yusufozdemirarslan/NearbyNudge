@@ -1,15 +1,32 @@
-"""Persistent job queue (SQLite). Jobs survive restarts; running jobs are re-queued on start."""
+"""Persistent job queue (a database table). Jobs survive restarts; running jobs are re-queued on start.
+
+On this computer the worker polls the table. Hosted, nothing polls: `dispatcher` (set by serverless.py) sends each
+queued job to Vercel Queues once its transaction is saved, and the queue runs it.
+"""
 
 from __future__ import annotations
 
-from datetime import timedelta
+from collections.abc import Callable
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from ..db import utcnow
+from ..db import after_commit, iso, utcnow
 from ..models import Job
+
+#: (job id, seconds until it's due) -> sends it to the background queue. None on this computer.
+dispatcher: Callable[[str, float], None] | None = None
+
+
+def _dispatch_when_saved(db: Session, job: Job) -> None:
+    send = dispatcher
+    if send is None:
+        return
+    job_id = job.id
+    delay = max(0.0, (job.run_after - utcnow()).total_seconds())
+    after_commit(db, lambda: send(job_id, delay))
 
 
 def enqueue(
@@ -28,6 +45,7 @@ def enqueue(
     )
     db.add(job)
     db.flush()
+    _dispatch_when_saved(db, job)
     return job
 
 
@@ -68,6 +86,30 @@ def requeue(db: Session, job_id: str, *, delay_s: float, count_attempt: bool = T
         job.attempts = max(0, job.attempts - 1)
     job.last_error = error
     job.updated_at = utcnow()
+    _dispatch_when_saved(db, job)
+
+
+def outage_began(db: Session, job_id: str, stage: str | None) -> datetime:
+    """When the AI outage this job is waiting out began: its first "unavailable" since the work last moved on (to
+    another `stage`) or since an account pause. The one-day give-up counts from here, not from when the job was
+    queued: it may have waited out a long pause, a laptop sleep or a restart first."""
+    now = utcnow()
+    job = db.get(Job, job_id)
+    if job is None:
+        return now
+    data = dict(job.payload or {})
+    since = data.get("outage_since")
+    if not since or data.get("outage_stage") != stage:
+        since = iso(now)
+        job.payload = {**data, "outage_since": since, "outage_stage": stage}
+    return datetime.fromisoformat(since.replace("Z", ""))
+
+
+def outage_over(db: Session, job_id: str) -> None:
+    """The job is waiting on an account problem instead: a later outage starts its own day."""
+    job = db.get(Job, job_id)
+    if job is not None and job.payload and "outage_since" in job.payload:
+        job.payload = {k: v for k, v in job.payload.items() if k not in ("outage_since", "outage_stage")}
 
 
 def reset_running(db: Session) -> int:

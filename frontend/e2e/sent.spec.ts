@@ -26,6 +26,20 @@ test.describe("sent screen", () => {
     await expect(page.locator("[data-sent-id]").filter({ hasText: "Sample Duct Masters" })).toHaveCount(1)
   })
 
+  test("a double-click on Mark as sent counts the email once, without an error", async ({ page }) => {
+    await page.goto("/sent")
+    const meter = page.locator('[data-slot="top-bar"]').getByRole("meter", { name: "Sent today" })
+    await expect(meter).toHaveAttribute("aria-valuetext", "7 of 20")
+    const row = page.locator("[data-sent-id]").filter({ hasText: "Sample Duct Masters" })
+    await row.getByRole("button", { name: "Mark as sent" }).dblclick()
+    await expect(meter).toHaveAttribute("aria-valuetext", "8 of 20")
+    await page.getByRole("tab", { name: /^Sent/ }).click()
+    const sentRow = page.locator("[data-sent-id]").filter({ hasText: "Sample Duct Masters" })
+    await expect(sentRow).toHaveCount(1)
+    await expect(sentRow).not.toContainText("Approve this email before marking it sent.")
+    await expect(meter).toHaveAttribute("aria-valuetext", "8 of 20")
+  })
+
   test("No thanks logs the reply and adds the business to do not contact", async ({ page }) => {
     await page.goto("/sent?status=sent")
     const row = page.locator("[data-sent-id]").filter({ hasText: "Sample Bright Dental" })

@@ -149,8 +149,17 @@ test("do not contact asks in place", async ({ page }) => {
 test("a rewrite shows Rewriting, then Show changes", async ({ page }) => {
   test.setTimeout(90_000)
   await openActionable(page)
+  // The fake AI can answer between two polls, so record every "Rewriting" status as it appears.
+  await page.evaluate(() => {
+    const seen = window as unknown as { rewritingSeen?: boolean }
+    seen.rewritingSeen = false
+    new MutationObserver(() => {
+      const statuses = document.querySelectorAll('[data-slot="email-panel"] [role="status"]')
+      if ([...statuses].some((s) => s.textContent?.includes("Rewriting"))) seen.rewritingSeen = true
+    }).observe(document.body, { subtree: true, childList: true, characterData: true })
+  })
   await page.keyboard.press("1")
-  await expect(page.locator('[data-slot="email-panel"]').getByRole("status").filter({ hasText: "Rewriting" })).toBeVisible()
+  await expect.poll(() => page.evaluate(() => (window as unknown as { rewritingSeen?: boolean }).rewritingSeen)).toBe(true)
   const show = page.getByRole("button", { name: "Show changes" })
   await expect(show).toBeVisible({ timeout: 60_000 })
   await show.click()
@@ -168,6 +177,18 @@ test("a source tag previews its quote on focus and closes on Esc", async ({ page
   await expect(preview).toBeVisible()
   await page.keyboard.press("Escape")
   await expect(preview).toBeHidden()
+})
+
+test("a missing campaign says so and stops listening for updates", async ({ page }) => {
+  const streams: string[] = []
+  page.on("request", (request) => {
+    if (request.url().endsWith("/events")) streams.push(request.url())
+  })
+  await page.goto("/campaigns/does-not-exist")
+  await expect(page.getByRole("heading", { level: 1, name: "We couldn't find this campaign" })).toBeVisible()
+  // The live stream used to retry every few seconds for as long as the page was open.
+  await page.waitForTimeout(4500)
+  expect(streams.length).toBeLessThanOrEqual(1)
 })
 
 test("axe: review desk and Sent have no violations", async ({ page }) => {

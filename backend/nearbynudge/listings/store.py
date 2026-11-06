@@ -238,12 +238,20 @@ def _category_key_param(value: str | None) -> str | None:
 class ListingsStore:
     """Overture places in a DuckDB file, with LD2 matching."""
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, *, extension_dir: Path | None = None, memory_limit: str | None = None):
+        """`extension_dir`: where DuckDB keeps (and installs) its extensions, for a server whose home folder is
+        read-only; `memory_limit`: a cap for small servers (DuckDB takes most of the machine's memory by default)."""
         self.path = Path(path)
         target = str(path)
         if target != ":memory:":
             self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._con = duckdb.connect(target)
+        config: dict[str, str] = {}
+        if extension_dir is not None:
+            Path(extension_dir).mkdir(parents=True, exist_ok=True)
+            config["extension_directory"] = str(extension_dir)
+        if memory_limit:
+            config["memory_limit"] = memory_limit
+        self._con = duckdb.connect(target, config=config)
         self._cursor_lock = threading.Lock()
         self._write_lock = threading.RLock()
         self._load_lock = threading.RLock()
@@ -262,6 +270,9 @@ class ListingsStore:
                 cur.execute(sql.RESET_KEYS)
                 self._set_meta(cur, "keys_version", KEYS_VERSION)
             self._refresh_keys(cur)  # also fills rows from before the key columns existed
+            if self._get_meta(cur, "chain_rules") != sql.CHAIN_RULES:
+                self._refresh_chain_counts(cur)
+                self._set_meta(cur, "chain_rules", sql.CHAIN_RULES)
 
     # ------------------------------------------------------------ plumbing
 
@@ -512,10 +523,14 @@ class ListingsStore:
         cur.execute(sql.DROP_KEYS)
 
     def _refresh_derived(self, cur) -> None:
+        self._refresh_chain_counts(cur)
+        self._refresh_excluded(cur)
+
+    @staticmethod
+    def _refresh_chain_counts(cur) -> None:
         cur.execute(sql.COMPUTE_CHAIN_COUNTS)
         cur.execute(sql.APPLY_CHAIN_COUNTS)
         cur.execute(sql.DROP_CHAIN)
-        self._refresh_excluded(cur)
 
     def _refresh_excluded(self, cur) -> None:
         flagged = []

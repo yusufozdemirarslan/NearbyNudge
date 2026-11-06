@@ -53,6 +53,20 @@ import {
 } from "./store"
 import { clone, delay, domainOf, latency, nowIso, uid } from "./util"
 
+/** "https://www.Example.com/contact" → "example.com", like the server keeps a typed website. */
+const siteOf = (typed: string | null | undefined): string | null => {
+  const text = typed?.trim()
+  if (!text) return null
+  return domainOf(/^[a-z][a-z0-9+.-]*:\/\//iu.test(text) ? text : `https://${text}`)?.toLowerCase() ?? text.toLowerCase()
+}
+
+/** Edits and restores only before approval, with the server's messages. */
+const assertChangeable = (rec: { lead: { status: string } }) => {
+  if (rec.lead.status === "ready" || rec.lead.status === "needs_review") return
+  if (rec.lead.status === "approved") throw new ApiError(409, "conflict", "Undo the approval to change this email.")
+  throw new ApiError(409, "conflict", "This email can't be changed now.")
+}
+
 const notFound = (what = "That item") =>
   new ApiError(404, "not_found", `${what} doesn't exist or was deleted.`)
 
@@ -112,7 +126,20 @@ const GEO = [
 ]
 
 export const mockApi: Api = {
-  // ---------- the workspace (there is no sign-in) ----------
+  // ---------- sign-in: the sample data has none (like the app with no password set) ----------
+  async getSession() {
+    await latency()
+    return { enabled: false, signed_in: true, email: null }
+  },
+  async login() {
+    await latency()
+    throw new ApiError(404, "not_found", "Sign-in isn't turned on for this copy of NearbyNudge.")
+  },
+  async logout() {
+    await latency()
+  },
+
+  // ---------- the workspace ----------
   async getMe() {
     await latency()
     return { user: clone(db.user) }
@@ -211,7 +238,12 @@ export const mockApi: Api = {
   async createCampaign(req) {
     await latency()
     const plan = db.plans.get(req.plan_id)
-    if (!plan) throw new ApiError(404, "not_found", "This plan has expired. Check the plan again before starting.")
+    if (!plan) throw new ApiError(409, "plan_expired", "This plan has expired. Review the plan again to start.")
+    for (const key of ["location", "radius_mi", "industry"] as const) {
+      if (String(plan.input[key]) !== String(req.input[key])) {
+        throw new ApiError(409, "plan_changed", "The location, radius or industry changed. Review the plan again to start.")
+      }
+    }
     if (db.usageUsed + req.input.lead_target > 100) {
       throw new ApiError(
         409,
@@ -219,6 +251,7 @@ export const mockApi: Api = {
         `You have ${100 - db.usageUsed} leads left this month. Lower the number of businesses or wait until next month.`
       )
     }
+    db.plans.delete(req.plan_id)
     const crec = startCampaign(req.input, req.input.location.trim())
     if (req.answer && /dent/iu.test(req.input.industry)) {
       crec.campaign.question_answer = { text: "Include orthodontists?", answer: req.answer }
@@ -307,6 +340,7 @@ export const mockApi: Api = {
   async updateEmail(id, req) {
     await delay(350)
     const rec = leadRecord(id)
+    assertChangeable(rec)
     if (!req.subject.trim()) throw new ApiError(422, "validation", "Add a subject.", { subject: "Add a subject." })
     applyEdit(rec, req.subject, req.body)
     touch(rec)
@@ -314,14 +348,28 @@ export const mockApi: Api = {
   },
   async rewriteLead(id, req, signal) {
     const rec = leadRecord(id)
+    const from = rec.lead.status
+    const version = rec.lead.email?.version_id
+    if (!rec.lead.email || !["ready", "needs_review", "approved"].includes(from)) {
+      throw new ApiError(409, "conflict", "This email can't be rewritten right now.")
+    }
     await delay(3000, signal)
+    if (rec.lead.status !== from || rec.lead.email?.version_id !== version) {
+      throw new ApiError(409, "conflict", "This lead changed while the rewrite ran, so the rewrite wasn't applied.")
+    }
     rewrite(rec, req.mode, req.hook_id)
+    if (rec.lead.status === "approved") {
+      // Rewriting an approved email takes the approval back, as on the server.
+      rec.lead.status = "ready"
+      rec.lead.approved_at = null
+    }
     touch(rec)
     return leadOut(rec)
   },
   async restoreVersion(id, versionId) {
     await latency()
     const rec = leadRecord(id)
+    assertChangeable(rec)
     if (!restore(rec, versionId)) throw notFound("That version")
     touch(rec)
     return leadOut(rec)
@@ -342,6 +390,9 @@ export const mockApi: Api = {
   async skipLead(id, req) {
     await latency()
     const rec = leadRecord(id)
+    if (["skipped", "dnc", "sent", "replied"].includes(rec.lead.status)) {
+      throw new ApiError(409, "conflict", "This lead can't be skipped now.")
+    }
     const before = snapshot(rec.lead)
     rec.lead.status = "skipped"
     rec.lead.skip_reason = req.reason
@@ -354,6 +405,9 @@ export const mockApi: Api = {
   async dncLead(id, req) {
     await latency()
     const rec = leadRecord(id)
+    if (rec.lead.status === "dnc") {
+      throw new ApiError(409, "conflict", "This business is already on your do-not-contact list.")
+    }
     const before = snapshot(rec.lead)
     const entry = addDnc({
       business_name: rec.lead.name,
@@ -393,7 +447,7 @@ export const mockApi: Api = {
   async markReplied(id, req) {
     await latency()
     const rec = leadRecord(id)
-    if (rec.lead.status !== "sent" && rec.lead.status !== "replied") {
+    if (rec.lead.status !== "sent") {
       throw new ApiError(409, "conflict", "Mark the email as sent before logging a reply.")
     }
     const before = snapshot(rec.lead)
@@ -419,14 +473,15 @@ export const mockApi: Api = {
     const action = db.actions.get(actionId)
     if (!action) throw notFound("That action")
     const rec = leadRecord(action.leadId)
-    if (rec.actions[rec.actions.length - 1] !== actionId) {
-      throw new ApiError(409, "conflict", "This can't be undone because the lead changed after it.")
+    if (action.undoneAt) throw new ApiError(409, "conflict", "That action was already undone.")
+    if (rec.actions[rec.actions.length - 1] !== actionId || rec.lead.status !== action.afterStatus) {
+      throw new ApiError(409, "conflict", "This lead has changed since then, so the action can't be undone.")
     }
     Object.assign(rec.lead, action.before)
     if (action.action === "sent") db.sentToday = Math.max(0, db.sentToday - 1)
     if (action.dncEntryId) db.dnc = db.dnc.filter((entry) => entry.id !== action.dncEntryId)
     rec.actions.pop()
-    db.actions.delete(actionId)
+    action.undoneAt = nowIso()
     lastActionOf(rec)
     touch(rec)
     return { lead: leadOut(rec), sending: sendingToday() }
@@ -486,7 +541,7 @@ export const mockApi: Api = {
       db.dnc.filter(
         (entry) =>
           !query ||
-          [entry.business_name, entry.domain, entry.email, entry.reason].some((v) => v?.toLowerCase().includes(query))
+          [entry.business_name, entry.domain, entry.email].some((v) => v?.toLowerCase().includes(query))
       )
     )
   },
@@ -500,8 +555,8 @@ export const mockApi: Api = {
     return clone(
       addDnc({
         business_name: req.business_name?.trim() || null,
-        domain: req.domain?.trim() || null,
-        email: req.email?.trim() || null,
+        domain: siteOf(req.domain),
+        email: req.email?.trim().toLowerCase() || null,
         reason: req.reason?.trim() || null,
         source: "user",
       })
@@ -509,6 +564,7 @@ export const mockApi: Api = {
   },
   async deleteDnc(id) {
     await latency()
+    if (!db.dnc.some((entry) => entry.id === id)) throw notFound("That entry")
     db.dnc = db.dnc.filter((entry) => entry.id !== id)
   },
   async downloadDncCsv() {

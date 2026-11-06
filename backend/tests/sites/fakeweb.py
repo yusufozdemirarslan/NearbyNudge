@@ -46,6 +46,17 @@ class FakeWeb:
     def redirect(self, url: str, location: str, status: int = 301) -> None:
         self.add(url, status, "", headers={"Location": location})
 
+    def streamed(self, url: str, body: bytes, *, status: int = 200, content_type: str | None = HTML,
+                 headers: list[tuple[str, str]] | None = None, chunk: int = 65_536) -> None:
+        """Serve `body` the way the network does: a stream the reader reads itself, `chunk` bytes at a time."""
+        def respond(request: httpx.Request) -> httpx.Response:
+            async def pieces():
+                for start in range(0, len(body), chunk):
+                    yield body[start:start + chunk]
+            extra = [("Content-Type", content_type)] if content_type is not None else []
+            return httpx.Response(status, content=pieces(), headers=extra + list(headers or []))
+        self.handle(url, respond)
+
     def handle(self, url: str, fn: Callable) -> None:
         """fn(request) -> httpx.Response (may be async, may raise httpx errors)."""
         self.routes[_key(url)] = fn

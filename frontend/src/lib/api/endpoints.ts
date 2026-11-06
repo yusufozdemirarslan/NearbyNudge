@@ -60,6 +60,11 @@ function subscribeCampaign(id: string, handlers: CampaignStreamHandlers) {
 
 /** The real API over HTTP, same origin. */
 export const httpApi: Api = {
+  // sign-in
+  getSession: () => request("GET", "/api/auth/session"),
+  login: (req) => request("POST", "/api/auth/login", req),
+  logout: () => request("POST", "/api/auth/logout"),
+
   // the workspace and its settings
   getMe: () => request("GET", "/api/me"),
   getAccount: () => request("GET", "/api/account"),

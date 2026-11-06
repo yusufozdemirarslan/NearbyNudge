@@ -70,6 +70,14 @@ test.describe("admin console", () => {
     await expect(input).toBeFocused()
     await expect(input).toHaveAttribute("aria-invalid", "true")
 
+    // A comma only counts as a thousands separator ("1,50" isn't $150), and the server's limit is $1,000,000.
+    await input.fill("1,50")
+    await balance.getByRole("button", { name: "Save balance" }).click()
+    await expect(balance.getByText("Enter dollars and cents only, like 50 or 125.40.")).toBeVisible()
+    await input.fill("2,000,000")
+    await balance.getByRole("button", { name: "Save balance" }).click()
+    await expect(balance.getByText("Enter a balance of $1,000,000 or less.")).toBeVisible()
+
     await input.fill("125.40")
     await balance.getByRole("button", { name: "Save balance" }).click()
     await expect(balance.getByText("$125.40").first()).toBeVisible()

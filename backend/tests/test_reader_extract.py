@@ -2,10 +2,21 @@
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from nearbynudge.reader import Link, PageResult, Reader, SiteBudget, page_label, pick_links
-from nearbynudge.reader.extract import analyze, decode_body, document_text, parse_document
+from nearbynudge.reader.extract import (
+    MAX_FOOTER_EXTRA,
+    analyze,
+    decode_body,
+    document_text,
+    footer_text,
+    main_text,
+    parse_document,
+)
+from tests.sites.fakeweb import long_text
 
 UA = "NearbyNudgeBot/2.0 (+http://localhost:8000/bot)"
 
@@ -44,6 +55,30 @@ async def test_main_text_gains_dropped_footer_lines(fixture_sites):
     assert "© 2019 Sample Dental Studio" in home.text
     assert home.text.count("1200 N Example St") == 1
     assert "About Us" not in home.text.split("\n")  # navigation stays out of the main text
+
+
+def test_deeply_nested_footers_are_read_once_and_quickly():
+    depth = 4000
+    html = ("<html><body><main>" + long_text(200) + "</main>" + "<footer>" * depth + "<p>Call (703) 555-0100</p>"
+            + "</footer>" * depth + "</body></html>")
+    root = parse_document(html)
+    started = time.perf_counter()
+    text = footer_text(root)
+    assert time.perf_counter() - started < 0.5
+    assert text == "Call (703) 555-0100"
+
+
+def test_a_huge_footer_is_merged_quickly_and_only_in_part():
+    lines = 40_000
+    footer = "<footer>" + "".join(f"<p>Suite {i:06d}</p>" for i in range(lines)) + "</footer>"
+    html = f"<html><head><title>Big</title></head><body><main><h1>Welcome</h1>{long_text(400)}</main>{footer}</body></html>"
+    root = parse_document(html)
+    started = time.perf_counter()
+    text = main_text(html, "https://biz.test/", root)
+    assert time.perf_counter() - started < 2.0
+    added = [line for line in text.split("\n") if line.startswith("Suite ")]
+    assert added[:3] == ["Suite 000000", "Suite 000001", "Suite 000002"]
+    assert len(added) == MAX_FOOTER_EXTRA
 
 
 async def test_closed_notice_is_in_the_text(fixture_sites):
@@ -105,6 +140,19 @@ def test_broken_json_ld_keeps_the_good_blocks():
     assert [item.get("name") for item in result.structured["json-ld"]] == ["Good"]
 
 
+def test_deeply_nested_json_ld_doesnt_blank_the_page():
+    nested = "[" * 100_000 + "]" * 100_000
+    html = f"""<html><head><title>Deep Dental</title>
+      <script type="application/ld+json">{{"@type": "Dentist", "name": "Good"}}</script>
+      <script type="application/ld+json">{nested}</script>
+      </head><body><main>{long_text()}</main><a href="/about">About</a></body></html>"""
+    result = analyze(html, "https://sample.example/")
+    assert result.title == "Deep Dental"
+    assert "Our friendly team cares for families" in result.text
+    assert [link.url for link in result.links] == ["https://sample.example/about"]
+    assert [item.get("name") for item in result.structured["json-ld"]] == ["Good"]
+
+
 def test_microdata_parsed():
     html = """<html><body><div itemscope itemtype="https://schema.org/Dentist">
       <span itemprop="name">Micro Dental</span><meta itemprop="openingHours" content="Mo-Fr 08:00-17:00">
@@ -137,6 +185,44 @@ def test_decode_body_prefers_bom_then_header_then_meta():
     assert decode_body("café".encode("cp1252"), 'text/html; charset="windows-1252"') == "café"
     assert decode_body(b'<meta charset="iso-8859-1"><p>\x93hi\x94</p>', "text/html") == '<meta charset="iso-8859-1"><p>“hi”</p>'
     assert decode_body("café".encode("utf-8"), "text/html; charset=nonsense") == "café"
+
+
+@pytest.mark.parametrize(
+    ("text", "encoding", "label"),
+    [
+        ("<p>똠방각하 치과</p>", "cp949", "euc-kr"),  # browsers read EUC-KR as its superset, windows-949
+        ("<p>① 予約</p>", "cp932", "shift_jis"),  # Shift_JIS as windows-31j
+        ("<p>镕 牙科</p>", "gbk", "gb2312"),  # GB2312 as GBK
+        ("<p>€ 50</p>", "cp1254", "iso-8859-9"),  # ISO-8859-9 as windows-1254
+        ("<p>Ünlü € 50</p>", "utf-16-le", "utf-16"),  # UTF-16 without a byte order mark as little-endian
+    ],
+)
+def test_charset_labels_are_read_the_way_browsers_read_them(text, encoding, label):
+    assert decode_body(text.encode(encoding), f"text/html; charset={label}") == text
+
+
+@pytest.mark.parametrize(
+    "label",
+    ["base64", "rot13", "hex", "zlib", "bz2", "uu", "quopri", "undefined", "idna", "punycode", "utf-7",
+     "x-user-defined", "mbcs"],
+)
+def test_charset_labels_that_arent_web_encodings_fall_back_to_utf8(label):
+    body = "<html><head><title>Café</title></head><body><p>Open daily</p></body></html>".encode("utf-8")
+    assert decode_body(body, f"text/html; charset={label}") == body.decode("utf-8")
+    meta = b'<meta charset="' + label.encode() + b'">' + body
+    assert decode_body(meta, "text/html") == meta.decode("utf-8")
+
+
+async def test_a_page_with_a_strange_charset_is_still_read():
+    from tests.sites.fakeweb import FakeWeb, page
+
+    web = FakeWeb()
+    web.robots("https://biz.test")
+    web.add("https://biz.test/", 200, page("Café Dental", long_text()).encode("utf-8"),
+            content_type="text/html; charset=base64")
+    async with Reader(UA, allow_private=True, min_interval_s=0, transport=web.transport) as reader:
+        home = await reader.fetch_home("https://biz.test/", SiteBudget())
+    assert home.ok and home.title == "Café Dental"
 
 
 def test_links_resolve_against_base_and_skip_non_pages():
@@ -283,6 +369,18 @@ def test_anchor_text_separates_block_children():
     html = '<html><body><a href="/about"><div>About Sample</div><p>Learn our story</p></a></body></html>'
     result = analyze(html, "https://x.example/")
     assert result.links[0].text == "About Sample Learn our story"
+
+
+def test_pick_links_survives_a_link_with_endlessly_nested_page_parameters():
+    home = _home(
+        ("https://x.example/news?page=" + "?page=" * 1400, "More"),  # an 8 KB link
+        ("https://x.example/?page=privacy-policy", "Our policies"),
+        ("https://x.example/index.php?p=terms", "Fine print"),
+        ("https://x.example/about", "About us"),
+    )
+    urls = [link.url for link in pick_links(home)]
+    assert "https://x.example/about" in urls
+    assert not any("privacy-policy" in u or "terms" in u for u in urls)  # one level down is still checked
 
 
 def test_pick_links_handles_empty_input():

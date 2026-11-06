@@ -8,7 +8,8 @@ from collections.abc import Iterator
 from typing import Any
 
 from fastapi import Depends, Request
-from sqlalchemy.dialects.sqlite import insert
+from sqlalchemy.dialects.postgresql import insert as postgres_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from ..db import iso, utcnow
@@ -16,7 +17,7 @@ from ..models import User
 from ..pipeline.state import AppState
 from ..security import limiter
 
-#: The one built-in workspace. There's no sign-in: everyone who opens the app works here.
+#: The one built-in workspace: the signed-in account (or, with sign-in off, everyone who opens the app) works here.
 DEFAULT_WORKSPACE = "default"
 #: Test servers only (NN_DEV_WORKSPACES): picks a separate workspace per test, so tests can run side by side.
 DEV_WORKSPACE_COOKIE = "nn_dev_workspace"
@@ -51,6 +52,7 @@ def ensure_workspace(db: Session, workspace_id: str) -> User:
     """The workspace's row, created empty when it doesn't exist yet (safe if two requests race)."""
     user = db.get(User, workspace_id)
     if user is None:
+        insert = postgres_insert if db.get_bind().dialect.name == "postgresql" else sqlite_insert
         db.execute(insert(User).values(id=workspace_id, created_at=utcnow()).on_conflict_do_nothing(index_elements=["id"]))
         user = db.get(User, workspace_id)
     assert user is not None
@@ -77,7 +79,22 @@ def require_onboarded(user: User = Depends(current_user)) -> User:
     return user
 
 
+_EMAIL_RE = re.compile(r"[^\s@]+@[^\s@]+\.[^\s@]+")
+
+
+def is_email(value: str) -> bool:
+    """A typed email address: something@something.tld with no spaces (the dashboard's rule)."""
+    return _EMAIL_RE.fullmatch(value) is not None
+
+
 def client_ip(request: Request) -> str:
+    """The visitor's address. Hosted, the platform's proxy says who it is (Vercel sets these headers itself, so a
+    visitor can't choose them); on this computer it's the connection's own address."""
+    app: AppState | None = getattr(request.app.state, "nn", None)
+    if app is not None and app.settings.serverless:
+        forwarded = request.headers.get("x-real-ip") or request.headers.get("x-forwarded-for", "").split(",")[0]
+        if forwarded.strip():
+            return forwarded.strip()
     return request.client.host if request.client else "unknown"
 
 

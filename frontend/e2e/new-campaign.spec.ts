@@ -144,6 +144,21 @@ test.describe("new campaign", () => {
     })
   })
 
+  test("a double-click on Find starts one campaign", async ({ page }) => {
+    await devWorkspace(page, { tag: "nc-double" })
+    await page.goto("/campaigns/new")
+    await pickArlington(page)
+    await fillBrief(page)
+    const panel = await reviewPlan(page)
+    const no = panel.getByRole("radio", { name: "No" })
+    if (await no.count()) await no.click()
+    const before = await apiRequest<unknown[]>(page, "GET", "/api/campaigns")
+    await panel.getByRole("button", { name: /^Find 5 businesses/ }).dblclick()
+    await expect(page).toHaveURL(/\/campaigns\/(?!new)[^/?#]+/, { timeout: 15_000 })
+    const after = await apiRequest<unknown[]>(page, "GET", "/api/campaigns")
+    expect(after.body.length).toBe(before.body.length + 1)
+  })
+
   test("shows the server's place error next to Where and focuses it", async ({
     page,
   }) => {

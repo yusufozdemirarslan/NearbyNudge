@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import functools
 import ipaddress
+import re
 from urllib.parse import unquote, urlsplit, urlunsplit
+
+import idna
 
 try:  # The `tld` package ships the Public Suffix List and works offline.
     from tld import get_fld as _tld_get_fld
@@ -47,8 +50,20 @@ FILE_EXTENSIONS = frozenset(
 )
 
 
+def ascii_host(host: str) -> str:
+    """An international host name in the ASCII (punycode) form httpx connects to: "www.café.com" ->
+    "www.xn--caf-dma.com", so both spellings compare equal. ASCII or invalid names come back as they are."""
+    if not host or host.isascii():
+        return host
+    try:
+        return idna.encode(host.lower()).decode("ascii")  # the call httpx makes for the request
+    except (idna.IDNAError, UnicodeError, ValueError):
+        return host
+
+
 def host_of(url_or_host: str) -> str:
-    """Lowercased hostname (no port, no brackets) of a URL or bare host; "" when there is none."""
+    """Lowercased hostname (no port, no brackets) of a URL or bare host, international names in their
+    ASCII form; "" when there is none."""
     s = (url_or_host or "").strip()
     if not s:
         return ""
@@ -58,7 +73,7 @@ def host_of(url_or_host: str) -> str:
         host = urlsplit(s).hostname or ""
     except ValueError:
         return ""
-    return host.rstrip(".").lower()
+    return ascii_host(host.rstrip(".").lower())
 
 
 @functools.lru_cache(maxsize=8192)
@@ -88,6 +103,15 @@ def _registrable(host: str) -> str:
 def registrable_domain(url_or_host: str) -> str:
     """"https://www.samplestudio.example/x" -> "samplestudio.example"; IPs and localhost as-is."""
     return _registrable(host_of(url_or_host))
+
+
+_DOMAIN_RE = re.compile(r"[a-z0-9-]+(?:\.[a-z0-9-]+)+")
+
+
+def is_domain(host: str) -> bool:
+    """True for a host name with at least one dot and nothing but letters, digits and hyphens between the dots,
+    like "example.com" (the dashboard's rule for a typed website)."""
+    return bool(host) and _DOMAIN_RE.fullmatch(host) is not None
 
 
 def _is_tracking_param(pair: str) -> bool:

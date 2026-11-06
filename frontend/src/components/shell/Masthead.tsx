@@ -11,10 +11,12 @@ import { NAV_ITEMS } from "./nav"
 import { OptionsMenu } from "./OptionsMenu"
 
 /**
- * The masthead over every app page: the wordmark, the main navigation (the
+ * The masthead over every app page: the One Step mark and name, the main navigation (the
  * heavy rule turns red under the current page), today's sends against the
  * daily cap, the month's allowance and the Options menu. Under 1024px the
  * navigation folds into a Menu button that opens the index as a sheet.
+ * Where the inline navigation leaves no room (1024–1439px) and under 360px the
+ * mark stands alone; the link keeps the name for assistive technology.
  */
 export function Masthead() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
@@ -28,8 +30,8 @@ export function Masthead() {
       data-slot="top-bar"
       className="relative z-30 flex h-(--masthead) shrink-0 items-center gap-3 border-b-(length:--rule-heavy) border-ink bg-paper px-4 sm:gap-6 sm:px-6"
     >
-      <Link to="/" aria-label="NearbyNudge, campaigns" className="shrink-0">
-        <BrandMark />
+      <Link to="/" aria-label="NearbyNudge, campaigns" className="shrink-0 [--focus-offset:4px]">
+        <BrandMark nameClassName="max-[360px]:hidden lg:max-[1440px]:hidden" />
       </Link>
       <nav aria-label="Main" className="hidden h-full lg:block">
         <ul className="flex h-full items-stretch gap-5">
@@ -53,7 +55,8 @@ export function Masthead() {
           })}
         </ul>
       </nav>
-      <div className="ml-auto flex shrink-0 items-center gap-3 sm:gap-5">
+      {/* Only the Options button gives way (its name and company truncate); the meters keep their size. */}
+      <div className="ml-auto flex min-w-0 items-center gap-3 sm:gap-5">
         {sending && (
           <Meter
             label="Sent today"
@@ -62,7 +65,7 @@ export function Masthead() {
             tone={atCap ? "warning" : "default"}
             size="sm"
             barClassName="w-12 flex-none max-sm:hidden xl:w-20"
-            className="max-sm:[&>span:first-child]:sr-only"
+            className="shrink-0 max-sm:[&>span:first-child]:sr-only"
           />
         )}
         {usage && (
@@ -73,7 +76,7 @@ export function Masthead() {
             size="sm"
             tone={usage.used >= usage.limit ? "warning" : "default"}
             barClassName="w-12 flex-none"
-            className="hidden xl:flex"
+            className="hidden shrink-0 xl:flex"
           />
         )}
         <OptionsMenu />

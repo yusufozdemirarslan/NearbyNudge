@@ -22,6 +22,7 @@ import type {
   Lead,
   LeadEventRequest,
   LeadSummary,
+  LoginRequest,
   MeResponse,
   OkResponse,
   OptOut,
@@ -32,6 +33,7 @@ import type {
   RewriteRequest,
   SenderProfile,
   SentResponse,
+  SessionInfo,
   SetBalanceRequest,
   SkipRequest,
   Stats,
@@ -63,8 +65,16 @@ export interface CampaignStreamHandlers {
  * "@/lib/api". All functions throw `ApiError` on failure.
  */
 export interface Api {
-  // ---------- the workspace and its settings (there is no sign-in) ----------
-  /** GET /api/me. Always the one built-in workspace. */
+  // ---------- sign-in (one account; no sign-up) ----------
+  /** GET /api/auth/session. Whether this copy asks for sign-in, and whether this browser is signed in. */
+  getSession(): Promise<SessionInfo>
+  /** POST /api/auth/login. 401 `bad_credentials` for a wrong email or password; 429 after too many. */
+  login(req: LoginRequest): Promise<SessionInfo>
+  /** POST /api/auth/logout. */
+  logout(): Promise<void>
+
+  // ---------- the workspace and its settings ----------
+  /** GET /api/me. The one built-in workspace (401 `auth_required` when signed out). */
   getMe(): Promise<MeResponse>
   /** GET /api/account. */
   getAccount(): Promise<Account>

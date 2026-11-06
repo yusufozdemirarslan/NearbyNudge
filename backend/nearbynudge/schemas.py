@@ -26,7 +26,30 @@ class Model(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
 
-# ---------- the workspace (there is no sign-in) ----------
+MAX_RADIUS_MI = 25  # miles: the widest search a campaign can ask for
+
+
+def one_line(v: Any) -> Any:
+    """Single-line text with runs of whitespace collapsed and the ends trimmed. Runs before the length checks
+    (mode="before"), so a field of only spaces counts as empty instead of slipping past min_length."""
+    return " ".join(v.split()) if isinstance(v, str) else v
+
+
+# ---------- sign-in (one account; no sign-up) ----------
+
+class LoginRequest(Model):
+    email: str = Field(min_length=1, max_length=320)
+    password: str = Field(min_length=1, max_length=200)
+
+
+class SessionResponse(Model):
+    """`enabled`: this copy asks for sign-in. `signed_in` is always true when it doesn't."""
+    enabled: bool
+    signed_in: bool
+    email: str | None = None
+
+
+# ---------- the workspace ----------
 
 class User(Model):
     """The workspace. `name` is the sender profile's name ("" until the profile is saved)."""
@@ -48,10 +71,10 @@ class SenderProfile(Model):
     default_tone: Tone = "professional"
     timezone: str = Field(default="America/New_York", max_length=64)
 
-    @field_validator("sender_name", "sender_company", "sender_title")
+    @field_validator("sender_name", "sender_company", "sender_title", mode="before")
     @classmethod
-    def _one_line(cls, v: str) -> str:
-        return " ".join(v.split())
+    def _one_line(cls, v: Any) -> Any:
+        return one_line(v)
 
     @field_validator("sender_address")
     @classmethod
@@ -119,7 +142,7 @@ class SystemStatus(Model):
 
 class CampaignInput(Model):
     location: str = Field(min_length=2, max_length=200)
-    radius_mi: float = Field(default=5, ge=1, le=25)
+    radius_mi: float = Field(default=5, ge=1, le=MAX_RADIUS_MI)
     industry: str = Field(min_length=2, max_length=120)
     offer_what: str = Field(min_length=3, max_length=400)
     offer_proof: str = Field(default="", max_length=400)
@@ -127,10 +150,10 @@ class CampaignInput(Model):
     tone: Tone = "professional"
     lead_target: int = Field(default=10, ge=5, le=25)
 
-    @field_validator("location", "industry", "offer_what", "offer_proof", "offer_cta")
+    @field_validator("location", "industry", "offer_what", "offer_proof", "offer_cta", mode="before")
     @classmethod
-    def _clean(cls, v: str) -> str:
-        return " ".join(v.split())
+    def _clean(cls, v: Any) -> Any:
+        return one_line(v)
 
 
 class PlanCategory(Model):
@@ -431,6 +454,11 @@ class UpdateEmailRequest(Model):
     subject: str = Field(min_length=1, max_length=300)
     body: str = Field(min_length=1, max_length=6000)
 
+    @field_validator("subject", mode="before")
+    @classmethod
+    def _subject(cls, v: Any) -> Any:
+        return one_line(v)
+
 
 class RewriteRequest(Model):
     mode: RewriteMode
@@ -439,6 +467,11 @@ class RewriteRequest(Model):
 
 class SkipRequest(Model):
     reason: str = Field(min_length=1, max_length=300)
+
+    @field_validator("reason", mode="before")
+    @classmethod
+    def _reason(cls, v: Any) -> Any:
+        return one_line(v)
 
 
 class DncRequest(Model):
@@ -520,6 +553,11 @@ class Totals(Funnel):
     reply_rate: float | None
 
 
+class WeekFunnel(Funnel):
+    reply_rate: float | None = None
+    """Of the emails sent that week, the share with a reply logged (at any time); null when none were sent."""
+
+
 class WeeklyFunnel(Funnel):
     week_start: str
 
@@ -532,8 +570,8 @@ class CampaignFunnel(Funnel):
 
 class Stats(Model):
     totals: Totals
-    this_week: Funnel
-    last_week: Funnel
+    this_week: WeekFunnel
+    last_week: WeekFunnel
     weekly: list[WeeklyFunnel]
     by_campaign: list[CampaignFunnel]
     sending: SendingToday

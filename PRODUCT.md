@@ -12,7 +12,7 @@ web
 
 - **Primary: the founder or sales lead of a small B2B service firm** (1–50 staff), such as an ads agency, web designer, commercial cleaner or insurance broker, who spends 5+ hours a week finding local businesses to contact. The PRD's persona is Maya, who runs a 6-person Google Ads agency in Arlington, VA: "We spend half our day just finding who to email."
 - **Their scene:** a desk in daylight, next to their own email app, working through a batch of 10–20 drafts in one sitting, mostly with the keyboard *(inferred from the PRD's journeys and the desk's single-key shortcuts)*.
-- **Right now: an audience watching a live demo.** The owner removed sign-in because the app "is going to be a demo in front of people". It runs on one computer at http://localhost:8000.
+- **Right now: an audience watching a live demo.** The owner first removed sign-in because the app "is going to be a demo in front of people", then put the app online at https://nearbynudge-pearl.vercel.app with a sign-in for their own account only (no sign-up). It also runs on one computer at http://localhost:8000.
 - **Site owners** who follow the reader's link to /bot to see who visited their site, or who opt out there. They never use the app itself.
 
 ## Product Purpose
@@ -49,7 +49,7 @@ The app shows its work at three levels:
 ## Operating Context
 
 **Workspace**
-- One built-in workspace and no sign-in.
+- One built-in workspace, and one account that signs in to it (email and password; no sign-up). Without the sign-in settings, as in tests, the app opens straight to the workspace.
 - The first run asks once for the sender profile: name, company, postal address (required by CAN-SPAM), tone and time zone.
 
 **Campaign flow**
@@ -110,7 +110,7 @@ The app shows its work at three levels:
 
 ## Brand Commitments
 
-- The name is NearbyNudge, with an existing small brand mark (`frontend/src/components/shell/BrandMark.tsx`).
+- The name is NearbyNudge. Its identity is One Step (approved brand concept 04): two large squares and a small displaced square in edge red, beside the name in Archivo 800 at 62.5% width (`frontend/src/components/shell/BrandMark.tsx`; DESIGN.md, Brand).
 - The voice is plain, calm and specific, written from the user's side:
   - errors say what happened and what to do, without apologizing;
   - AI-written content is labelled as such.

@@ -14,7 +14,7 @@ colors:
   ink-night: "#FFFFFF"
   edge-night: "#FF5C61"
   edge-ink-night: "#000000"
-  ink-soft-night: "#9A9A9A"
+  ink-soft-night: "#A6A6A6"
   tint-night: "#161616"
   leader-night: "#6B6B6B"
   hairline-night: "#333333"
@@ -178,7 +178,7 @@ Two inks on paper, with a few screens of ink for structure. The night version sw
 | `ink` | `#000000` | `#FFFFFF` | All text, rules, primary buttons, focus ring |
 | `edge` | `#C8102E` | `#FF5C61` | *Here* and *needs you*. 5.9:1 on white; 7.0:1 on black |
 | `edge-ink` | `#FFFFFF` | `#000000` | Text on `edge` |
-| `ink-soft` | `#6B6B6B` | `#9A9A9A` | Placeholders, disabled text and facts marked wrong only (5.3:1 and 7.5:1) |
+| `ink-soft` | `#6B6B6B` | `#A6A6A6` | Placeholders, disabled text and facts marked wrong only (5.3:1 and 8.6:1) |
 | `tint` | `#F2F2F2` | `#161616` | A light screen of ink, like a printer's halftone: row hover, the active footnote's fact, code boxes, disabled fills |
 | `leader` | `#A6A6A6` | `#6B6B6B` | Dot leaders, dotted tracks and scrollbars only, never text |
 | `hairline` | `#D9D9D9` | `#333333` | Row separators |
@@ -215,7 +215,7 @@ Two inks on paper, with a few screens of ink for structure. The night version sw
 
 **The No Grey Text Rule.** `ink-soft` is for placeholders, disabled labels and facts the reviewer marked wrong. Anything else that wants to be quieter is set in italic.
 
-**The Edge Halftone Rule.** Edge red may be screened only for something passing: text selection (24% edge on paper) and the fade on a row that just arrived (14%, gone in 1.4s). It never rests as a background; there is no pink wash.
+**The No Pink Rule.** Edge red is never screened into a tint (the One Step brand forbids a pink wash). Selected text prints in reverse, paper on ink; a row that just arrived fades from the ink halftone (`tint`).
 
 ## Typography
 
@@ -234,7 +234,7 @@ Two inks on paper, with a few screens of ink for structure. The night version sw
 | `text-ui` | 14/20 | Normal; 600 for buttons, tabs and nav | Controls, table cells, entry names (bold) |
 | `text-body` | 16/26 | Normal | Letters and prose; input text on phones |
 | `text-lead` | 18/26 | 600 | Email subjects, h3, campaign names, numbers on list lines |
-| `text-head` | 24/26 | Extra-condensed 800 (`section-head`) | Section heads (h2), dialog and sheet titles, the wordmark, sentence case |
+| `text-head` | 24/26 | Extra-condensed 800 (`section-head`) | Section heads (h2), dialog and sheet titles, sentence case |
 | `text-title` | 36/34 | Extra-condensed 800 caps (`running-head`) | Running heads (h1); the open entry's name under 1280px |
 | `text-display` | 48/44 | Extra-condensed 800 | The open entry's name (caps) and its fit at 1280px and up; the page's one big number |
 
@@ -254,7 +254,7 @@ Two inks on paper, with a few screens of ink for structure. The night version sw
 - **Page container:** 1152px wide pages or 768px narrow pages, centred. The gutter is 16px under 640px, 24px from 640px and 40px from 1024px; pages open 28px from the masthead (40px from 1024px).
 - **Rules:** masthead height `--masthead` 56px; heavy rule `--rule-heavy` 3px under running heads and the masthead; column rules 1px ink.
 - **Masthead (every app page):**
-  - the NEARBYNUDGE wordmark in 24px condensed caps;
+  - the brand: the One Step mark at 32px, then NEARBYNUDGE in 28px condensed caps (see Brand). Where the inline navigation leaves no room (1024–1439px) and under 360px the mark stands alone, and its link keeps the name;
   - the main navigation in 14px semibold, where the current page gets a 3px edge bar sitting on the heavy rule;
   - "Sent today" as a small meter; the monthly allowance joins it at 1280px and up;
   - the Options menu, showing the sender's name.
@@ -262,13 +262,34 @@ Two inks on paper, with a few screens of ink for structure. The night version sw
   Under 1024px the navigation folds into a Menu button that opens the index as a sheet from the left: each page a 24px condensed caps line on a hairline, the current one in edge red. Under 640px the daily meter keeps its numbers and drops its track.
 - **Running head (every page):**
   - the h1 in `running-head` caps on the left;
-  - one fact or the page actions on the right, staying beside the head on phones (the head wraps instead);
+  - one fact or the page actions on the right, staying beside the head on phones (the head wraps between words instead; only when its longest word and the actions can't share the line do the actions drop under it, still above the rule);
   - a 3px ink rule underneath;
   - one plain sentence under the rule, within 68ch.
 - **Review desk:**
   - At 1280px and up: the list column (384px, its thumb index cut into the outer 40px), then the open entry, then the footnotes and site check (304px).
   - At 840–1279px the list column is 352px and the footnotes move under the letter.
   - Under 840px the list fills the screen with its tabs along the top, and opening a lead shows it alone.
+
+## Brand
+
+The identity is **One Step** (brand concept 04, approved): two large squares for nearby places and a small displaced square, the measured nudge. The handoff with its specification is kept outside the repository; everything the app needs is in it:
+- `frontend/public/brand/nearbynudge/`: the supplied SVG marks, favicons (ICO, OS-aware SVG), touch and app icons, maskable icons, light, dark and one-ink variants.
+- `frontend/src/components/shell/BrandMark.tsx`: `OneStepMark` (the inline symbol) and `BrandMark` (symbol and name).
+
+**The drawing.** `viewBox="0 0 16 16"`, exactly three rectangles: ink at (1,1) and (9,9), 6 units square; edge red at (9,3), 3 units square. No rounding, stroke, rotation, outline, shadow, gradient or motion; never redrawn. Sizes are multiples of 16px so every square sits on whole pixels.
+
+**Inks.** The mark reads `--nn-ink` and `--nn-edge`, bound in `index.css` to `ink` and `edge`, so it follows the theme the app applies: an explicit Light or Dark choice, or the system's. Light: black squares and `#C8102E` on white; dark: white squares and `#FF5C61` on black. One-ink versions use ink for all three squares. Under forced colours the mark draws in `CanvasText`.
+
+**The name.** NearbyNudge, set visibly as NEARBYNUDGE in Archivo 800 at 62.5% width, caps, tracked -0.01em (`brand-name`): 28px beside the 32px mark, 12px apart (`BrandMark size="md"`); 14px beside the 16px mark, 6px apart (`size="sm"`). Archivo is the self-hosted variable font already in use (weight 100–900, width 62–125, roman and italic).
+
+**Placements.**
+- Masthead (every app page), the phone menu, public pages, dead ends and the set-up screen: `BrandMark` at md.
+- Public and set-up footers: `BrandMark` at sm, before the links.
+- Constrained places show the mark alone (the masthead at 1024–1439px and under 360px).
+
+**Accessibility.** Beside the readable name the mark is decorative (`aria-hidden`), so the name isn't announced twice. A link that may show the mark alone carries the name (`aria-label="NearbyNudge, campaigns"`, "NearbyNudge home"). Its focus ring is the usual 2px ink outline, 4px clear of the squares.
+
+**Icons and metadata.** `index.html` links `favicon.ico` (16/32/48), the OS-aware `favicon.svg` (it follows the browser's own scheme, like the tab strip it sits on) and the 180px touch icon; `/favicon.ico` at the root is the same light icon for clients that ask for it unprompted. `application-name` and `apple-mobile-web-app-title` name the app. `theme-color` follows the app's theme, an explicit choice included. There is no web app manifest, so the install and maskable icons are on hand but unused.
 
 ## Elevation & Depth
 
@@ -374,7 +395,7 @@ This takes `--dur-file` (380ms). It is the only authored motion in the app.
 Besides filing, three things move, each only to show a state:
 - the dot of a working stage pulses (1.6s);
 - the three-dot leader runs while something loads (1.2s, in steps);
-- a row that just arrived fades from a 14% edge halftone to nothing (1.4s), once.
+- a row that just arrived fades from the ink halftone (`tint`) to nothing (1.4s), once.
 
 Under `prefers-reduced-motion`, or with live updates paused, nothing moves and every state change lands at once.
 
@@ -421,7 +442,7 @@ Under `prefers-reduced-motion`, or with live updates paused, nothing moves and e
 - **The office pages (Admin):** facts as small definition pairs (italic label over the value); figures as key lines in a three-column grid; quality measures as lines with the value in condensed numerals and a status word; the balance forecast's days left in 36px numerals (the page's bold element). Audited leads open in place like desk entries: a drawn pointer that turns down and red when open, footnote numerals on each fact, the quote in italic behind a 1px ink rule. A pressed Supported inverts to ink; a pressed Not supported inverts to edge red.
 - **Status words** (Admin): a drawn mark plus the word. Fine and waiting states stay ink (check, pause, ring); only what needs someone is edge red (asterisk, cross).
 - **Front matter (Bot, Data sources, Privacy, Terms):** reading pages at 16/26 within 68ch, condensed section heads, ink list markers, ruled tables, links underlined in ink that turn edge red on hover. The exact lines a site owner copies (the user agent, the robots.txt lines) sit in a 2px ink frame with Copy as a word: those pages' bold element. The opt-out request is a ruled form (1px ink box under a 3px rule); once sent it becomes a receipt in a 2px ink frame.
-- **Dead ends (not found, a crash):** the wordmark over the heavy rule, then the running head. Not found also shows the address that failed, struck through in edge red.
+- **Dead ends (not found, a crash):** the brand over the heavy rule, then the running head. Not found also shows the address that failed, struck through in edge red.
 - **The plan (New campaign):** a notice with a 3px ink top rule.
   - A small boxed "AI" tag, then "Claude's plan:" in bold and the restatement in italic quotes.
   - Categories are white-pages lines, "General dentistry ······ 38".

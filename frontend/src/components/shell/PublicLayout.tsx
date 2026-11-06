@@ -24,6 +24,18 @@ export function PublicFooterLinks() {
   )
 }
 
+/** The public and set-up footer, under a 1px ink rule: the name at half size, then the public links. */
+function SiteFooter() {
+  return (
+    <footer className="border-t border-ink">
+      <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-6 sm:flex-row sm:items-center sm:gap-8 sm:px-6">
+        <BrandMark size="sm" />
+        <PublicFooterLinks />
+      </div>
+    </footer>
+  )
+}
+
 /**
  * Layout for the public pages (/bot, /data-sources, /terms, /privacy). Site
  * owners land here from NearbyNudgeBot's user agent; the masthead leads to the app.
@@ -34,7 +46,7 @@ export function PublicLayout() {
       <SkipLink />
       <header className="border-b-(length:--rule-heavy) border-ink">
         <div className="mx-auto flex h-(--masthead) max-w-5xl items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6">
-          <Link to="/" aria-label="NearbyNudge home" className="min-w-0">
+          <Link to="/" aria-label="NearbyNudge home" className="min-w-0 [--focus-offset:4px]">
             <BrandMark />
           </Link>
           <Link to="/" className={buttonVariants({ variant: "outline", size: "sm", className: "max-sm:px-2.5" })}>
@@ -45,25 +57,21 @@ export function PublicLayout() {
       <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 outline-none sm:px-6">
         <Outlet />
       </main>
-      <footer className="border-t border-ink">
-        <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-          <PublicFooterLinks />
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }
 
 /**
- * A page outside every layout (not found, a crash): the wordmark over the
- * heavy rule, then one column, so even a dead end looks like NearbyNudge.
+ * A page outside every layout (not found, a crash): the One Step mark and name
+ * over the heavy rule, then one column, so even a dead end looks like NearbyNudge.
  */
 export function StandalonePage({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-svh flex-col bg-paper">
       <header className="border-b-(length:--rule-heavy) border-ink">
         <div className="mx-auto flex h-(--masthead) max-w-5xl items-center px-4 sm:px-6">
-          <Link to="/" aria-label="NearbyNudge home">
+          <Link to="/" aria-label="NearbyNudge home" className="[--focus-offset:4px]">
             <BrandMark />
           </Link>
         </div>
@@ -76,8 +84,8 @@ export function StandalonePage({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Layout for the one-time sender profile set-up (/onboarding): the masthead's
- * wordmark over a heavy rule, one column, the public links below.
+ * Layout for the one-time sender profile set-up (/onboarding): the One Step mark
+ * and name over a heavy rule, one column, the brand and public links below.
  */
 export function SetupLayout() {
   return (
@@ -91,11 +99,7 @@ export function SetupLayout() {
       <main id="main-content" tabIndex={-1} className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-10 outline-none sm:px-6">
         <Outlet />
       </main>
-      <footer className="border-t border-ink">
-        <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-          <PublicFooterLinks />
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }

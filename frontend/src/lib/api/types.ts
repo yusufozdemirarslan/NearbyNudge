@@ -48,9 +48,24 @@ export type FactState = "supported" | "check";
 export type RewriteMode = "shorter" | "friendlier" | "more_direct" | "another_hook";
 export type ReplyOutcome = "interested" | "no_thanks" | "other";
 
-// ---------- account (one built-in workspace, no sign-in) ----------
+// ---------- sign-in (one account; no sign-up) ----------
 
-// There are no accounts: everyone who opens the app uses the same workspace.
+// GET /api/auth/session, POST /api/auth/login. `enabled`: this copy asks for sign-in;
+// when it doesn't, `signed_in` is always true and there is nothing to sign out of.
+export interface SessionInfo {
+  enabled: boolean;
+  signed_in: boolean;
+  email: string | null; // the account's email, once signed in
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+// ---------- account (one built-in workspace) ----------
+
+// One workspace: the account works in it (or, with sign-in off, everyone who opens the app).
 export interface User {
   id: string;
   name: string; // the sender profile's sender_name ("" before onboarding)
@@ -58,7 +73,7 @@ export interface User {
   created_at: string;
 }
 
-// GET /api/me: always a user, never 401.
+// GET /api/me: the workspace. 401 `auth_required` when sign-in is on and this browser isn't signed in.
 export interface MeResponse {
   user: User;
 }
@@ -451,8 +466,9 @@ export interface Funnel {
 }
 export interface Stats {
   totals: Funnel & { reply_rate: number | null }; // replied / sent
-  this_week: Funnel;
-  last_week: Funnel;
+  // reply_rate: of the emails sent that week, the share with a reply logged (at any time); null with no sends
+  this_week: Funnel & { reply_rate?: number | null };
+  last_week: Funnel & { reply_rate?: number | null };
   weekly: (Funnel & { week_start: string })[]; // last 8 weeks, oldest first, Monday dates "2026-10-19"
   by_campaign: (Funnel & { campaign_id: string; name: string; created_at: string })[];
   sending: SendingToday;

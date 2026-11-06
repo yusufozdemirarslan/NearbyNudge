@@ -3,25 +3,24 @@
 from __future__ import annotations
 
 import difflib
-import threading
-from datetime import datetime, timedelta
+from collections.abc import Awaitable, Callable
+from datetime import datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import emailtext
-from ..db import iso, utcnow
+from ..db import iso, serialized, utcnow
 from ..models import Campaign, DncEntry, EmailVersion, Fact, Lead, LeadAction, Page, User
 from ..roles import writer as writer_role
 from ..roles.skills import PromptFact
-from . import jobs, steps
+from . import jobs, limits, steps
+from .limits import sending_today, user_tz  # noqa: F401 - the API imports them from here too
 from .serialize import IN_PROGRESS
 from .state import AppState
 
 SNAPSHOT_FIELDS = ("status", "approved_at", "sent_at", "replied_at", "reply_outcome", "skip_reason", "dnc_at")
-_SEND_LOCK = threading.Lock()  # check-then-mark for the daily cap happens one request at a time
 DATETIME_FIELDS = {"approved_at", "sent_at", "replied_at", "dnc_at"}
 
 
@@ -31,6 +30,21 @@ class ActionError(Exception):
         self.status = status
         self.code = code
         self.message = message
+
+
+class Cancelled(ActionError):
+    """The person stopped waiting (the request was closed) before the result was saved, so nothing changed."""
+
+    def __init__(self) -> None:
+        super().__init__(409, "cancelled", "The rewrite was cancelled, so the email is unchanged.")
+
+
+def _changeable(lead: Lead) -> None:
+    """The email can change while it's a draft under review (the dashboard's rule): approving locks it."""
+    if lead.status == "approved":
+        raise ActionError(409, "conflict", "Undo the approval to change this email.")
+    if lead.status not in ("ready", "needs_review"):
+        raise ActionError(409, "conflict", "This email can't be changed now.")
 
 
 def _snap(lead: Lead) -> dict[str, Any]:
@@ -47,33 +61,6 @@ def _restore(lead: Lead, snap: dict[str, Any]) -> None:
         if f in DATETIME_FIELDS:
             v = datetime.fromisoformat(v.replace("Z", "")) if v else None
         setattr(lead, f, v)
-
-
-def user_tz(user: User) -> ZoneInfo:
-    tz = ((user.profile or {}).get("timezone")) or "America/New_York"
-    try:
-        return ZoneInfo(tz)
-    except Exception:  # noqa: BLE001
-        return ZoneInfo("America/New_York")
-
-
-def local_day_bounds(user: User) -> tuple[datetime, datetime]:
-    tz = user_tz(user)
-    now_local = datetime.now(tz)
-    start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
-    end_local = start_local + timedelta(days=1)
-    to_utc = lambda d: d.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)  # noqa: E731
-    return to_utc(start_local), to_utc(end_local)
-
-
-def sending_today(s: Session, user: User, cap: int) -> dict[str, Any]:
-    start, end = local_day_bounds(user)
-    n = s.scalar(
-        select(func.count()).select_from(Lead).where(
-            Lead.user_id == user.id, Lead.sent_at >= start, Lead.sent_at < end, Lead.status.in_(("sent", "replied"))
-        )
-    ) or 0
-    return {"sent_today": int(n), "daily_cap": cap, "resets_at": iso(end)}
 
 
 def _record(app: AppState, s: Session, lead: Lead, user: User, action: str, before: dict[str, Any],
@@ -125,7 +112,8 @@ def skip(app: AppState, s: Session, lead: Lead, user: User, reason: str) -> Lead
 
 def _add_dnc(s: Session, lead: Lead, user: User, *, source: str, reason: str | None) -> DncEntry:
     email = ((lead.contact or {}).get("email") or None)
-    entry = DncEntry(user_id=user.id, business_name=lead.name, domain=lead.domain, email=email.lower() if email else None,
+    entry = DncEntry(user_id=user.id, business_name=lead.name, domain=steps.dnc_domain(lead.website),
+                     email=email.lower() if email else None,
                      place_id=lead.place_id, reason=(reason or "").strip()[:300] or None, source=source)
     s.add(entry)
     s.flush()
@@ -149,7 +137,7 @@ def do_not_contact(app: AppState, s: Session, lead: Lead, user: User, reason: st
 def mark_sent(app: AppState, s: Session, lead: Lead, user: User) -> LeadAction:
     if lead.status != "approved":
         raise ActionError(409, "conflict", "Approve the email before marking it sent.")
-    with _SEND_LOCK:
+    with serialized(s, "send"):  # check-then-mark for the daily cap happens one request at a time
         today = sending_today(s, user, app.settings.daily_send_cap)
         if today["sent_today"] >= today["daily_cap"]:
             raise ActionError(409, "daily_cap_reached",
@@ -158,6 +146,7 @@ def mark_sent(app: AppState, s: Session, lead: Lead, user: User) -> LeadAction:
         lead.status = "sent"
         lead.sent_at = utcnow()
         row = _record(app, s, lead, user, "sent", before)
+        limits.record_send(s, lead, row.id)
         s.commit()  # make the count visible to the next request before releasing the lock
         return row
 
@@ -191,6 +180,8 @@ def undo(app: AppState, s: Session, action_id: str, user: User) -> Lead:
     if newer is not None or lead.status != row.after.get("status"):
         raise ActionError(409, "conflict", "This lead has changed since then, so the action can't be undone.")
     _restore(lead, row.before)
+    if row.action == "sent":
+        limits.undo_send(s, row.id)
     if row.dnc_entry_id:
         entry = s.get(DncEntry, row.dnc_entry_id)
         if entry is not None:
@@ -201,9 +192,10 @@ def undo(app: AppState, s: Session, action_id: str, user: User) -> Lead:
     app.publish_lead(s, lead)
     c = s.get(Campaign, lead.campaign_id)
     if c is not None:
-        if lead.status in IN_PROGRESS and not jobs.has_pending_lead_job(s, lead.id):
-            jobs.enqueue(s, kind="lead", user_id=lead.user_id, campaign_id=lead.campaign_id, lead_id=lead.id)
-            if c.status == "done":
+        if lead.status in IN_PROGRESS:
+            if not jobs.has_pending_lead_job(s, lead.id):
+                jobs.enqueue(s, kind="lead", user_id=lead.user_id, campaign_id=lead.campaign_id, lead_id=lead.id)
+            if c.status == "done":  # the lead is being researched again (its job may still be waiting), so is the campaign
                 c.status = "researching"
                 c.finished_at = None
         app.publish_campaign(s, c)
@@ -219,6 +211,7 @@ def _norm(text: str) -> str:
 def edit_email(app: AppState, s: Session, lead: Lead, user: User, subject: str, body: str) -> None:
     if lead.email_version_id is None or lead.status in IN_PROGRESS or lead.status in ("replaced",):
         raise ActionError(409, "conflict", "There's no draft to edit yet.")
+    _changeable(lead)
     current = s.get(EmailVersion, lead.email_version_id)
     old_sentences = [sent for para in (current.paragraphs or []) for sent in para] if current else []
     by_text = {_norm(x["text"]): x for x in old_sentences}
@@ -273,6 +266,7 @@ def restore_version(app: AppState, s: Session, lead: Lead, version_id: str) -> N
         raise ActionError(404, "not_found", "That version wasn't found.")
     if lead.status in IN_PROGRESS:
         raise ActionError(409, "conflict", "Wait until the draft is finished.")
+    _changeable(lead)
     copy = EmailVersion(lead_id=lead.id, subject=v.subject, greeting=v.greeting, paragraphs=v.paragraphs,
                         signoff=v.signoff, origin="restore", origin_detail=f"restored the {v.origin} from {iso(v.created_at)}")
     s.add(copy)
@@ -288,7 +282,9 @@ def restore_version(app: AppState, s: Session, lead: Lead, version_id: str) -> N
 
 
 async def rewrite(app: AppState, lead_id: str, user_id: str, mode: str, *, hook_id: str | None = None,
-                  removed_fact_id: str | None = None) -> None:
+                  removed_fact_id: str | None = None, cancelled: Callable[[], Awaitable[bool]] | None = None) -> None:
+    """Rewrite the email with the AI. `cancelled` says whether the person stopped waiting: then the result is
+    thrown away instead of saved."""
     def load(s: Session):
         lead = s.get(Lead, lead_id)
         if lead is None or lead.user_id != user_id:
@@ -308,6 +304,7 @@ async def rewrite(app: AppState, lead_id: str, user_id: str, mode: str, *, hook_
                 steps.version_to_email(v, db_to_pid), lead.email_version_id, removed)
 
     lead, offer, sender, facts, pid_to_db, db_to_pid, current, current_id, removed = await app.db.arun(load)
+    status_at_start = lead["status"]
     hooks = lead.get("hooks") or []
     chosen = None
     if mode == "another_hook":
@@ -328,10 +325,11 @@ async def rewrite(app: AppState, lead_id: str, user_id: str, mode: str, *, hook_
         detail = "removed a wrong fact"
 
     def save(s: Session) -> None:
-        ld = s.get(Lead, lead_id)
+        # Only onto the lead as it was when the rewrite started: approving, sending or editing meanwhile wins.
+        ld = steps.claim_lead(s, lead_id, (status_at_start,), version_id=current_id)
         if ld is None:
-            raise ActionError(404, "not_found", "That lead no longer exists.")
-        if ld.email_version_id != current_id or ld.status not in ("ready", "needs_review", "approved"):
+            if s.get(Lead, lead_id) is None:
+                raise ActionError(404, "not_found", "That lead no longer exists.")
             raise ActionError(409, "conflict", "This lead changed while the rewrite ran, so the rewrite wasn't applied.")
         new_id = steps.save_version(s, lead_id, final, pid_to_db, origin="rewrite", detail=detail, verdicts=verdicts)
         ld.previous_version_id = current_id
@@ -347,15 +345,19 @@ async def rewrite(app: AppState, lead_id: str, user_id: str, mode: str, *, hook_
         ld.updated_at = utcnow()
         s.flush()
         app.publish_lead(s, ld)
+    if cancelled is not None and await cancelled():
+        raise Cancelled()
     await app.db.arun(save)
 
 
-async def wrong_fact(app: AppState, fact_id: str, user_id: str, note: str | None) -> str:
-    def flag(s: Session) -> tuple[str, bool]:
+async def wrong_fact(app: AppState, fact_id: str, user_id: str, note: str | None, *,
+                     cancelled: Callable[[], Awaitable[bool]] | None = None) -> str:
+    def flag(s: Session) -> tuple[str, bool, tuple[bool, str | None]]:
         f = s.get(Fact, fact_id)
         lead = s.get(Lead, f.lead_id) if f else None
         if f is None or lead is None or lead.user_id != user_id:
             raise ActionError(404, "not_found", "That fact wasn't found.")
+        before = (f.flagged_wrong, f.flagged_note)
         f.flagged_wrong = True
         f.flagged_note = (note or "").strip()[:500] or None
         f.supported = False
@@ -367,16 +369,38 @@ async def wrong_fact(app: AppState, fact_id: str, user_id: str, note: str | None
         lead.updated_at = utcnow()
         s.flush()
         app.publish_lead(s, lead)
-        return lead.id, used and lead.status in ("ready", "needs_review", "approved")
-    lead_id, needs_rewrite = await app.db.arun(flag)
+        return lead.id, used and lead.status in ("ready", "needs_review", "approved"), before
+
+    def unflag(s: Session) -> None:  # a cancelled report leaves the fact as it was
+        f = s.get(Fact, fact_id)
+        lead = s.get(Lead, f.lead_id) if f else None
+        if f is None or lead is None:
+            return
+        f.flagged_wrong, f.flagged_note = before
+        steps.refresh_derived(s, lead)
+        lead.updated_at = utcnow()
+        s.flush()
+        app.publish_lead(s, lead)
+
+    lead_id, needs_rewrite, before = await app.db.arun(flag)
     if needs_rewrite:
-        await rewrite(app, lead_id, user_id, "shorter", removed_fact_id=fact_id)
+        try:
+            await rewrite(app, lead_id, user_id, "shorter", removed_fact_id=fact_id, cancelled=cancelled)
+        except Cancelled:
+            await app.db.arun(unflag)
+            raise
     return lead_id
 
 
 def retry(app: AppState, s: Session, lead: Lead, mode: str) -> None:
     if lead.status not in ("failed", "needs_review"):
         raise ActionError(409, "conflict", "Only leads that couldn't finish or need review can be retried.")
+    if (lead.cost_usd or 0.0) >= app.settings.lead_cost_cap_usd:
+        raise ActionError(409, "cost_limit", "This lead reached the AI cost limit for one lead, so it can't be retried.")
+    if not lead.counted:  # a lead that was never drafted counts against the allowance once it is
+        usage, held, left = limits.leads_left(s, s.get(User, lead.user_id), app.settings.monthly_lead_limit)
+        if left < 1:
+            raise ActionError(409, "usage_limit", limits.limit_message(usage, held))
     if lead.status == "failed" or mode == "without_site":
         for f in s.scalars(select(Fact).where(Fact.lead_id == lead.id)).all():
             s.delete(f)
@@ -390,6 +414,11 @@ def retry(app: AppState, s: Session, lead: Lead, mode: str) -> None:
         lead.site_check = None
         lead.verification = None
         lead.pages_read = []
+        # what the site research concluded goes too: a review without site facts mustn't use it
+        lead.summary = None
+        lead.owner_name = None
+        lead.fit_score = None
+        lead.fit_reason = None
     else:
         lead.status = "choosing"
         lead.stage_label = "Choosing hook"

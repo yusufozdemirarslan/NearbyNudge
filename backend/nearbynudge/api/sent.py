@@ -15,13 +15,14 @@ from sqlalchemy.orm import Session
 from .. import schemas
 from ..db import iso
 from ..models import Campaign, DncEntry, Lead, User
-from ..pipeline import serialize
+from ..listings.keys import host_of
+from ..pipeline import serialize, steps
 from ..pipeline.actions import sending_today, user_tz
 from ..pipeline.state import AppState
-from ..reader import registrable_domain
+from ..reader import is_domain
 from .account import usage
 from .campaigns import csv_safe
-from .deps import ApiError, current_user, get_app, get_db
+from .deps import ApiError, current_user, get_app, get_db, is_email
 
 router = APIRouter(prefix="/api", tags=["sent", "dnc", "stats"])
 
@@ -73,9 +74,17 @@ def dnc_add(body: schemas.CreateDncRequest, user: User = Depends(current_user), 
     name = (body.business_name or "").strip() or None
     email = (body.email or "").strip().lower() or None
     domain_raw = (body.domain or "").strip().lower()
-    domain = registrable_domain(domain_raw) if domain_raw else None
-    if email and ("@" not in email or "." not in email.split("@")[-1]):
+    if email and not is_email(email):
         raise ApiError(422, "validation", "Enter a valid email address.", {"email": "Not valid."})
+    domain = None
+    if domain_raw:
+        if not is_domain(host_of(domain_raw) or ""):
+            raise ApiError(422, "validation", "Enter a website address, such as example.com.", {"domain": "Not valid."})
+        # the site's domain, or the business's own page when it's on a shared platform such as Facebook
+        domain = steps.dnc_domain(domain_raw)
+        if domain is None:
+            raise ApiError(422, "validation", "That's a shared site. Enter the business's own page on it, such as "
+                                              "facebook.com/businessname.", {"domain": "Enter the business's page."})
     if not (name or email or domain):
         raise ApiError(422, "validation", "Add a business name, website or email.")
     if email and not domain:
@@ -136,20 +145,35 @@ def compute_stats(db: Session, user: User, app: AppState) -> dict[str, Any]:
             if w in weekly:
                 weekly[w][key] += 1
 
+    sent_in: dict[str, list[bool]] = {w: [] for w in weeks}  # per week: was each email sent then replied to?
     for ld in leads:
+        # An email that was sent stays sent (and a logged reply stays logged) when the business goes on the
+        # do-not-contact list afterwards.
+        reached = ld.status
+        if reached == "dnc":
+            reached = "replied" if ld.replied_at else "sent" if ld.sent_at else reached
         if ld.counted:
             bump("found", ld.counted_at, ld.campaign_id)
-        if ld.approved_at and ld.status in ("approved", "sent", "replied"):
+        if ld.approved_at and reached in ("approved", "sent", "replied"):
             bump("approved", ld.approved_at, ld.campaign_id)
-        if ld.sent_at and ld.status in ("sent", "replied"):
+        if ld.sent_at and reached in ("sent", "replied"):
             bump("sent", ld.sent_at, ld.campaign_id)
-        if ld.replied_at and ld.status == "replied":
+            week = _week_start(ld.sent_at, tz)
+            if week in sent_in:
+                sent_in[week].append(bool(ld.replied_at) and reached == "replied")
+        if ld.replied_at and reached == "replied":
             bump("replied", ld.replied_at, ld.campaign_id)
     weekly_list = [{"week_start": w, **weekly[w]} for w in weeks]
+
+    def week(i: int) -> dict[str, Any]:
+        row = weekly_list[i]
+        replies = sent_in[row["week_start"]]  # replies counted by the week the email went out, so never over 100%
+        return {**{k: v for k, v in row.items() if k != "week_start"},
+                "reply_rate": (sum(replies) / len(replies)) if replies else None}
     return {
         "totals": {**totals, "reply_rate": (totals["replied"] / totals["sent"]) if totals["sent"] else None},
-        "this_week": {k: v for k, v in weekly_list[-1].items() if k != "week_start"},
-        "last_week": {k: v for k, v in weekly_list[-2].items() if k != "week_start"},
+        "this_week": week(-1),
+        "last_week": week(-2),
         "weekly": weekly_list,
         "by_campaign": list(by_campaign.values()),
         "sending": sending_today(db, user, app.settings.daily_send_cap),

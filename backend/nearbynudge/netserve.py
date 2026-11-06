@@ -11,6 +11,10 @@ from typing import Any
 
 import uvicorn
 
+#: Open live-update streams never end by themselves, so a stop (Ctrl+C) gives connections this many seconds, then
+#: closes them and runs the normal shutdown.
+SHUTDOWN_GRACE_S = 5
+
 
 def loopback_sockets(port: int) -> list[socket.socket]:
     socks: list[socket.socket] = []
@@ -28,7 +32,8 @@ def loopback_sockets(port: int) -> list[socket.socket]:
 
 
 def serve(app: Any, port: int, *, host: str = "127.0.0.1", log_level: str = "info", factory: bool = False) -> None:
-    config = uvicorn.Config(app, log_level=log_level, factory=factory, proxy_headers=False)
+    config = uvicorn.Config(app, log_level=log_level, factory=factory, proxy_headers=False,
+                            timeout_graceful_shutdown=SHUTDOWN_GRACE_S)
     server = uvicorn.Server(config)
     if host in ("127.0.0.1", "localhost"):
         server.run(sockets=loopback_sockets(port))

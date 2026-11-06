@@ -13,7 +13,12 @@ import { cn } from "@/lib/utils"
 export function EditorNotes({ editor, className }: { editor: EditorReport; className?: string }) {
   const failed = editor.passed < editor.total
   const [open, setOpen] = React.useState(failed)
-  React.useEffect(() => setOpen(failed), [failed])
+  const [openFor, setOpenFor] = React.useState(failed)
+  if (openFor !== failed) {
+    // A new result opens (or closes) the notes to match it.
+    setOpenFor(failed)
+    setOpen(failed)
+  }
   return (
     <Collapsible open={open} onOpenChange={setOpen} className={cn("border-t border-hairline", className)}>
       <CollapsibleTrigger className="flex min-h-11 w-full items-center gap-2 py-2.5 text-left text-ui underline-offset-4 hover:underline">

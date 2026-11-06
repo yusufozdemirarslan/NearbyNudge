@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from datetime import datetime, timezone
 
 import pytest
@@ -135,6 +136,29 @@ def test_copyright_entity_and_scripts():
 def test_online_booking(body, booking):
     home = make_page("https://s.example/", long_text() + body)
     assert site_check(home, []).online_booking is booking
+
+
+@pytest.mark.parametrize(
+    ("href", "booking"),
+    [
+        ("https://smile-studio.as.me/schedule.php", True),
+        ("https://app.x1.as.me/", True),
+        ("https://SMILE.AS.ME", True),
+        ("https://as.me/smile", False),
+        ("https://trueas.me/", False),
+        ("https://smile.as.media/", False),
+    ],
+)
+def test_acuity_booking_links(href, booking):
+    home = make_page("https://s.example/", long_text() + f'<a href="{href}">Pick a time</a>')
+    assert site_check(home, []).online_booking is booking
+
+
+def test_a_long_run_of_letters_doesnt_stall_the_site_check():
+    home = make_page("https://s.example/", long_text() + '<p data-x="' + "a" * 40_000 + '">x</p>')
+    started = time.perf_counter()
+    site_check(home, [])
+    assert time.perf_counter() - started < 1.0
 
 
 def test_booking_found_on_another_page():
@@ -301,6 +325,12 @@ def test_junk_addresses_are_dropped():
         ("a..b@s.example", None),
         ("donotreply@s.example", None),
         ("", None),
+        ("info@sentrypestcontrol.com", "info@sentrypestcontrol.com"),
+        ("office@sentry-dental.com", "office@sentry-dental.com"),
+        ("abc123@sentry.wixpress.com", None),
+        ("errors@o123.ingest.sentry.io", None),
+        ("hello@sentry.io", None),
+        ("8f14e45fceea167a5a36dedd4bea2543@sentry.example.com", None),
     ],
 )
 def test_clean_email(raw, clean):
@@ -349,6 +379,59 @@ def test_contact_page_saying_no_solicitations_blocks_listing_email_too():
     contact = make_page("https://s.example/contact-us", long_text() + "<p>Solicitations are not accepted.</p>", "Contact Us")
     found = find_contact(listing_emails=["info@s.example"], website="https://s.example", pages=[contact], listing_label=LISTING)
     assert found.kind == "none" and found.note == "Skipped a contact page that says no solicitations"
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "We do not accept unsolicited sales calls or emails.",
+        "Solicitations of any kind are not welcome.",
+        "No sales or marketing inquiries.",
+        "No vendor or sales calls, please.",
+        "We don’t accept solicitations.",
+        "Unsolicited sales emails will be ignored.",
+        "This form is not for solicitations or sales pitches.",
+        "Please do not use this form to solicit our services.",
+        "We are not interested in solicitations.",
+        "Not accepting solicitations at this time.",
+        "We kindly ask that vendors not solicit our staff.",
+        "We do not respond to unsolicited offers.",
+        "No unsolicited calls.",
+        "Please refrain from soliciting our staff.",
+        "No SEO, marketing, or advertising calls please.",
+    ],
+)
+def test_contact_pages_refusing_solicitations_in_other_words(sentence):
+    contact = make_page("https://s.example/contact", long_text() + f"<p>{sentence}</p><p>office@s.example</p>", "Contact")
+    found = find_contact(listing_emails=["info@s.example"], website="https://s.example", pages=[contact], listing_label=LISTING)
+    assert found.kind == "none" and found.note == "Skipped a contact page that says no solicitations"
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "We solicit feedback from patients after every visit.",
+        "This website is attorney advertising and is not a solicitation.",
+        "Nothing on this site constitutes a solicitation for legal services.",
+        "This is neither an offer to sell nor a solicitation of an offer to buy.",
+        "The information here is not intended as a solicitation and should not be construed as one.",
+        "Our office will never solicit your password or card number by email.",
+        "We never sell your information, and we do not send unsolicited email.",
+        "No appointment is needed, and afterwards we solicit your honest feedback.",
+    ],
+)
+def test_ordinary_mentions_of_solicitation_dont_block_contact(sentence):
+    contact = make_page("https://s.example/contact", long_text() + f"<p>{sentence}</p><p>office@s.example</p>", "Contact")
+    found = find_contact(listing_emails=[], website="https://s.example", pages=[contact], listing_label=LISTING)
+    assert found.kind == "email" and found.email == "office@s.example" and found.note is None
+
+
+def test_a_harvest_notice_mentioning_unsolicited_email_stays_a_harvest_notice():
+    contact = make_page("https://s.example/contact", long_text() +
+                        "<p>office@s.example</p><p>Addresses here are not to be used for unsolicited email.</p>", "Contact")
+    found = find_contact(listing_emails=["info@s.example"], website="https://s.example", pages=[contact], listing_label=LISTING)
+    assert found.source_kind == "listing" and found.email == "info@s.example"
+    assert found.note == "Skipped a page that says its email addresses are not for marketing"
 
 
 @pytest.mark.parametrize(

@@ -18,8 +18,8 @@ def _id() -> Mapped[str]:
 class User(Base):
     """A workspace: its sender profile, preferences, and (through user_id) its campaigns, leads and lists.
 
-    There's no sign-in: the app has one built-in workspace (id "default") that everyone who opens it uses.
-    Test servers can make more, one per test, through the test-only workspace switch.
+    The app has one built-in workspace (id "default"). With sign-in on, the one account works in it; without it,
+    everyone who opens the app does. Test servers can make more, one per test, through the test-only workspace switch.
     """
 
     __tablename__ = "users"
@@ -293,6 +293,21 @@ class AppSetting(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 
+class UsageEvent(Base):
+    """What counts against the monthly allowance ("lead": a lead was drafted) and the daily send cap ("send": an email
+    was marked sent). Kept by workspace id, with no link to the lead row, so deleting a campaign or all data doesn't
+    give the allowance back; undoing "sent" removes that send's row."""
+
+    __tablename__ = "usage_events"
+    __table_args__ = (Index("ix_usage_events_workspace_kind_at", "workspace_id", "kind", "created_at"),)
+    id: Mapped[str] = _id()
+    workspace_id: Mapped[str] = mapped_column(String(40))
+    kind: Mapped[str] = mapped_column(String(10))  # lead | send
+    lead_id: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
+    action_id: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)  # the "sent" action, for undo
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class AuditVerdict(Base):
     __tablename__ = "audit_verdicts"
     id: Mapped[str] = _id()
@@ -300,3 +315,15 @@ class AuditVerdict(Base):
     reviewer_id: Mapped[str] = mapped_column(String(40))
     verdict: Mapped[str] = mapped_column(String(20))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class LoginAttempt(Base):
+    """A sign-in attempt, kept for a day so repeated wrong passwords slow down on every server instance alike.
+    `client` is a keyed hash of the address the attempt came from, never the address itself."""
+
+    __tablename__ = "login_attempts"
+    __table_args__ = (Index("ix_login_attempts_client_at", "client", "created_at"),)
+    id: Mapped[str] = _id()
+    client: Mapped[str] = mapped_column(String(64))
+    ok: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
