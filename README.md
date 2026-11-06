@@ -2,13 +2,15 @@
 
 Find nearby businesses, learn what they need, and see the email worth sending, with one AI (Claude Sonnet 5.5) plus free open data and tools.
 
+> NearbyNudge 2.0 rebuilds the original NearbyNudge, the capstone for **MKTG 6290 – AI in Marketing** at the George Washington University (Team 3: Filippos Patsis, Yusuf Arslan and Rutendo Chinyku), which ran on n8n, Apify, Claude and Gmail. That version is kept at the [`v1.0` tag](https://github.com/yusufozdemirarslan/NearbyNudge/tree/v1.0).
+
 **Online:** https://nearbynudge-pearl.vercel.app (sign in with the account's email and password; see [Hosted on Vercel](#hosted-on-vercel)).
 
 You enter **where** you sell, **who** you sell to and **what** you offer. NearbyNudge finds matching businesses in free open listings (Overture Maps), visits each business's own website politely, records facts with an exact quote and a link to the page, picks the reason to reach out, writes a short email, has an AI editor check every claim against its source, and puts it all on a review desk. NearbyNudge never sends email: you copy it or open it in your own email app, then mark it sent.
 
 ## Quick start (Windows)
 
-1. Put your Anthropic API key in `.env` at the project root (already done on this machine):
+1. Put your Anthropic API key in `.env` at the project root:
    ```
    ANTHROPIC_API_KEY=sk-ant-...
    AI_MODEL=claude-sonnet-5-5
